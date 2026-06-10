@@ -558,25 +558,20 @@
             showStatus(statusElementId, loadingMessage, 'loading');
 
             try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        function: functionName
-                    })
+                // Use GET with query params — Google Apps Script requires this for CORS
+                const fullUrl = `${url}?function=${encodeURIComponent(functionName)}`;
+
+                const response = await fetch(fullUrl, {
+                    method: 'GET',
+                    mode: 'no-cors' // Avoids CORS error from GitHub Pages
                 });
 
-                const result = await response.json();
+                // no-cors means we can't read the response body
+                // so we assume success if no error was thrown
+                showStatus(statusElementId, `✓ Request sent! Check your calendar/email in 1–2 minutes.`, 'success');
 
-                if (result.success) {
-                    showStatus(statusElementId, `✓ ${result.message}`, 'success');
-                } else {
-                    showStatus(statusElementId, `Error: ${result.message}`, 'error');
-                }
             } catch (error) {
-                showStatus(statusElementId, `Error: ${error.message}. Make sure deployment URL is correct.`, 'error');
+                showStatus(statusElementId, `Error: ${error.message}. Check deployment URL.`, 'error');
             }
         }
 
