@@ -12,7 +12,7 @@
     <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect fill='%231a73e8' width='192' height='192'/%3E%3Ctext x='96' y='128' font-size='120' fill='white' text-anchor='middle'%3E✈%3C/text%3E%3C/svg%3E">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-
+ 
         html, body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #f0f4f8;
@@ -20,14 +20,14 @@
             -webkit-user-select: none;
             user-select: none;
         }
-
+ 
         body {
             display: flex;
             flex-direction: column;
             min-height: 100vh;
             padding-bottom: 32px;
         }
-
+ 
         /* HEADER */
         .header {
             background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
@@ -36,10 +36,10 @@
             padding-top: max(20px, env(safe-area-inset-top));
             text-align: center;
         }
-
+ 
         .header h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
         .header p { font-size: 13px; opacity: 0.8; margin-top: 2px; }
-
+ 
         /* TABS */
         .tabs {
             background: white;
@@ -50,7 +50,7 @@
             z-index: 10;
             box-shadow: 0 1px 4px rgba(0,0,0,0.06);
         }
-
+ 
         .tab {
             flex: 1;
             padding: 12px 4px;
@@ -62,18 +62,18 @@
             border-bottom: 3px solid transparent;
             transition: all 0.2s;
         }
-
+ 
         .tab.active {
             color: #1a73e8;
             border-bottom-color: #1a73e8;
         }
-
+ 
         .tab-icon { font-size: 18px; display: block; margin-bottom: 2px; }
-
+ 
         /* PAGES */
         .page { display: none; padding: 16px; max-width: 500px; margin: 0 auto; width: 100%; }
         .page.active { display: block; }
-
+ 
         /* CARDS */
         .card {
             background: white;
@@ -82,7 +82,7 @@
             margin-bottom: 12px;
             box-shadow: 0 1px 4px rgba(0,0,0,0.06);
         }
-
+ 
         .card-title {
             font-size: 13px;
             font-weight: 600;
@@ -91,7 +91,7 @@
             letter-spacing: 0.5px;
             margin-bottom: 12px;
         }
-
+ 
         /* NEXT FLIGHT HERO */
         .next-flight-hero {
             background: linear-gradient(135deg, #1a73e8, #0d47a1);
@@ -102,7 +102,7 @@
             position: relative;
             overflow: hidden;
         }
-
+ 
         .next-flight-hero::before {
             content: '✈';
             position: absolute;
@@ -112,7 +112,7 @@
             font-size: 100px;
             opacity: 0.08;
         }
-
+ 
         .nf-countdown {
             font-size: 12px;
             font-weight: 600;
@@ -121,34 +121,34 @@
             letter-spacing: 0.5px;
             margin-bottom: 6px;
         }
-
+ 
         .nf-countdown span {
             background: rgba(255,255,255,0.2);
             padding: 2px 8px;
             border-radius: 20px;
             margin-left: 4px;
         }
-
+ 
         .nf-route {
             display: flex;
             align-items: center;
             gap: 10px;
             margin: 10px 0;
         }
-
+ 
         .nf-airport {
             font-size: 32px;
             font-weight: 700;
             letter-spacing: -1px;
         }
-
+ 
         .nf-arrow {
             font-size: 20px;
             opacity: 0.7;
             flex: 1;
             text-align: center;
         }
-
+ 
         .nf-details {
             display: flex;
             gap: 16px;
@@ -156,11 +156,11 @@
             font-size: 12px;
             opacity: 0.85;
         }
-
+ 
         .nf-detail { display: flex; flex-direction: column; gap: 2px; }
         .nf-detail-label { opacity: 0.7; font-size: 11px; }
         .nf-detail-value { font-weight: 600; }
-
+ 
         /* UPCOMING LIST */
         .flight-item {
             display: flex;
@@ -169,9 +169,9 @@
             border-bottom: 1px solid #f0f0f0;
             gap: 12px;
         }
-
+ 
         .flight-item:last-child { border-bottom: none; }
-
+ 
         .flight-dot {
             width: 36px;
             height: 36px;
@@ -183,11 +183,11 @@
             font-size: 16px;
             flex-shrink: 0;
         }
-
+ 
         .flight-info { flex: 1; }
         .flight-route { font-size: 14px; font-weight: 600; }
         .flight-meta { font-size: 12px; color: #999; margin-top: 2px; }
-
+ 
         .flight-days {
             font-size: 12px;
             font-weight: 700;
@@ -195,38 +195,38 @@
             text-align: right;
             flex-shrink: 0;
         }
-
+ 
         /* STAT GRIDS */
         .stat-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .stat-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-
+ 
         .stat-tile {
             background: #f8f9ff;
             border-radius: 12px;
             padding: 12px 10px;
             text-align: center;
         }
-
+ 
         .stat-tile-value {
             font-size: 22px;
             font-weight: 700;
             color: #1a73e8;
             line-height: 1;
         }
-
+ 
         .stat-tile-label {
             font-size: 11px;
             color: #999;
             margin-top: 4px;
             line-height: 1.3;
         }
-
+ 
         .stat-tile.highlight { background: #e8f0fe; }
         .stat-tile.green { background: #e6f4ea; }
         .stat-tile.green .stat-tile-value { color: #137333; }
         .stat-tile.orange { background: #fff3e0; }
         .stat-tile.orange .stat-tile-value { color: #e65100; }
-
+ 
         /* PROGRESS BAR */
         .progress-wrap { margin-top: 12px; }
         .progress-label {
@@ -248,7 +248,7 @@
             border-radius: 4px;
             transition: width 0.6s ease;
         }
-
+ 
         /* ALL TIME HIGHLIGHT */
         .alltime-big {
             text-align: center;
@@ -265,9 +265,9 @@
             color: #999;
             margin-top: 4px;
         }
-
+ 
         .divider { height: 1px; background: #f0f0f0; margin: 12px 0; }
-
+ 
         /* BUTTONS */
         .btn {
             width: 100%;
@@ -290,7 +290,7 @@
         .btn-secondary { background: #f0f0f0; color: #202124; }
         .btn-secondary:active { background: #e0e0e0; }
         .btn-green { background: #34a853; color: white; }
-
+ 
         /* STATUS */
         .status {
             padding: 12px;
@@ -304,7 +304,7 @@
         .status.success { background: #e6f4ea; color: #137333; border-left: 3px solid #34a853; }
         .status.error { background: #fce8e6; color: #b3261e; border-left: 3px solid #d33b27; }
         .status.loading { background: #e8f0fe; color: #1a73e8; border-left: 3px solid #1a73e8; }
-
+ 
         /* CONFIG */
         .config-input {
             width: 100%;
@@ -316,7 +316,7 @@
             margin-bottom: 8px;
             background: #f8f9fa;
         }
-
+ 
         /* LOADING STATE */
         .skeleton {
             background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
@@ -326,19 +326,19 @@
             height: 20px;
             margin-bottom: 8px;
         }
-
+ 
         @keyframes shimmer {
             0% { background-position: -200% 0; }
             100% { background-position: 200% 0; }
         }
-
+ 
         .no-flights {
             text-align: center;
             padding: 24px;
             color: #999;
             font-size: 14px;
         }
-
+ 
         .refresh-btn {
             font-size: 12px;
             color: #1a73e8;
@@ -351,7 +351,7 @@
             min-width: 0;
             flex: 0;
         }
-
+ 
         .section-header {
             display: flex;
             align-items: center;
@@ -361,12 +361,12 @@
     </style>
 </head>
 <body>
-
+ 
 <div class="header">
     <h1>✈️ Flight Control</h1>
     <p id="header-sub">Loading your schedule...</p>
 </div>
-
+ 
 <div class="tabs">
     <div class="tab active" onclick="switchTab('flights')">
         <span class="tab-icon">🗓️</span>Flights
@@ -381,10 +381,10 @@
         <span class="tab-icon">⚙️</span>Controls
     </div>
 </div>
-
+ 
 <!-- FLIGHTS TAB -->
 <div class="page active" id="page-flights">
-
+ 
     <div id="next-flight-container">
         <div class="next-flight-hero">
             <div class="skeleton" style="width:120px;height:14px;background:rgba(255,255,255,0.2)"></div>
@@ -392,7 +392,7 @@
             <div class="skeleton" style="width:160px;height:14px;margin-top:12px;background:rgba(255,255,255,0.2)"></div>
         </div>
     </div>
-
+ 
     <div class="card">
         <div class="section-header">
             <div class="card-title">Upcoming Flights</div>
@@ -405,7 +405,7 @@
         </div>
     </div>
 </div>
-
+ 
 <!-- MONTH TAB -->
 <div class="page" id="page-month">
     <div class="card">
@@ -425,7 +425,7 @@
             </div>
         </div>
     </div>
-
+ 
     <div class="card">
         <div class="card-title">Remaining This Month</div>
         <div class="stat-grid-2" id="month-remaining">
@@ -433,7 +433,7 @@
             <div class="stat-tile skeleton" style="height:70px"></div>
         </div>
     </div>
-
+ 
     <div class="card">
         <div class="card-title">Duty Types</div>
         <div class="stat-grid-3" id="month-duty">
@@ -443,7 +443,7 @@
         </div>
     </div>
 </div>
-
+ 
 <!-- ALL TIME TAB -->
 <div class="page" id="page-alltime">
     <div class="card">
@@ -459,7 +459,7 @@
             <div class="stat-tile skeleton" style="height:70px"></div>
         </div>
     </div>
-
+ 
     <div class="card">
         <div class="card-title">This Year</div>
         <div class="stat-grid-2" id="year-stats">
@@ -468,7 +468,7 @@
         </div>
     </div>
 </div>
-
+ 
 <!-- CONTROLS TAB -->
 <div class="page" id="page-controls">
     <div class="card">
@@ -476,14 +476,14 @@
         <button class="btn btn-primary" onclick="syncCalendar()">🔄 Run Sync Now</button>
         <div id="sync-status" class="status"></div>
     </div>
-
+ 
     <div class="card">
         <div class="card-title">Monthly Dashboard</div>
         <button class="btn btn-primary" onclick="generateDashboard()">📊 Generate Current Month</button>
         <button class="btn btn-secondary" onclick="generatePreviousDashboard()">📅 Previous Month</button>
         <div id="dashboard-status" class="status"></div>
     </div>
-
+ 
     <div class="card">
         <div class="card-title">Configuration</div>
         <label style="font-size:12px;color:#666;display:block;margin-bottom:6px;">Apps Script Deployment URL</label>
@@ -492,18 +492,18 @@
         <div id="config-status" class="status"></div>
     </div>
 </div>
-
+ 
 <script>
     // ===== STATE =====
     let statsData = null;
     let statsLoaded = false;
-
+ 
     // ===== INIT =====
     document.addEventListener('DOMContentLoaded', () => {
         loadConfig();
         loadStats();
     });
-
+ 
     // ===== TABS =====
     function switchTab(name) {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -511,8 +511,8 @@
         event.currentTarget.classList.add('active');
         document.getElementById('page-' + name).classList.add('active');
     }
-
-
+ 
+ 
     // ===== LOAD STATS (JSONP - bypasses CORS) =====
     function loadStats() {
         const url = localStorage.getItem('deploymentUrl');
@@ -520,11 +520,11 @@
             renderNoConfig();
             return;
         }
-
+ 
         // Remove old script tag if exists
         const old = document.getElementById('jsonp-loader');
         if (old) old.remove();
-
+ 
         // Set global callback for JSONP
         window.handleFlightStats = function(data) {
             if (data.success) {
@@ -534,20 +534,20 @@
                 renderError(data.message);
             }
         };
-
+ 
         // JSONP: inject a <script> tag — bypasses CORS completely
         const script = document.createElement('script');
         script.id = 'jsonp-loader';
         script.src = `${url}?function=getFlightStats&callback=handleFlightStats`;
         script.onerror = () => renderError('Could not reach deployment URL. Check configuration.');
         document.body.appendChild(script);
-
+ 
         // Timeout fallback
         setTimeout(() => {
             if (!statsData) renderError('Request timed out. Check your deployment URL.');
         }, 15000);
     }
-
+ 
     // ===== RENDER =====
     function renderAll(data) {
         renderNextFlight(data.upcoming);
@@ -556,7 +556,7 @@
         renderAllTime(data.allTime, data.year);
         document.getElementById('header-sub').textContent = 'Updated just now';
     }
-
+ 
     function renderNextFlight(upcoming) {
         const container = document.getElementById('next-flight-container');
         if (!upcoming || upcoming.length === 0) {
@@ -567,10 +567,10 @@
             </div>`;
             return;
         }
-
+ 
         const f = upcoming[0];
         const daysLabel = f.daysUntil === 0 ? 'Today!' : f.daysUntil === 1 ? 'Tomorrow!' : `In ${f.daysUntil} days`;
-
+ 
         container.innerHTML = `<div class="next-flight-hero">
             <div class="nf-countdown">Next Flight <span>${daysLabel}</span></div>
             <div class="nf-route">
@@ -598,20 +598,20 @@
             </div>
         </div>`;
     }
-
+ 
     function renderUpcomingList(upcoming) {
         const container = document.getElementById('upcoming-list');
         if (!upcoming || upcoming.length === 0) {
             container.innerHTML = `<div class="no-flights">No flights in the next 60 days</div>`;
             return;
         }
-
+ 
         const skip = upcoming.slice(1); // skip first (shown in hero)
         if (skip.length === 0) {
             container.innerHTML = `<div class="no-flights" style="padding:12px">Only one flight scheduled</div>`;
             return;
         }
-
+ 
         container.innerHTML = skip.map(f => `
             <div class="flight-item">
                 <div class="flight-dot">✈️</div>
@@ -623,10 +623,10 @@
             </div>
         `).join('');
     }
-
+ 
     function renderMonth(m) {
         const pct = Math.round(((m.daysInMonth - m.daysLeft) / m.daysInMonth) * 100);
-
+ 
         document.getElementById('month-stats-top').innerHTML = `
             <div class="stat-tile highlight">
                 <div class="stat-tile-value">${m.flights}</div>
@@ -641,11 +641,11 @@
                 <div class="stat-tile-label">Days away</div>
             </div>
         `;
-
+ 
         document.getElementById('month-progress').style.display = 'block';
         document.getElementById('progress-pct').textContent = `${pct}% through month`;
         document.getElementById('progress-fill').style.width = `${pct}%`;
-
+ 
         document.getElementById('month-remaining').innerHTML = `
             <div class="stat-tile green">
                 <div class="stat-tile-value">${m.flightsRemaining}</div>
@@ -656,7 +656,7 @@
                 <div class="stat-tile-label">Days left in month</div>
             </div>
         `;
-
+ 
         document.getElementById('month-duty').innerHTML = `
             <div class="stat-tile">
                 <div class="stat-tile-value">${m.flights}</div>
@@ -672,13 +672,13 @@
             </div>
         `;
     }
-
+ 
     function renderAllTime(at, yr) {
         document.getElementById('alltime-total').innerHTML = `
             <div class="alltime-number">${at.flights}</div>
             <div class="alltime-label">Total flights since Aug 2022</div>
         `;
-
+ 
         document.getElementById('alltime-grid').innerHTML = `
             <div class="stat-tile highlight">
                 <div class="stat-tile-value">${at.hours}h</div>
@@ -697,7 +697,7 @@
                 <div class="stat-tile-label">Top route (${at.topRouteCount}x)</div>
             </div>
         `;
-
+ 
         document.getElementById('year-stats').innerHTML = `
             <div class="stat-tile highlight">
                 <div class="stat-tile-value">${yr.flights}</div>
@@ -709,7 +709,7 @@
             </div>
         `;
     }
-
+ 
     function renderNoConfig() {
         document.getElementById('header-sub').textContent = 'Configure deployment URL first';
         document.getElementById('next-flight-container').innerHTML = `
@@ -718,38 +718,38 @@
                 <div style="font-size:13px;opacity:0.8;margin-top:8px;">Go to Controls tab → add your deployment URL</div>
             </div>`;
     }
-
+ 
     function renderError(msg) {
         document.getElementById('header-sub').textContent = 'Could not load data';
         document.getElementById('upcoming-list').innerHTML = `<div class="no-flights">${msg}</div>`;
     }
-
+ 
     // ===== CONTROLS =====
     function syncCalendar() {
         callFunction('syncWorkToJointCalendar', 'sync-status', '🔄 Syncing calendar...');
     }
-
+ 
     function generateDashboard() {
         callFunction('generateMonthlyDashboard', 'dashboard-status', '📊 Generating dashboard...');
     }
-
+ 
     function generatePreviousDashboard() {
         callFunction('generatePreviousMonthDashboard', 'dashboard-status', '📅 Generating previous month...');
     }
-
+ 
     function callFunction(functionName, statusId, loadingMsg) {
         const url = localStorage.getItem('deploymentUrl');
         if (!url) {
             showStatus(statusId, 'Please configure the deployment URL first', 'error');
             return;
         }
-
+ 
         showStatus(statusId, loadingMsg, 'loading');
-
+ 
         const fullUrl = `${url}?function=${encodeURIComponent(functionName)}`;
         const old = document.getElementById('script-runner');
         if (old) old.remove();
-
+ 
         const iframe = document.createElement('iframe');
         iframe.id = 'script-runner';
         iframe.style.display = 'none';
@@ -762,7 +762,7 @@
         };
         document.body.appendChild(iframe);
     }
-
+ 
     // ===== CONFIG =====
     function saveConfig() {
         const url = document.getElementById('deployment-url').value.trim();
@@ -774,12 +774,12 @@
         showStatus('config-status', '✓ Saved! Loading stats...', 'success');
         setTimeout(() => loadStats(), 500);
     }
-
+ 
     function loadConfig() {
         const url = localStorage.getItem('deploymentUrl');
         if (url) document.getElementById('deployment-url').value = url;
     }
-
+ 
     // ===== HELPERS =====
     function showStatus(id, msg, type) {
         const el = document.getElementById(id);
