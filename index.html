@@ -526,55 +526,60 @@
         }
 
         // Sync Function
-        async function syncCalendar() {
+        function syncCalendar() {
             const url = getDeploymentUrl();
             if (!url) return;
 
-            await callFunction('syncWorkToJointCalendar', 'sync-status', 'Calendar sync started...');
+            callFunction('syncWorkToJointCalendar', 'sync-status', 'Calendar sync started...');
             updateStats();
             localStorage.setItem('lastSync', new Date().toLocaleTimeString());
         }
 
         // Dashboard Functions
-        async function generateDashboard() {
+        function generateDashboard() {
             const url = getDeploymentUrl();
             if (!url) return;
 
-            await callFunction('generateMonthlyDashboard', 'dashboard-status', 'Generating dashboard...');
+            callFunction('generateMonthlyDashboard', 'dashboard-status', 'Generating dashboard...');
         }
 
-        async function generatePreviousDashboard() {
+        function generatePreviousDashboard() {
             const url = getDeploymentUrl();
             if (!url) return;
 
-            await callFunction('generatePreviousMonthDashboard', 'dashboard-status', 'Generating previous month dashboard...');
+            callFunction('generatePreviousMonthDashboard', 'dashboard-status', 'Generating previous month dashboard...');
         }
 
         // Call Apps Script Function
-        async function callFunction(functionName, statusElementId, loadingMessage) {
+
+        function callFunction(functionName, statusElementId, loadingMessage) {
             const url = getDeploymentUrl();
             if (!url) return;
 
             showStatus(statusElementId, loadingMessage, 'loading');
 
-            try {
-                // Use GET with query params — Google Apps Script requires this for CORS
-                const fullUrl = `${url}?function=${encodeURIComponent(functionName)}`;
+            const fullUrl = `${url}?function=${encodeURIComponent(functionName)}`;
 
-                const response = await fetch(fullUrl, {
-                    method: 'GET',
-                    mode: 'no-cors' // Avoids CORS error from GitHub Pages
-                });
+            const old = document.getElementById('script-runner');
+            if (old) old.remove();
 
-                // no-cors means we can't read the response body
-                // so we assume success if no error was thrown
+            const iframe = document.createElement('iframe');
+            iframe.id = 'script-runner';
+            iframe.style.display = 'none';
+            iframe.src = fullUrl;
+
+            iframe.onload = () => {
                 showStatus(statusElementId, `✓ Request sent! Check your calendar/email in 1–2 minutes.`, 'success');
+                localStorage.setItem('lastSync', new Date().toLocaleTimeString());
+                updateStats();
+            };
 
-            } catch (error) {
-                showStatus(statusElementId, `Error: ${error.message}. Check deployment URL.`, 'error');
-            }
+            iframe.onerror = () => {
+                showStatus(statusElementId, `Error: Could not reach deployment URL.`, 'error');
+            };
+
+            document.body.appendChild(iframe);
         }
-
         // Status Display
         function showStatus(elementId, message, type) {
             const el = document.getElementById(elementId);
