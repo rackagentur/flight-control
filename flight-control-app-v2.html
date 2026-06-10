@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#1a73e8">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Flight Control">
+    <meta name="description" content="Control your flight calendar sync and dashboard generation">
+    <title>Flight Control</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect fill='%231a73e8' width='192' height='192'/%3E%3Ctext x='96' y='128' font-size='120' font-weight='bold' fill='white' text-anchor='middle'%3E✈%3C/text%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect fill='%231a73e8' width='192' height='192'/%3E%3Ctext x='96' y='128' font-size='120' font-weight='bold' fill='white' text-anchor='middle'%3E✈%3C/text%3E%3C/svg%3E">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f8f9fa;
+            color: #202124;
+            height: 100%;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            padding-bottom: 20px;
+            padding-top: env(safe-area-inset-top);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%);
+            color: white;
+            padding: 24px 20px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding-top: max(24px, env(safe-area-inset-top));
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 20px auto;
+            padding: 0 16px;
+            flex: 1;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        .card h2 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #1a73e8;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card p {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            flex: 1;
+            min-width: 140px;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        button:active {
+            transform: scale(0.97);
+        }
+
+        .btn-primary {
+            background: #1a73e8;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #1557b0;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #202124;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #e8e8e8;
+            transform: translateY(-1px);
+        }
+
+        .btn-install {
+            background: #34a853;
+            color: white;
+            width: 100%;
+        }
+
+        .btn-install:hover:not(:disabled) {
+            background: #2d8e47;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            display: none;
+        }
+
+        .status.visible {
+            display: block;
+        }
+
+        .status.success {
+            background: #e6f4ea;
+            color: #137333;
+            border-left: 4px solid #34a853;
+        }
+
+        .status.error {
+            background: #fce8e6;
+            color: #b3261e;
+            border-left: 4px solid #d33b27;
+        }
+
+        .status.loading {
+            background: #e8f0fe;
+            color: #1a73e8;
+            border-left: 4px solid #1a73e8;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(26, 115, 232, 0.3);
+            border-top: 2px solid #1a73e8;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .stat-box {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1a73e8;
+        }
+
+        .config-section {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 12px;
+            font-size: 13px;
+        }
+
+        .config-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .config-section input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: monospace;
+        }
+
+        .info-box {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #856404;
+            margin-top: 12px;
+            line-height: 1.5;
+        }
+
+        .install-instructions {
+            background: #e6f4ea;
+            border: 1px solid #34a853;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #137333;
+            margin-top: 12px;
+            line-height: 1.6;
+        }
+
+        .install-instructions strong {
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px 16px;
+            color: #999;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+
+        .last-sync {
+            font-size: 12px;
+            color: #999;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e8e8e8;
+        }
+
+        .install-badge {
+            display: inline-block;
+            background: #34a853;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        @media (max-width: 480px) {
+            .header {
+                padding: 20px 16px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            button {
+                min-width: 120px;
+                padding: 10px 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>✈️ Flight Control</h1>
+        <p>Manage your calendar sync</p>
+    </div>
+
+    <div class="container">
+        <!-- Install Card -->
+        <div class="card" id="install-card" style="display: none;">
+            <h2>📱 Add to Home Screen</h2>
+            <div class="install-badge">RECOMMENDED</div>
+            <p>Save this app to your home screen for quick access.</p>
+            <button class="btn-install" onclick="installApp()">Install App</button>
+            <div class="install-instructions" id="install-instructions"></div>
+        </div>
+
+        <!-- Sync Card -->
+        <div class="card">
+            <h2>🔄 Calendar Sync</h2>
+            <p>Sync flights from your work calendar to your personal calendar.</p>
+            <div class="button-group">
+                <button class="btn-primary" onclick="syncCalendar()">Run Sync Now</button>
+            </div>
+            <div id="sync-status" class="status"></div>
+            <div class="last-sync" id="last-sync-time"></div>
+        </div>
+
+        <!-- Dashboard Card -->
+        <div class="card">
+            <h2>📊 Monthly Dashboard</h2>
+            <p>Generate your flight statistics and send to email.</p>
+            <div class="button-group">
+                <button class="btn-primary" onclick="generateDashboard()">Generate Current Month</button>
+                <button class="btn-secondary" onclick="generatePreviousDashboard()">Previous Month</button>
+            </div>
+            <div id="dashboard-status" class="status"></div>
+        </div>
+
+        <!-- Configuration Card -->
+        <div class="card">
+            <h2>⚙️ Configuration</h2>
+            <div class="config-section">
+                <label>Apps Script Deployment URL:</label>
+                <input type="text" id="deployment-url" placeholder="https://script.google.com/macros/d/..." value="">
+                <button class="btn-secondary" onclick="saveConfig()" style="margin-top: 8px; width: 100%;">Save Configuration</button>
+            </div>
+            <div class="info-box">
+                Need help? See setup instructions below.
+            </div>
+        </div>
+
+        <!-- Stats Card -->
+        <div class="card">
+            <h2>📈 Quick Stats</h2>
+            <div class="stats">
+                <div class="stat-box">
+                    <div class="stat-label">Last Sync</div>
+                    <div class="stat-value" id="stat-sync">—</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Status</div>
+                    <div class="stat-value" id="stat-status">Ready</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Instructions Card -->
+        <div class="card">
+            <h2>📱 How to Set Up</h2>
+            <ol style="margin-left: 16px; font-size: 13px; line-height: 1.6; color: #666;">
+                <li style="margin-bottom: 8px;">In your Apps Script project, go to <strong>Deploy → New deployment</strong></li>
+                <li style="margin-bottom: 8px;">Select type <strong>Web app</strong></li>
+                <li style="margin-bottom: 8px;">Set "Execute as" to <strong>your email</strong></li>
+                <li style="margin-bottom: 8px;">Set "Who has access" to <strong>Only myself</strong></li>
+                <li style="margin-bottom: 8px;">Click <strong>Deploy</strong></li>
+                <li style="margin-bottom: 8px;">Copy the <strong>Deployment URL</strong> from the dialog</li>
+                <li style="margin-bottom: 8px;">Paste it in the Configuration field above</li>
+                <li style="margin-bottom: 8px;">Tap the <strong>Install App</strong> button above</li>
+            </ol>
+        </div>
+
+        <!-- Alternative Install Methods -->
+        <div class="card">
+            <h2>🛠️ Manual Install Methods</h2>
+            <p style="margin-bottom: 8px;"><strong>iPhone/iPad (Safari):</strong></p>
+            <ol style="margin-left: 16px; font-size: 13px; line-height: 1.5; color: #666; margin-bottom: 12px;">
+                <li>Tap the Share button (square with arrow)</li>
+                <li>Scroll down and tap "Add to Home Screen"</li>
+                <li>Name it "Flight Control"</li>
+                <li>Tap "Add"</li>
+            </ol>
+
+            <p style="margin-bottom: 8px;"><strong>Android (Chrome):</strong></p>
+            <ol style="margin-left: 16px; font-size: 13px; line-height: 1.5; color: #666; margin-bottom: 12px;">
+                <li>Tap the menu (3 dots)</li>
+                <li>Tap "Install app" or "Add to Home Screen"</li>
+                <li>Confirm</li>
+            </ol>
+
+            <p style="margin-bottom: 8px;"><strong>Desktop (Any Browser):</strong></p>
+            <ol style="margin-left: 16px; font-size: 13px; line-height: 1.5; color: #666;">
+                <li>Bookmark this page (Ctrl/Cmd + D)</li>
+                <li>Or keep it open in a tab for quick access</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>Flight Control v2.0 • Made for you</p>
+    </div>
+
+    <script>
+        let deferredPrompt = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadConfig();
+            updateStats();
+            setupInstallButton();
+        });
+
+        // PWA Install Setup
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            showInstallCard();
+        });
+
+        window.addEventListener('appinstalled', () => {
+            deferredPrompt = null;
+            document.getElementById('install-card').style.display = 'none';
+        });
+
+        function showInstallCard() {
+            const card = document.getElementById('install-card');
+            card.style.display = 'block';
+            
+            const instructions = document.getElementById('install-instructions');
+            const ua = navigator.userAgent;
+            
+            if (/iPad|iPhone|iPod/.test(ua)) {
+                instructions.innerHTML = '<strong>iPhone/iPad:</strong> Tap the Share button (↗), scroll down, tap "Add to Home Screen"';
+            } else if (/Android/.test(ua)) {
+                instructions.innerHTML = '<strong>Android:</strong> Tap the menu button (⋮), then "Install app"';
+            }
+        }
+
+        function setupInstallButton() {
+            // Check if already installed
+            if (window.navigator.standalone === true) {
+                document.getElementById('install-card').style.display = 'none';
+            }
+            
+            // Show install card if PWA support detected
+            const ua = navigator.userAgent;
+            if (/iPad|iPhone|iPod|Android/.test(ua) && !window.navigator.standalone) {
+                showInstallCard();
+            }
+        }
+
+        async function installApp() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    showStatus('sync-status', '✓ App installed! Look for it on your home screen.', 'success');
+                }
+                deferredPrompt = null;
+            } else {
+                // Fallback for browsers without beforeinstallprompt
+                showInstallFallback();
+            }
+        }
+
+        function showInstallFallback() {
+            const ua = navigator.userAgent;
+            if (/iPad|iPhone|iPod/.test(ua)) {
+                alert('📱 Tap the Share button (↗) → Add to Home Screen');
+            } else if (/Android/.test(ua)) {
+                alert('📱 Tap the menu (⋮) → Install app');
+            } else {
+                alert('📱 Bookmark this page (Ctrl/Cmd + D) for quick access');
+            }
+        }
+
+        // Configuration Management
+        function saveConfig() {
+            const url = document.getElementById('deployment-url').value;
+            if (!url.trim()) {
+                showStatus('sync-status', 'Please enter a deployment URL', 'error');
+                return;
+            }
+            localStorage.setItem('deploymentUrl', url);
+            showStatus('sync-status', 'Configuration saved!', 'success');
+        }
+
+        function loadConfig() {
+            const url = localStorage.getItem('deploymentUrl');
+            if (url) {
+                document.getElementById('deployment-url').value = url;
+            }
+        }
+
+        function getDeploymentUrl() {
+            const url = localStorage.getItem('deploymentUrl');
+            if (!url) {
+                showStatus('sync-status', 'Please configure the deployment URL first', 'error');
+                return null;
+            }
+            return url;
+        }
+
+        // Sync Function
+        async function syncCalendar() {
+            const url = getDeploymentUrl();
+            if (!url) return;
+
+            await callFunction('syncWorkToJointCalendar', 'sync-status', 'Calendar sync started...');
+            updateStats();
+            localStorage.setItem('lastSync', new Date().toLocaleTimeString());
+        }
+
+        // Dashboard Functions
+        async function generateDashboard() {
+            const url = getDeploymentUrl();
+            if (!url) return;
+
+            await callFunction('generateMonthlyDashboard', 'dashboard-status', 'Generating dashboard...');
+        }
+
+        async function generatePreviousDashboard() {
+            const url = getDeploymentUrl();
+            if (!url) return;
+
+            await callFunction('generatePreviousMonthDashboard', 'dashboard-status', 'Generating previous month dashboard...');
+        }
+
+        // Call Apps Script Function
+        async function callFunction(functionName, statusElementId, loadingMessage) {
+            const url = getDeploymentUrl();
+            if (!url) return;
+
+            showStatus(statusElementId, loadingMessage, 'loading');
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        function: functionName
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showStatus(statusElementId, `✓ ${result.message}`, 'success');
+                } else {
+                    showStatus(statusElementId, `Error: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                showStatus(statusElementId, `Error: ${error.message}. Make sure deployment URL is correct.`, 'error');
+            }
+        }
+
+        // Status Display
+        function showStatus(elementId, message, type) {
+            const el = document.getElementById(elementId);
+            el.textContent = message;
+            el.className = `status visible ${type}`;
+        }
+
+        // Update Stats
+        function updateStats() {
+            const lastSync = localStorage.getItem('lastSync');
+            if (lastSync) {
+                document.getElementById('stat-sync').textContent = lastSync;
+            }
+        }
+    </script>
+</body>
+</html>
