@@ -7,22 +7,16 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Flight Control">
-    <meta name="description" content="Control your flight calendar sync and dashboard generation">
     <title>Flight Control</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect fill='%231a73e8' width='192' height='192'/%3E%3Ctext x='96' y='128' font-size='120' font-weight='bold' fill='white' text-anchor='middle'%3E✈%3C/text%3E%3C/svg%3E">
-    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect fill='%231a73e8' width='192' height='192'/%3E%3Ctext x='96' y='128' font-size='120' font-weight='bold' fill='white' text-anchor='middle'%3E✈%3C/text%3E%3C/svg%3E">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect fill='%231a73e8' width='192' height='192'/%3E%3Ctext x='96' y='128' font-size='120' fill='white' text-anchor='middle'%3E✈%3C/text%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect fill='%231a73e8' width='192' height='192'/%3E%3Ctext x='96' y='128' font-size='120' fill='white' text-anchor='middle'%3E✈%3C/text%3E%3C/svg%3E">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         html, body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #f8f9fa;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f4f8;
             color: #202124;
-            height: 100%;
             -webkit-user-select: none;
             user-select: none;
         }
@@ -30,570 +24,777 @@
         body {
             display: flex;
             flex-direction: column;
-            padding-bottom: 20px;
-            padding-top: env(safe-area-inset-top);
+            min-height: 100vh;
+            padding-bottom: 32px;
         }
 
+        /* HEADER */
         .header {
-            background: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%);
+            background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
             color: white;
-            padding: 24px 20px;
+            padding: 20px 20px 24px;
+            padding-top: max(20px, env(safe-area-inset-top));
             text-align: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            padding-top: max(24px, env(safe-area-inset-top));
         }
 
-        .header h1 {
-            font-size: 28px;
-            font-weight: 600;
-            margin-bottom: 4px;
+        .header h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+        .header p { font-size: 13px; opacity: 0.8; margin-top: 2px; }
+
+        /* TABS */
+        .tabs {
+            background: white;
+            display: flex;
+            border-bottom: 1px solid #e8e8e8;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
         }
 
-        .header p {
-            font-size: 14px;
-            opacity: 0.9;
-        }
-
-        .container {
-            max-width: 500px;
-            margin: 20px auto;
-            padding: 0 16px;
+        .tab {
             flex: 1;
+            padding: 12px 4px;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: #999;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
         }
 
+        .tab.active {
+            color: #1a73e8;
+            border-bottom-color: #1a73e8;
+        }
+
+        .tab-icon { font-size: 18px; display: block; margin-bottom: 2px; }
+
+        /* PAGES */
+        .page { display: none; padding: 16px; max-width: 500px; margin: 0 auto; width: 100%; }
+        .page.active { display: block; }
+
+        /* CARDS */
         .card {
             background: white;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 16px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
         }
 
-        .card h2 {
-            font-size: 16px;
+        .card-title {
+            font-size: 13px;
             font-weight: 600;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
             margin-bottom: 12px;
-            color: #1a73e8;
+        }
+
+        /* NEXT FLIGHT HERO */
+        .next-flight-hero {
+            background: linear-gradient(135deg, #1a73e8, #0d47a1);
+            color: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 12px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .next-flight-hero::before {
+            content: '✈';
+            position: absolute;
+            right: -10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 100px;
+            opacity: 0.08;
+        }
+
+        .nf-countdown {
+            font-size: 12px;
+            font-weight: 600;
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .nf-countdown span {
+            background: rgba(255,255,255,0.2);
+            padding: 2px 8px;
+            border-radius: 20px;
+            margin-left: 4px;
+        }
+
+        .nf-route {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
+            margin: 10px 0;
         }
 
-        .card p {
-            font-size: 13px;
-            color: #666;
-            margin-bottom: 12px;
-            line-height: 1.5;
+        .nf-airport {
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: -1px;
         }
 
-        .button-group {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
-        button {
+        .nf-arrow {
+            font-size: 20px;
+            opacity: 0.7;
             flex: 1;
-            min-width: 140px;
-            padding: 12px 16px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .nf-details {
+            display: flex;
+            gap: 16px;
+            margin-top: 12px;
+            font-size: 12px;
+            opacity: 0.85;
+        }
+
+        .nf-detail { display: flex; flex-direction: column; gap: 2px; }
+        .nf-detail-label { opacity: 0.7; font-size: 11px; }
+        .nf-detail-value { font-weight: 600; }
+
+        /* UPCOMING LIST */
+        .flight-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+            gap: 12px;
+        }
+
+        .flight-item:last-child { border-bottom: none; }
+
+        .flight-dot {
+            width: 36px;
+            height: 36px;
+            background: #e8f0fe;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
-            -webkit-user-select: none;
-            user-select: none;
+            font-size: 16px;
+            flex-shrink: 0;
         }
 
-        button:active {
-            transform: scale(0.97);
-        }
+        .flight-info { flex: 1; }
+        .flight-route { font-size: 14px; font-weight: 600; }
+        .flight-meta { font-size: 12px; color: #999; margin-top: 2px; }
 
-        .btn-primary {
-            background: #1a73e8;
-            color: white;
-        }
-
-        .btn-primary:hover:not(:disabled) {
-            background: #1557b0;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);
-        }
-
-        .btn-secondary {
-            background: #f0f0f0;
-            color: #202124;
-        }
-
-        .btn-secondary:hover:not(:disabled) {
-            background: #e8e8e8;
-            transform: translateY(-1px);
-        }
-
-        .btn-install {
-            background: #34a853;
-            color: white;
-            width: 100%;
-        }
-
-        .btn-install:hover:not(:disabled) {
-            background: #2d8e47;
-        }
-
-        button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        .status {
-            margin-top: 12px;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 13px;
-            display: none;
-        }
-
-        .status.visible {
-            display: block;
-        }
-
-        .status.success {
-            background: #e6f4ea;
-            color: #137333;
-            border-left: 4px solid #34a853;
-        }
-
-        .status.error {
-            background: #fce8e6;
-            color: #b3261e;
-            border-left: 4px solid #d33b27;
-        }
-
-        .status.loading {
-            background: #e8f0fe;
+        .flight-days {
+            font-size: 12px;
+            font-weight: 700;
             color: #1a73e8;
-            border-left: 4px solid #1a73e8;
+            text-align: right;
+            flex-shrink: 0;
         }
 
-        .spinner {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border: 2px solid rgba(26, 115, 232, 0.3);
-            border-top: 2px solid #1a73e8;
-            border-radius: 50%;
-            animation: spin 0.6s linear infinite;
-        }
+        /* STAT GRIDS */
+        .stat-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .stat-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-top: 12px;
-        }
-
-        .stat-box {
-            background: #f8f9fa;
-            padding: 12px;
-            border-radius: 8px;
+        .stat-tile {
+            background: #f8f9ff;
+            border-radius: 12px;
+            padding: 12px 10px;
             text-align: center;
         }
 
-        .stat-label {
-            font-size: 12px;
-            color: #999;
-            margin-bottom: 4px;
-        }
-
-        .stat-value {
-            font-size: 20px;
-            font-weight: 600;
+        .stat-tile-value {
+            font-size: 22px;
+            font-weight: 700;
             color: #1a73e8;
+            line-height: 1;
         }
 
-        .config-section {
-            background: #f8f9fa;
+        .stat-tile-label {
+            font-size: 11px;
+            color: #999;
+            margin-top: 4px;
+            line-height: 1.3;
+        }
+
+        .stat-tile.highlight { background: #e8f0fe; }
+        .stat-tile.green { background: #e6f4ea; }
+        .stat-tile.green .stat-tile-value { color: #137333; }
+        .stat-tile.orange { background: #fff3e0; }
+        .stat-tile.orange .stat-tile-value { color: #e65100; }
+
+        /* PROGRESS BAR */
+        .progress-wrap { margin-top: 12px; }
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 6px;
+        }
+        .progress-bar {
+            height: 8px;
+            background: #e8e8e8;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #1a73e8, #4285f4);
+            border-radius: 4px;
+            transition: width 0.6s ease;
+        }
+
+        /* ALL TIME HIGHLIGHT */
+        .alltime-big {
+            text-align: center;
+            padding: 8px 0;
+        }
+        .alltime-number {
+            font-size: 48px;
+            font-weight: 800;
+            color: #1a73e8;
+            line-height: 1;
+        }
+        .alltime-label {
+            font-size: 13px;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        .divider { height: 1px; background: #f0f0f0; margin: 12px 0; }
+
+        /* BUTTONS */
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn-primary { background: #1a73e8; color: white; }
+        .btn-primary:active { background: #1557b0; }
+        .btn-secondary { background: #f0f0f0; color: #202124; }
+        .btn-secondary:active { background: #e0e0e0; }
+        .btn-green { background: #34a853; color: white; }
+
+        /* STATUS */
+        .status {
             padding: 12px;
             border-radius: 8px;
-            margin-top: 12px;
             font-size: 13px;
+            margin-top: 8px;
+            display: none;
+            line-height: 1.4;
         }
+        .status.visible { display: block; }
+        .status.success { background: #e6f4ea; color: #137333; border-left: 3px solid #34a853; }
+        .status.error { background: #fce8e6; color: #b3261e; border-left: 3px solid #d33b27; }
+        .status.loading { background: #e8f0fe; color: #1a73e8; border-left: 3px solid #1a73e8; }
 
-        .config-section label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-        }
-
-        .config-section input {
+        /* CONFIG */
+        .config-input {
             width: 100%;
-            padding: 8px;
+            padding: 10px;
             border: 1px solid #dadce0;
-            border-radius: 4px;
+            border-radius: 8px;
             font-size: 13px;
             font-family: monospace;
+            margin-bottom: 8px;
+            background: #f8f9fa;
         }
 
-        .info-box {
-            background: #fff3cd;
-            border: 1px solid #ffc107;
-            padding: 12px;
+        /* LOADING STATE */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.2s infinite;
             border-radius: 8px;
-            font-size: 13px;
-            color: #856404;
-            margin-top: 12px;
-            line-height: 1.5;
-        }
-
-        .install-instructions {
-            background: #e6f4ea;
-            border: 1px solid #34a853;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 12px;
-            color: #137333;
-            margin-top: 12px;
-            line-height: 1.6;
-        }
-
-        .install-instructions strong {
-            display: block;
+            height: 20px;
             margin-bottom: 8px;
         }
 
-        .footer {
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        .no-flights {
             text-align: center;
-            padding: 20px 16px;
+            padding: 24px;
             color: #999;
+            font-size: 14px;
+        }
+
+        .refresh-btn {
             font-size: 12px;
-            margin-top: 20px;
+            color: #1a73e8;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            margin-left: 8px;
+            width: auto;
+            min-width: 0;
+            flex: 0;
         }
 
-        .last-sync {
-            font-size: 12px;
-            color: #999;
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px solid #e8e8e8;
-        }
-
-        .install-badge {
-            display: inline-block;
-            background: #34a853;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-
-        @media (max-width: 480px) {
-            .header {
-                padding: 20px 16px;
-            }
-
-            .header h1 {
-                font-size: 24px;
-            }
-
-            button {
-                min-width: 120px;
-                padding: 10px 14px;
-            }
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>✈️ Flight Control</h1>
-        <p>Manage your calendar sync</p>
+
+<div class="header">
+    <h1>✈️ Flight Control</h1>
+    <p id="header-sub">Loading your schedule...</p>
+</div>
+
+<div class="tabs">
+    <div class="tab active" onclick="switchTab('flights')">
+        <span class="tab-icon">🗓️</span>Flights
     </div>
+    <div class="tab" onclick="switchTab('month')">
+        <span class="tab-icon">📊</span>Month
+    </div>
+    <div class="tab" onclick="switchTab('alltime')">
+        <span class="tab-icon">🏆</span>All Time
+    </div>
+    <div class="tab" onclick="switchTab('controls')">
+        <span class="tab-icon">⚙️</span>Controls
+    </div>
+</div>
 
-    <div class="container">
-        <!-- Install Card -->
-        <div class="card" id="install-card" style="display: none;">
-            <h2>📱 Add to Home Screen</h2>
-            <div class="install-badge">RECOMMENDED</div>
-            <p>Save this app to your home screen for quick access.</p>
-            <button class="btn-install" onclick="installApp()">Install App</button>
-            <div class="install-instructions" id="install-instructions"></div>
-        </div>
+<!-- FLIGHTS TAB -->
+<div class="page active" id="page-flights">
 
-        <!-- Sync Card -->
-        <div class="card">
-            <h2>🔄 Calendar Sync</h2>
-            <p>Sync flights from your work calendar to your personal calendar.</p>
-            <div class="button-group">
-                <button class="btn-primary" onclick="syncCalendar()">Run Sync Now</button>
-            </div>
-            <div id="sync-status" class="status"></div>
-            <div class="last-sync" id="last-sync-time"></div>
-        </div>
-
-        <!-- Dashboard Card -->
-        <div class="card">
-            <h2>📊 Monthly Dashboard</h2>
-            <p>Generate your flight statistics and send to email.</p>
-            <div class="button-group">
-                <button class="btn-primary" onclick="generateDashboard()">Generate Current Month</button>
-                <button class="btn-secondary" onclick="generatePreviousDashboard()">Previous Month</button>
-            </div>
-            <div id="dashboard-status" class="status"></div>
-        </div>
-
-        <!-- Configuration Card -->
-        <div class="card">
-            <h2>⚙️ Configuration</h2>
-            <div class="config-section">
-                <label>Apps Script Deployment URL:</label>
-                <input type="text" id="deployment-url" placeholder="https://script.google.com/macros/d/..." value="">
-                <button class="btn-secondary" onclick="saveConfig()" style="margin-top: 8px; width: 100%;">Save Configuration</button>
-            </div>
-            <div class="info-box">
-                Need help? See setup instructions below.
-            </div>
-        </div>
-
-        <!-- Stats Card -->
-        <div class="card">
-            <h2>📈 Quick Stats</h2>
-            <div class="stats">
-                <div class="stat-box">
-                    <div class="stat-label">Last Sync</div>
-                    <div class="stat-value" id="stat-sync">—</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">Status</div>
-                    <div class="stat-value" id="stat-status">Ready</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Instructions Card -->
-        <div class="card">
-            <h2>📱 How to Set Up</h2>
-            <ol style="margin-left: 16px; font-size: 13px; line-height: 1.6; color: #666;">
-                <li style="margin-bottom: 8px;">In your Apps Script project, go to <strong>Deploy → New deployment</strong></li>
-                <li style="margin-bottom: 8px;">Select type <strong>Web app</strong></li>
-                <li style="margin-bottom: 8px;">Set "Execute as" to <strong>your email</strong></li>
-                <li style="margin-bottom: 8px;">Set "Who has access" to <strong>Only myself</strong></li>
-                <li style="margin-bottom: 8px;">Click <strong>Deploy</strong></li>
-                <li style="margin-bottom: 8px;">Copy the <strong>Deployment URL</strong> from the dialog</li>
-                <li style="margin-bottom: 8px;">Paste it in the Configuration field above</li>
-                <li style="margin-bottom: 8px;">Tap the <strong>Install App</strong> button above</li>
-            </ol>
-        </div>
-
-        <!-- Alternative Install Methods -->
-        <div class="card">
-            <h2>🛠️ Manual Install Methods</h2>
-            <p style="margin-bottom: 8px;"><strong>iPhone/iPad (Safari):</strong></p>
-            <ol style="margin-left: 16px; font-size: 13px; line-height: 1.5; color: #666; margin-bottom: 12px;">
-                <li>Tap the Share button (square with arrow)</li>
-                <li>Scroll down and tap "Add to Home Screen"</li>
-                <li>Name it "Flight Control"</li>
-                <li>Tap "Add"</li>
-            </ol>
-
-            <p style="margin-bottom: 8px;"><strong>Android (Chrome):</strong></p>
-            <ol style="margin-left: 16px; font-size: 13px; line-height: 1.5; color: #666; margin-bottom: 12px;">
-                <li>Tap the menu (3 dots)</li>
-                <li>Tap "Install app" or "Add to Home Screen"</li>
-                <li>Confirm</li>
-            </ol>
-
-            <p style="margin-bottom: 8px;"><strong>Desktop (Any Browser):</strong></p>
-            <ol style="margin-left: 16px; font-size: 13px; line-height: 1.5; color: #666;">
-                <li>Bookmark this page (Ctrl/Cmd + D)</li>
-                <li>Or keep it open in a tab for quick access</li>
-            </ol>
+    <div id="next-flight-container">
+        <div class="next-flight-hero">
+            <div class="skeleton" style="width:120px;height:14px;background:rgba(255,255,255,0.2)"></div>
+            <div class="skeleton" style="width:200px;height:40px;margin-top:8px;background:rgba(255,255,255,0.2)"></div>
+            <div class="skeleton" style="width:160px;height:14px;margin-top:12px;background:rgba(255,255,255,0.2)"></div>
         </div>
     </div>
 
-    <div class="footer">
-        <p>Flight Control v2.0 • Made for you</p>
+    <div class="card">
+        <div class="section-header">
+            <div class="card-title">Upcoming Flights</div>
+            <button class="refresh-btn" onclick="loadStats()">↻ Refresh</button>
+        </div>
+        <div id="upcoming-list">
+            <div class="skeleton"></div>
+            <div class="skeleton"></div>
+            <div class="skeleton"></div>
+        </div>
+    </div>
+</div>
+
+<!-- MONTH TAB -->
+<div class="page" id="page-month">
+    <div class="card">
+        <div class="card-title">This Month</div>
+        <div class="stat-grid-3" id="month-stats-top">
+            <div class="stat-tile skeleton" style="height:70px"></div>
+            <div class="stat-tile skeleton" style="height:70px"></div>
+            <div class="stat-tile skeleton" style="height:70px"></div>
+        </div>
+        <div class="progress-wrap" id="month-progress" style="display:none">
+            <div class="progress-label">
+                <span>Month progress</span>
+                <span id="progress-pct">—</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+            </div>
+        </div>
     </div>
 
-    <script>
-        let deferredPrompt = null;
+    <div class="card">
+        <div class="card-title">Remaining This Month</div>
+        <div class="stat-grid-2" id="month-remaining">
+            <div class="stat-tile skeleton" style="height:70px"></div>
+            <div class="stat-tile skeleton" style="height:70px"></div>
+        </div>
+    </div>
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            loadConfig();
-            updateStats();
-            setupInstallButton();
-        });
+    <div class="card">
+        <div class="card-title">Duty Types</div>
+        <div class="stat-grid-3" id="month-duty">
+            <div class="stat-tile skeleton" style="height:70px"></div>
+            <div class="stat-tile skeleton" style="height:70px"></div>
+            <div class="stat-tile skeleton" style="height:70px"></div>
+        </div>
+    </div>
+</div>
 
-        // PWA Install Setup
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            showInstallCard();
-        });
+<!-- ALL TIME TAB -->
+<div class="page" id="page-alltime">
+    <div class="card">
+        <div class="alltime-big" id="alltime-total">
+            <div class="skeleton" style="width:100px;height:60px;margin:0 auto"></div>
+            <div class="skeleton" style="width:80px;height:14px;margin:8px auto 0"></div>
+        </div>
+        <div class="divider"></div>
+        <div class="stat-grid-2" id="alltime-grid">
+            <div class="stat-tile skeleton" style="height:70px"></div>
+            <div class="stat-tile skeleton" style="height:70px"></div>
+            <div class="stat-tile skeleton" style="height:70px"></div>
+            <div class="stat-tile skeleton" style="height:70px"></div>
+        </div>
+    </div>
 
-        window.addEventListener('appinstalled', () => {
-            deferredPrompt = null;
-            document.getElementById('install-card').style.display = 'none';
-        });
+    <div class="card">
+        <div class="card-title">This Year</div>
+        <div class="stat-grid-2" id="year-stats">
+            <div class="stat-tile skeleton" style="height:70px"></div>
+            <div class="stat-tile skeleton" style="height:70px"></div>
+        </div>
+    </div>
+</div>
 
-        function showInstallCard() {
-            const card = document.getElementById('install-card');
-            card.style.display = 'block';
-            
-            const instructions = document.getElementById('install-instructions');
-            const ua = navigator.userAgent;
-            
-            if (/iPad|iPhone|iPod/.test(ua)) {
-                instructions.innerHTML = '<strong>iPhone/iPad:</strong> Tap the Share button (↗), scroll down, tap "Add to Home Screen"';
-            } else if (/Android/.test(ua)) {
-                instructions.innerHTML = '<strong>Android:</strong> Tap the menu button (⋮), then "Install app"';
-            }
+<!-- CONTROLS TAB -->
+<div class="page" id="page-controls">
+    <div class="card">
+        <div class="card-title">Calendar Sync</div>
+        <button class="btn btn-primary" onclick="syncCalendar()">🔄 Run Sync Now</button>
+        <div id="sync-status" class="status"></div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Monthly Dashboard</div>
+        <button class="btn btn-primary" onclick="generateDashboard()">📊 Generate Current Month</button>
+        <button class="btn btn-secondary" onclick="generatePreviousDashboard()">📅 Previous Month</button>
+        <div id="dashboard-status" class="status"></div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Configuration</div>
+        <label style="font-size:12px;color:#666;display:block;margin-bottom:6px;">Apps Script Deployment URL</label>
+        <input type="text" class="config-input" id="deployment-url" placeholder="https://script.google.com/macros/s/...">
+        <button class="btn btn-secondary" onclick="saveConfig()">💾 Save Configuration</button>
+        <div id="config-status" class="status"></div>
+    </div>
+</div>
+
+<script>
+    // ===== STATE =====
+    let statsData = null;
+    let statsLoaded = false;
+
+    // ===== INIT =====
+    document.addEventListener('DOMContentLoaded', () => {
+        loadConfig();
+        loadStats();
+    });
+
+    // ===== TABS =====
+    function switchTab(name) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+        document.getElementById('page-' + name).classList.add('active');
+    }
+
+    // ===== LOAD STATS =====
+    function loadStats() {
+        const url = localStorage.getItem('deploymentUrl');
+        if (!url) {
+            renderNoConfig();
+            return;
         }
 
-        function setupInstallButton() {
-            // Check if already installed
-            if (window.navigator.standalone === true) {
-                document.getElementById('install-card').style.display = 'none';
-            }
-            
-            // Show install card if PWA support detected
-            const ua = navigator.userAgent;
-            if (/iPad|iPhone|iPod|Android/.test(ua) && !window.navigator.standalone) {
-                showInstallCard();
-            }
-        }
+        const fullUrl = `${url}?function=getFlightStats`;
+        const old = document.getElementById('stats-loader');
+        if (old) old.remove();
 
-        async function installApp() {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') {
-                    showStatus('sync-status', '✓ App installed! Look for it on your home screen.', 'success');
+        const iframe = document.createElement('iframe');
+        iframe.id = 'stats-loader';
+        iframe.style.display = 'none';
+        iframe.src = fullUrl;
+
+        iframe.onload = () => {
+            // Can't read iframe content due to CORS — use message passing via Apps Script HTML output
+            // Instead we use a different approach: fetch with no-cors gives opaque response
+            // so we fetch the URL directly since it's same auth context
+            fetchStats(url);
+        };
+
+        document.body.appendChild(iframe);
+        fetchStats(url);
+    }
+
+    function fetchStats(baseUrl) {
+        fetch(`${baseUrl}?function=getFlightStats`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    statsData = data;
+                    renderAll(data);
+                } else {
+                    renderError(data.message);
                 }
-                deferredPrompt = null;
-            } else {
-                // Fallback for browsers without beforeinstallprompt
-                showInstallFallback();
-            }
+            })
+            .catch(err => {
+                // CORS fallback — show cached or error
+                renderError('Could not load stats. Make sure the deployment URL is set correctly.');
+            });
+    }
+
+    // ===== RENDER =====
+    function renderAll(data) {
+        renderNextFlight(data.upcoming);
+        renderUpcomingList(data.upcoming);
+        renderMonth(data.month);
+        renderAllTime(data.allTime, data.year);
+        document.getElementById('header-sub').textContent = 'Updated just now';
+    }
+
+    function renderNextFlight(upcoming) {
+        const container = document.getElementById('next-flight-container');
+        if (!upcoming || upcoming.length === 0) {
+            container.innerHTML = `<div class="next-flight-hero">
+                <div class="nf-countdown">Next Flight</div>
+                <div style="font-size:20px;font-weight:700;margin-top:8px;">No upcoming flights</div>
+                <div style="font-size:13px;opacity:0.7;margin-top:8px;">Nothing scheduled in the next 60 days</div>
+            </div>`;
+            return;
         }
 
-        function showInstallFallback() {
-            const ua = navigator.userAgent;
-            if (/iPad|iPhone|iPod/.test(ua)) {
-                alert('📱 Tap the Share button (↗) → Add to Home Screen');
-            } else if (/Android/.test(ua)) {
-                alert('📱 Tap the menu (⋮) → Install app');
-            } else {
-                alert('📱 Bookmark this page (Ctrl/Cmd + D) for quick access');
-            }
+        const f = upcoming[0];
+        const daysLabel = f.daysUntil === 0 ? 'Today!' : f.daysUntil === 1 ? 'Tomorrow!' : `In ${f.daysUntil} days`;
+
+        container.innerHTML = `<div class="next-flight-hero">
+            <div class="nf-countdown">Next Flight <span>${daysLabel}</span></div>
+            <div class="nf-route">
+                <div class="nf-airport">${f.origin}</div>
+                <div class="nf-arrow">✈️ ──→</div>
+                <div class="nf-airport">${f.destination}</div>
+            </div>
+            <div class="nf-details">
+                <div class="nf-detail">
+                    <span class="nf-detail-label">Flight</span>
+                    <span class="nf-detail-value">${f.flightNumber}</span>
+                </div>
+                <div class="nf-detail">
+                    <span class="nf-detail-label">Date</span>
+                    <span class="nf-detail-value">${f.date}</span>
+                </div>
+                <div class="nf-detail">
+                    <span class="nf-detail-label">Departure</span>
+                    <span class="nf-detail-value">${f.time}</span>
+                </div>
+                <div class="nf-detail">
+                    <span class="nf-detail-label">Duration</span>
+                    <span class="nf-detail-value">${f.duration}h</span>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    function renderUpcomingList(upcoming) {
+        const container = document.getElementById('upcoming-list');
+        if (!upcoming || upcoming.length === 0) {
+            container.innerHTML = `<div class="no-flights">No flights in the next 60 days</div>`;
+            return;
         }
 
-        // Configuration Management
-        function saveConfig() {
-            const url = document.getElementById('deployment-url').value;
-            if (!url.trim()) {
-                showStatus('sync-status', 'Please enter a deployment URL', 'error');
-                return;
-            }
-            localStorage.setItem('deploymentUrl', url);
-            showStatus('sync-status', 'Configuration saved!', 'success');
+        const skip = upcoming.slice(1); // skip first (shown in hero)
+        if (skip.length === 0) {
+            container.innerHTML = `<div class="no-flights" style="padding:12px">Only one flight scheduled</div>`;
+            return;
         }
 
-        function loadConfig() {
-            const url = localStorage.getItem('deploymentUrl');
-            if (url) {
-                document.getElementById('deployment-url').value = url;
-            }
+        container.innerHTML = skip.map(f => `
+            <div class="flight-item">
+                <div class="flight-dot">✈️</div>
+                <div class="flight-info">
+                    <div class="flight-route">${f.origin} → ${f.destination}</div>
+                    <div class="flight-meta">${f.flightNumber} · ${f.date} · ${f.time} · ${f.duration}h</div>
+                </div>
+                <div class="flight-days">${f.daysUntil === 0 ? 'Today' : f.daysUntil === 1 ? 'Tomorrow' : f.daysUntil + 'd'}</div>
+            </div>
+        `).join('');
+    }
+
+    function renderMonth(m) {
+        const pct = Math.round(((m.daysInMonth - m.daysLeft) / m.daysInMonth) * 100);
+
+        document.getElementById('month-stats-top').innerHTML = `
+            <div class="stat-tile highlight">
+                <div class="stat-tile-value">${m.flights}</div>
+                <div class="stat-tile-label">Flights this month</div>
+            </div>
+            <div class="stat-tile">
+                <div class="stat-tile-value">${m.hours}h</div>
+                <div class="stat-tile-label">Hours flown</div>
+            </div>
+            <div class="stat-tile">
+                <div class="stat-tile-value">${m.daysAway}</div>
+                <div class="stat-tile-label">Days away</div>
+            </div>
+        `;
+
+        document.getElementById('month-progress').style.display = 'block';
+        document.getElementById('progress-pct').textContent = `${pct}% through month`;
+        document.getElementById('progress-fill').style.width = `${pct}%`;
+
+        document.getElementById('month-remaining').innerHTML = `
+            <div class="stat-tile green">
+                <div class="stat-tile-value">${m.flightsRemaining}</div>
+                <div class="stat-tile-label">Flights remaining</div>
+            </div>
+            <div class="stat-tile">
+                <div class="stat-tile-value">${m.daysLeft}</div>
+                <div class="stat-tile-label">Days left in month</div>
+            </div>
+        `;
+
+        document.getElementById('month-duty').innerHTML = `
+            <div class="stat-tile">
+                <div class="stat-tile-value">${m.flights}</div>
+                <div class="stat-tile-label">DE Flights</div>
+            </div>
+            <div class="stat-tile orange">
+                <div class="stat-tile-value">${m.standby}</div>
+                <div class="stat-tile-label">Standby (SB)</div>
+            </div>
+            <div class="stat-tile">
+                <div class="stat-tile-value">${m.reserve}</div>
+                <div class="stat-tile-label">Reserve (RE)</div>
+            </div>
+        `;
+    }
+
+    function renderAllTime(at, yr) {
+        document.getElementById('alltime-total').innerHTML = `
+            <div class="alltime-number">${at.flights}</div>
+            <div class="alltime-label">Total flights since Aug 2022</div>
+        `;
+
+        document.getElementById('alltime-grid').innerHTML = `
+            <div class="stat-tile highlight">
+                <div class="stat-tile-value">${at.hours}h</div>
+                <div class="stat-tile-label">Hours in the air</div>
+            </div>
+            <div class="stat-tile">
+                <div class="stat-tile-value">${(at.kmFlown / 1000).toFixed(0)}k</div>
+                <div class="stat-tile-label">km flown (est.)</div>
+            </div>
+            <div class="stat-tile green">
+                <div class="stat-tile-value">${at.topDestination}</div>
+                <div class="stat-tile-label">Top destination (${at.topDestinationCount}x)</div>
+            </div>
+            <div class="stat-tile">
+                <div class="stat-tile-value" style="font-size:14px">${at.topRoute}</div>
+                <div class="stat-tile-label">Top route (${at.topRouteCount}x)</div>
+            </div>
+        `;
+
+        document.getElementById('year-stats').innerHTML = `
+            <div class="stat-tile highlight">
+                <div class="stat-tile-value">${yr.flights}</div>
+                <div class="stat-tile-label">Flights this year</div>
+            </div>
+            <div class="stat-tile">
+                <div class="stat-tile-value">${yr.hours}h</div>
+                <div class="stat-tile-label">Hours this year</div>
+            </div>
+        `;
+    }
+
+    function renderNoConfig() {
+        document.getElementById('header-sub').textContent = 'Configure deployment URL first';
+        document.getElementById('next-flight-container').innerHTML = `
+            <div class="next-flight-hero">
+                <div style="font-size:20px;font-weight:700;">Setup Required</div>
+                <div style="font-size:13px;opacity:0.8;margin-top:8px;">Go to Controls tab → add your deployment URL</div>
+            </div>`;
+    }
+
+    function renderError(msg) {
+        document.getElementById('header-sub').textContent = 'Could not load data';
+        document.getElementById('upcoming-list').innerHTML = `<div class="no-flights">${msg}</div>`;
+    }
+
+    // ===== CONTROLS =====
+    function syncCalendar() {
+        callFunction('syncWorkToJointCalendar', 'sync-status', '🔄 Syncing calendar...');
+    }
+
+    function generateDashboard() {
+        callFunction('generateMonthlyDashboard', 'dashboard-status', '📊 Generating dashboard...');
+    }
+
+    function generatePreviousDashboard() {
+        callFunction('generatePreviousMonthDashboard', 'dashboard-status', '📅 Generating previous month...');
+    }
+
+    function callFunction(functionName, statusId, loadingMsg) {
+        const url = localStorage.getItem('deploymentUrl');
+        if (!url) {
+            showStatus(statusId, 'Please configure the deployment URL first', 'error');
+            return;
         }
 
-        function getDeploymentUrl() {
-            const url = localStorage.getItem('deploymentUrl');
-            if (!url) {
-                showStatus('sync-status', 'Please configure the deployment URL first', 'error');
-                return null;
-            }
-            return url;
+        showStatus(statusId, loadingMsg, 'loading');
+
+        const fullUrl = `${url}?function=${encodeURIComponent(functionName)}`;
+        const old = document.getElementById('script-runner');
+        if (old) old.remove();
+
+        const iframe = document.createElement('iframe');
+        iframe.id = 'script-runner';
+        iframe.style.display = 'none';
+        iframe.src = fullUrl;
+        iframe.onload = () => {
+            showStatus(statusId, '✓ Request sent! Check your calendar/email in 1–2 minutes.', 'success');
+        };
+        iframe.onerror = () => {
+            showStatus(statusId, 'Error: Could not reach deployment URL.', 'error');
+        };
+        document.body.appendChild(iframe);
+    }
+
+    // ===== CONFIG =====
+    function saveConfig() {
+        const url = document.getElementById('deployment-url').value.trim();
+        if (!url) {
+            showStatus('config-status', 'Please enter a URL', 'error');
+            return;
         }
+        localStorage.setItem('deploymentUrl', url);
+        showStatus('config-status', '✓ Saved! Loading stats...', 'success');
+        setTimeout(() => loadStats(), 500);
+    }
 
-        // Sync Function
-        function syncCalendar() {
-            const url = getDeploymentUrl();
-            if (!url) return;
+    function loadConfig() {
+        const url = localStorage.getItem('deploymentUrl');
+        if (url) document.getElementById('deployment-url').value = url;
+    }
 
-            callFunction('syncWorkToJointCalendar', 'sync-status', 'Calendar sync started...');
-            updateStats();
-            localStorage.setItem('lastSync', new Date().toLocaleTimeString());
-        }
-
-        // Dashboard Functions
-        function generateDashboard() {
-            const url = getDeploymentUrl();
-            if (!url) return;
-
-            callFunction('generateMonthlyDashboard', 'dashboard-status', 'Generating dashboard...');
-        }
-
-        function generatePreviousDashboard() {
-            const url = getDeploymentUrl();
-            if (!url) return;
-
-            callFunction('generatePreviousMonthDashboard', 'dashboard-status', 'Generating previous month dashboard...');
-        }
-
-        // Call Apps Script Function
-
-        function callFunction(functionName, statusElementId, loadingMessage) {
-            const url = getDeploymentUrl();
-            if (!url) return;
-
-            showStatus(statusElementId, loadingMessage, 'loading');
-
-            const fullUrl = `${url}?function=${encodeURIComponent(functionName)}`;
-
-            const old = document.getElementById('script-runner');
-            if (old) old.remove();
-
-            const iframe = document.createElement('iframe');
-            iframe.id = 'script-runner';
-            iframe.style.display = 'none';
-            iframe.src = fullUrl;
-
-            iframe.onload = () => {
-                showStatus(statusElementId, `✓ Request sent! Check your calendar/email in 1–2 minutes.`, 'success');
-                localStorage.setItem('lastSync', new Date().toLocaleTimeString());
-                updateStats();
-            };
-
-            iframe.onerror = () => {
-                showStatus(statusElementId, `Error: Could not reach deployment URL.`, 'error');
-            };
-
-            document.body.appendChild(iframe);
-        }
-        // Status Display
-        function showStatus(elementId, message, type) {
-            const el = document.getElementById(elementId);
-            el.textContent = message;
-            el.className = `status visible ${type}`;
-        }
-
-        // Update Stats
-        function updateStats() {
-            const lastSync = localStorage.getItem('lastSync');
-            if (lastSync) {
-                document.getElementById('stat-sync').textContent = lastSync;
-            }
-        }
-    </script>
+    // ===== HELPERS =====
+    function showStatus(id, msg, type) {
+        const el = document.getElementById(id);
+        el.textContent = msg;
+        el.className = `status visible ${type}`;
+    }
+</script>
 </body>
 </html>
