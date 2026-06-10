@@ -512,7 +512,8 @@
         document.getElementById('page-' + name).classList.add('active');
     }
 
-    // ===== LOAD STATS =====
+
+    // ===== LOAD STATS (JSONP - bypasses CORS) =====
     function loadStats() {
         const url = localStorage.getItem('deploymentUrl');
         if (!url) {
@@ -520,41 +521,31 @@
             return;
         }
 
-        const fullUrl = `${url}?function=getFlightStats`;
-        const old = document.getElementById('stats-loader');
+        // Remove old script tag if exists
+        const old = document.getElementById('jsonp-loader');
         if (old) old.remove();
 
-        const iframe = document.createElement('iframe');
-        iframe.id = 'stats-loader';
-        iframe.style.display = 'none';
-        iframe.src = fullUrl;
-
-        iframe.onload = () => {
-            // Can't read iframe content due to CORS — use message passing via Apps Script HTML output
-            // Instead we use a different approach: fetch with no-cors gives opaque response
-            // so we fetch the URL directly since it's same auth context
-            fetchStats(url);
+        // Set global callback for JSONP
+        window.handleFlightStats = function(data) {
+            if (data.success) {
+                statsData = data;
+                renderAll(data);
+            } else {
+                renderError(data.message);
+            }
         };
 
-        document.body.appendChild(iframe);
-        fetchStats(url);
-    }
+        // JSONP: inject a <script> tag — bypasses CORS completely
+        const script = document.createElement('script');
+        script.id = 'jsonp-loader';
+        script.src = `${url}?function=getFlightStats&callback=handleFlightStats`;
+        script.onerror = () => renderError('Could not reach deployment URL. Check configuration.');
+        document.body.appendChild(script);
 
-    function fetchStats(baseUrl) {
-        fetch(`${baseUrl}?function=getFlightStats`)
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    statsData = data;
-                    renderAll(data);
-                } else {
-                    renderError(data.message);
-                }
-            })
-            .catch(err => {
-                // CORS fallback — show cached or error
-                renderError('Could not load stats. Make sure the deployment URL is set correctly.');
-            });
+        // Timeout fallback
+        setTimeout(() => {
+            if (!statsData) renderError('Request timed out. Check your deployment URL.');
+        }, 15000);
     }
 
     // ===== RENDER =====
