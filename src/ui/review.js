@@ -1,12 +1,14 @@
-// Design review dock: a development/review control, never production content.
+// Review mode: a development/review control, never production content.
 // Enabled per browser tab by opening the app with ?review (e.g. /?review#/today).
-// It applies an operational environment to the whole app so the atmosphere can be judged;
-// every surface it affects says "Design review · not roster data".
+// Shows FICTIONAL sample data only (HOME/AWAY, SAMPLE flights), one scenario per state.
+// While active, a banner stays at the top of every screen: SAMPLE DATA · NOT YOUR ROSTER.
+// It never reads or writes production roster storage.
 
 import { html, render } from '../lib/html.js';
 import { ENVIRONMENTS, TONES } from './environments.js';
 
 const KEY = 'fc.v2.review';
+export const REVIEW_LABEL = 'Sample data · not your roster';
 
 function readSession() {
   try { return JSON.parse(sessionStorage.getItem(KEY) ?? 'null'); } catch { return null; }
@@ -21,19 +23,21 @@ function writeSession(value) {
 function dockMarkup(review) {
   return html`
     <div class="review-dock-head">
-      <span class="t-eyebrow">Design review · not roster data</span>
+      <span class="t-eyebrow">Review mode · ${REVIEW_LABEL}</span>
       <button type="button" class="btn btn-quiet" data-review-exit>Exit review</button>
     </div>
-    <div class="chip-row" role="radiogroup" aria-label="Review environment">
-      ${ENVIRONMENTS.map((env) => html`
-        <button type="button" class="chip" role="radio" data-state="${env.state}" data-review-state="${env.state}"
-          aria-checked="${env.state === review.state ? 'true' : 'false'}"
-          tabindex="${env.state === review.state ? '0' : '-1'}">
-          <span class="chip-swatch" aria-hidden="true"></span>${env.name}
-        </button>`)}
+    <div class="chip-row" role="radiogroup" aria-label="Sample scenario">
+      ${ENVIRONMENTS.map((env) => {
+        const on = env.state === review.state;
+        return html`
+          <button type="button" class="chip" role="radio" data-state="${env.state}" data-review-state="${env.state}"
+            aria-checked="${on ? 'true' : 'false'}" tabindex="${on ? '0' : '-1'}">
+            <span class="chip-swatch" aria-hidden="true"></span>${env.name}
+          </button>`;
+      })}
     </div>
     ${review.state === 'layover' ? html`
-      <div class="segmented segmented-compact" role="radiogroup" aria-label="Layover tone">
+      <div class="segmented segmented-compact" role="radiogroup" aria-label="Layover destination tone">
         ${TONES.map((t) => html`
           <button type="button" role="radio" data-review-tone="${t.tone}"
             aria-checked="${t.tone === review.tone ? 'true' : 'false'}"
@@ -41,15 +45,25 @@ function dockMarkup(review) {
       </div>` : ''}`;
 }
 
+/** Converts the dock state into a controller mode. */
+export function reviewMode(review) {
+  return review ? { kind: 'sample', state: review.state, tone: review.tone } : { kind: 'production' };
+}
+
 /**
- * Mounts the dock if review mode is requested (?review) or already active in this tab.
- * onChange(review | null) is called whenever the reviewed environment changes or review ends.
+ * Mounts the dock and the top banner if review mode is requested (?review) or already active
+ * in this tab. onChange(review | null) is called whenever the scenario changes or review ends.
  */
-export function mountReviewDock(dock, onChange) {
+export function mountReviewDock(dock, banner, onChange) {
   const requested = new URLSearchParams(location.search).has('review');
-  let review = readSession() ?? (requested ? { state: 'unknown', tone: 'ocean' } : null);
+  const initial = { state: 'flight', tone: 'ocean' };
+  const stored = readSession();
+  let review = stored ? { ...initial, state: stored.state ?? initial.state, tone: stored.tone ?? initial.tone } : (requested ? initial : null);
+  if (review && !ENVIRONMENTS.some((e) => e.state === review.state)) review.state = initial.state;
 
   const paint = () => {
+    banner.hidden = !review;
+    document.documentElement.classList.toggle('is-review', Boolean(review));
     if (!review) { dock.hidden = true; dock.replaceChildren(); return; }
     render(dock, dockMarkup(review));
     dock.hidden = false;
@@ -57,13 +71,12 @@ export function mountReviewDock(dock, onChange) {
 
   const update = (next) => {
     const focused = dock.contains(document.activeElement) ? document.activeElement : null;
-    const group = focused?.dataset.reviewState ? 'state' : focused?.dataset.reviewTone ? 'tone' : null;
+    const attr = focused ? ['reviewState', 'reviewTone'].find((k) => k in focused.dataset) : null;
     review = next;
     writeSession(review);
     paint();
     onChange(review);
-    // Keep keyboard focus on the selected option after the dock re-renders.
-    if (group) dock.querySelector(`[data-review-${group}][aria-checked="true"]`)?.focus();
+    if (attr) dock.querySelector(`[data-${attr.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}][aria-checked="true"]`)?.focus();
   };
 
   dock.addEventListener('click', (event) => {

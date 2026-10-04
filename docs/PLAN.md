@@ -68,6 +68,7 @@ legacy/index-v1.html           preserved legacy frontend
 Files are created in the phase that first needs them (no empty stubs).
 
 **Phase 3 status (implemented):** tokens, theme engine, shell, router, store, icons, Today (UNKNOWN status + labelled environment preview), More, Controls (structure), Settings (live theme, structure), placeholders for Calendar/Flights/Map/Weather/Statistics.
+**Phase 4 status (implemented):** normalized model (`model/types.js`), v5 adapter (`sources/fc-appscript-v5.js`), sector history (`model/history.js`), roster/duties/rotations/days (`model/roster.js`), state engine (`model/state.js`), Duty Horizon model + view (`model/horizon.js`, `ui/horizon.js`), 7-day strip (`ui/week.js`), IANA time library (`lib/time.js`), merged airport table (`data/airports.js`), transport + connection test (`api/appscript.js`), data controller (`controller.js`), profile (`config/profile.js`), review samples (`sources/sample.js`), Today with real normalized data, Settings → Roster source.
 Theme colours use CSS `light-dark()` driven by `color-scheme` (single definition per token; requires iOS/Safari 17.5+, Chrome 123+, Firefox 120+).
 
 ## B. Normalized data model
@@ -101,7 +102,8 @@ OperationalState { status, confidence, provenance, headline, location?, since?, 
 |---|---|
 | `homeTz` | `Europe/Berlin` |
 | `base` | `FRA` |
-| `homeBases` | `FRA CGN DUS MUC HAM BER` |
+| `homeBases` | `FRA` (operational crew base; rotations start/end here) |
+| `noHotelAirports` | `FRA CGN DUS MUC HAM BER` (v5 "no hotel needed" list; hotel links only, never rotations) |
 | `wakeupOffsetMin` | `60` |
 | `referenceTzRow` | `true` |
 | `alarmShortcutName` | `AddAlarm` |

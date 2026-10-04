@@ -35,7 +35,7 @@ function sidebar() {
     </a>
     <nav aria-label="Primary">${groups}</nav>
     <div class="sidebar-footer">
-      <div class="status-line" role="status"><span class="status-dot" aria-hidden="true"></span>No roster source connected</div>
+      <div class="status-line" role="status" data-source-status><span class="status-dot" aria-hidden="true"></span><span data-source-text>No roster source connected</span></div>
       <div class="theme-quick">${themeControl({ compact: true, label: 'Theme' })}</div>
     </div>`;
 }
@@ -51,8 +51,23 @@ export function mountShell() {
   const tabs = document.getElementById('tabbar');
   render(side, sidebar());
   render(tabs, tabbar());
+  const statusLine = side.querySelector('[data-source-status]');
   return {
     main: document.getElementById('main'),
+    /** Sidebar data status: what the app is showing and how fresh it is. */
+    setStatus(view) {
+      let text = 'No roster source connected';
+      let kind = 'none';
+      if (view.review) { text = 'Sample data · not your roster'; kind = 'review'; }
+      else if (view.loading && !view.snapshot) { text = 'Loading roster…'; kind = 'loading'; }
+      else if (view.snapshot) {
+        const minutes = Math.max(0, Math.round((view.now - view.snapshot.source.fetchedAt) / 60000));
+        text = view.error ? 'Roster offline · showing cached' : minutes < 1 ? 'Roster updated just now' : `Roster updated ${minutes} min ago`;
+        kind = view.error ? 'stale' : 'live';
+      } else if (view.error) { text = 'Roster unavailable'; kind = 'error'; }
+      statusLine.dataset.kind = kind;
+      statusLine.querySelector('[data-source-text]').textContent = text;
+    },
     setActive(routeId) {
       const tab = activeTabFor(routeId);
       for (const link of tabs.querySelectorAll('[data-tab]')) {

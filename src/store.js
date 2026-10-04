@@ -9,7 +9,8 @@ export const SCHEMA_VERSION = 1;
 
 function backend(storage) {
   if (storage) return storage;
-  try { return globalThis.localStorage ?? null; } catch { return null; }
+  // Browser storage only (window.localStorage); other runtimes get an inert store.
+  try { return globalThis.window?.localStorage ?? null; } catch { return null; }
 }
 
 export function createStore(storage) {

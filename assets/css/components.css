@@ -91,7 +91,7 @@
   padding-top: var(--space-5);
   border-top: 0.5px solid var(--pass-rule);
 }
-.pass-field { display: grid; gap: 2px; min-width: 0; }
+.pass-field { display: grid; align-content: start; gap: 2px; min-width: 0; }
 .pass-field dt { color: var(--fg-2); }
 .pass-field dd { margin: 0; font-size: var(--text-title-2); font-weight: var(--weight-semibold); letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
 .pass-field dd { line-height: 1.2; }
@@ -375,3 +375,219 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
 @media (min-width: 768px) {
   .review-dock { left: auto; bottom: var(--space-5); right: var(--space-5); max-width: 560px; }
 }
+
+/* ==========================================================================
+   Phase 4: operational content
+   ========================================================================== */
+
+/* --- Pass: next event + live countdown ------------------------------------------- */
+.pass-lede { color: var(--fg-2); }
+.pass-next { display: grid; gap: var(--space-1); }
+.pass-next-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-1) var(--space-3); color: var(--fg-2); }
+.pass-countdown {
+  font-family: var(--font-display);
+  font-size: var(--text-title-1);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-title);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.pass-alarm {
+  color: inherit;
+  text-decoration: underline dotted color-mix(in oklab, var(--fg-1) 45%, transparent);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 5px;
+}
+.pass-alarm:hover { text-decoration-color: var(--accent); }
+.pass-shift { margin-left: 3px; font-size: var(--text-caption); font-weight: var(--weight-semibold); color: var(--accent); vertical-align: super; }
+.pass-sectors { display: grid; gap: 4px; padding: 0; margin: calc(-1 * var(--space-3)) 0 0; list-style: none; color: var(--fg-2); font-size: var(--text-caption); font-variant-numeric: tabular-nums; }
+.pass.is-loading .pass-state { color: var(--fg-2); }
+@media (min-width: 768px) {
+  .pass-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* --- Duty Horizon ---------------------------------------------------------------- */
+.horizon {
+  container-type: inline-size;
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: var(--space-2) var(--space-1) 0;
+}
+.hz-labels, .hz-track, .hz-times { position: relative; }
+.hz-labels { height: 16px; }
+.hz-track { height: 16px; }
+.hz-times { height: 32px; }
+
+.hz-phase {
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: var(--text-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.04em;
+  color: var(--fg-2);
+}
+.hz-phase.is-current { color: var(--fg-1); }
+
+.hz-span { position: absolute; top: 50%; height: 2px; transform: translateY(-50%); border-radius: 2px; }
+.hz-span.is-past { background: color-mix(in oklab, var(--fg-1) 28%, transparent); }
+.hz-span.is-upcoming { background: repeating-linear-gradient(90deg, color-mix(in oklab, var(--fg-1) 34%, transparent) 0 2px, transparent 2px 7px); }
+.hz-flight.is-upcoming, .hz-return.is-upcoming { background: color-mix(in oklab, var(--fg-1) 24%, transparent); height: 1.5px; }
+.hz-span.is-current {
+  background: var(--accent);
+  box-shadow: 0 0 14px color-mix(in oklab, var(--accent) 55%, transparent);
+}
+/* Rest is a soft band rather than a line: you are on the ground, away. */
+.hz-layover { height: 8px; border-radius: 4px; }
+.hz-layover.is-past { background: color-mix(in oklab, var(--fg-1) 12%, transparent); }
+.hz-layover.is-upcoming { background: color-mix(in oklab, var(--tint) 22%, transparent); }
+.hz-layover.is-current { background: color-mix(in oklab, var(--accent) 30%, transparent); box-shadow: none; }
+.hz-before { background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--fg-1) 22%, transparent)) !important; box-shadow: none !important; }
+.hz-recovery.is-upcoming, .hz-recovery.is-current, .hz-recovery.is-past {
+  background: linear-gradient(90deg, color-mix(in oklab, var(--accent) 45%, transparent), transparent);
+  box-shadow: none;
+}
+
+.hz-stop {
+  position: absolute;
+  top: 50%;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--st-atmos-2);
+  box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--fg-1) 45%, transparent);
+}
+.hz-stop-departure, .hz-stop-arrival { width: 9px; height: 9px; }
+.hz-stop.is-past { background: color-mix(in oklab, var(--fg-1) 45%, transparent); box-shadow: none; }
+.hz-stop.is-next { box-shadow: inset 0 0 0 2px var(--accent); }
+
+.hz-now {
+  position: absolute;
+  top: 50%;
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 22%, transparent), 0 0 22px color-mix(in oklab, var(--accent) 65%, transparent);
+  animation: hz-breathe 3.2s var(--ease-standard) infinite;
+}
+@keyframes hz-breathe {
+  0%, 100% { box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 22%, transparent), 0 0 22px color-mix(in oklab, var(--accent) 65%, transparent); }
+  50% { box-shadow: 0 0 0 7px color-mix(in oklab, var(--accent) 10%, transparent), 0 0 28px color-mix(in oklab, var(--accent) 45%, transparent); }
+}
+.horizon-upcoming .hz-span { opacity: 0.85; }
+
+.hz-time {
+  position: absolute;
+  top: 0;
+  display: grid;
+  justify-items: center;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.hz-time:first-child { transform: none; justify-items: start; }
+.hz-time:last-child { transform: translateX(-100%); justify-items: end; }
+.hz-time-label { font-size: 10px; font-weight: var(--weight-semibold); letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-2); }
+.hz-time-value { font-size: var(--text-caption); color: var(--fg-2); }
+.hz-time.is-next .hz-time-value { color: var(--fg-1); font-weight: var(--weight-semibold); }
+.hz-time.is-next .hz-time-label { color: var(--fg-1); }
+
+/* Narrow: keep the line; labels that would collide (computed in ui/horizon.js) step back. */
+@container (max-width: 600px) {
+  .hz-phase.is-minor, .hz-time.is-minor { visibility: hidden; }
+}
+
+/* --- 7-day strip ------------------------------------------------------------------ */
+.week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+/* Each day's mark uses its own state's accent; text keeps the page's ink for contrast. */
+.week-day {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: var(--space-2) 2px var(--space-3);
+  border-radius: 12px;
+  color: var(--fg-1);
+}
+.week-day.is-today { background: var(--fill-quiet); box-shadow: inset 0 0 0 0.5px var(--glass-edge); }
+.week-dow { font-size: 10px; font-weight: var(--weight-semibold); letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-2); }
+.week-date { font-size: var(--text-headline); font-weight: var(--weight-semibold); line-height: 1; }
+.week-mark { width: 18px; height: 3px; border-radius: 2px; background: color-mix(in oklab, var(--fg-1) 18%, transparent); }
+.week-day.is-flight .week-mark { background: light-dark(#3A5B7C, #94B4D2); }
+.week-day.is-layover .week-mark { background: repeating-linear-gradient(90deg, light-dark(#6A6259, #BBB1A5) 0 3px, transparent 3px 5px); }
+.week-day.is-standby .week-mark { background: light-dark(#8E6322, #D9A85C); }
+.week-day.is-reserve .week-mark { background: light-dark(#6E5F51, #C2AF9A); }
+.week-day.is-off .week-mark { background: light-dark(#85552F, #D2A273); }
+.week-day.is-unknown .week-mark { background: transparent; box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--fg-2) 60%, transparent); }
+.week-day.is-unknown.ev-duty-unspecified .week-mark { background: color-mix(in oklab, var(--fg-1) 40%, transparent); box-shadow: none; }
+.week-code { font-size: var(--text-caption); font-weight: var(--weight-semibold); letter-spacing: 0.02em; color: var(--fg-1); }
+.week-day.is-unknown .week-code { color: var(--fg-2); font-weight: var(--weight-regular); }
+.week-day.is-inferred .week-code { font-style: italic; }
+
+/* --- Intelligence extras ------------------------------------------------------------ */
+.intel-note { margin-top: var(--space-1); color: var(--fg-2); font-size: var(--text-caption); }
+.intel-notes { display: grid; gap: 4px; padding: 0; margin: var(--space-1) 0 0; list-style: none; color: var(--fg-2); font-size: var(--text-caption); }
+.intel-link { text-decoration: none; color: inherit; border-radius: 8px; }
+.intel-link:hover .intel-label { color: var(--accent); }
+.intel-wrap { white-space: normal; text-align: right; }
+.intel-clock { font-variant-numeric: tabular-nums; }
+
+/* --- Roster source form ---------------------------------------------------------------- */
+.source-form { display: grid; gap: var(--space-3); padding: 0 var(--space-4) var(--space-4); }
+.field-input {
+  width: 100%;
+  min-height: var(--touch-min);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-control);
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+  color: var(--fg-1);
+  font-size: 15px;
+}
+.field-input::placeholder { color: var(--fg-2); }
+.field-input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.source-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.source-result:empty { display: none; }
+.source-result { display: grid; gap: var(--space-1); }
+.source-verdict { font-weight: var(--weight-semibold); }
+.source-verdict.is-ok { color: var(--positive); }
+.source-verdict.is-error { color: var(--critical); }
+.source-checks { display: grid; gap: 2px; padding: 0; margin: 0; list-style: none; color: var(--fg-2); font-size: var(--text-caption); }
+
+/* --- Sidebar status ---------------------------------------------------------------------- */
+.status-line[data-kind="live"] .status-dot { border: 0; background: var(--positive); }
+.status-line[data-kind="stale"] .status-dot { border: 0; background: var(--caution); }
+.status-line[data-kind="error"] .status-dot { border: 0; background: var(--critical); }
+.status-line[data-kind="review"] .status-dot { border-color: var(--accent); }
+
+/* --- Review banner: impossible to miss, impossible to confuse with roster data ------- */
+.review-banner {
+  position: fixed;
+  z-index: 40;
+  top: calc(env(safe-area-inset-top) + var(--space-2));
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100vw - 2 * var(--space-4));
+  padding: 6px var(--space-4);
+  border-radius: var(--radius-pill);
+  background: light-dark(#F3E3C4, #3A2C14);
+  color: light-dark(#5A3A0A, #F2D9A8);
+  box-shadow: inset 0 0 0 1px light-dark(#C99A4A, #8A6524), var(--shadow-float);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+}
+.review-banner[hidden] { display: none; }
+.is-review .main { padding-top: calc(env(safe-area-inset-top) + var(--space-8) + var(--space-3)); }
+@media (min-width: 1200px) { .is-review .main { padding-top: calc(var(--space-8) + var(--space-3)); } }
