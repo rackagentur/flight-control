@@ -56,6 +56,11 @@ export function buildDuties(sectors, profile) {
   });
 }
 
+/** The source-stated layover window covering a ground gap at `airport`, if any. */
+export function statedLayover(windows, airport, from, to) {
+  return windows.find((w) => w.kind === 'layover' && (!w.label || w.label === airport) && w.start < to && w.end > from) ?? null;
+}
+
 /**
  * Rotations start at a duty departing a home base (or the first known duty) and close when a
  * duty ends at a home base. Consecutive duties linked through the same outstation produce a
@@ -80,8 +85,7 @@ export function buildRotations(duties, profile, windows = []) {
     // Same outstation but too long apart: not a plausible layover, so not inferred and not connected.
     const tz = prev?.sectors.at(-1).destTz ?? profile.homeTz;
     // An explicit roster layover covering the gap is never capped.
-    const stated = prev && windows.some((w) => w.kind === 'layover' && (!w.label || w.label === at)
-      && w.start < duty.sectors[0].dep && w.end > prev.end);
+    const stated = prev && Boolean(statedLayover(windows, at, prev.end, duty.sectors[0].dep));
     const tooLong = rotation && !rotation.closed && !mismatch && !home.has(at) && !stated
       && layoverCalendarDays(prev.end, duty.sectors[0].dep, tz) > MAX_INFERRED_LAYOVER_DAYS;
     if (tooLong) {

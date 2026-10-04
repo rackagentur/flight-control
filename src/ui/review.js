@@ -6,6 +6,7 @@
 
 import { html, render } from '../lib/html.js';
 import { ENVIRONMENTS, TONES } from './environments.js';
+import { SAMPLE_VARIANTS } from '../sources/sample.js';
 
 const KEY = 'fc.v2.review';
 
@@ -20,6 +21,17 @@ export const CALENDAR_SCENARIOS = [
   { label: 'Explicit OFF', offset: 16 },
   { label: 'UNKNOWN day', offset: 2 },
   { label: 'No data', offset: 27 },
+];
+/**
+ * Flights scenarios: a state scenario plus an optional sample variant (sources/sample.js).
+ * `pick` names which sector the detail opens on.
+ */
+export const FLIGHTS_SCENARIOS = [
+  { label: 'Long-haul rotation', state: 'off', variant: null, tone: 'ocean', pick: 'next' },
+  { label: 'Multi-sector day', state: 'off', variant: 'multi', pick: 'next' },
+  { label: 'Away from base', state: 'layover', variant: null, tone: 'ocean', pick: 'stay' },
+  { label: 'Incomplete data', state: 'off', variant: 'incomplete', pick: 'next' },
+  { label: 'Seen on this device', state: 'off', variant: 'history', pick: 'recent' },
 ];
 export const REVIEW_LABEL = 'Sample data · not your roster';
 
@@ -52,6 +64,9 @@ function dockMarkup(review) {
     <div class="chip-row" role="group" aria-label="Calendar scenarios">
       ${CALENDAR_SCENARIOS.map((c) => html`<button type="button" class="chip" data-review-calendar="${c.offset ?? ''}">${c.label}</button>`)}
     </div>
+    <div class="chip-row" role="group" aria-label="Flights scenarios">
+      ${FLIGHTS_SCENARIOS.map((f, i) => html`<button type="button" class="chip" data-review-flights="${i}" aria-pressed="${review.variant === f.variant && review.state === f.state ? 'true' : 'false'}">${f.label}</button>`)}
+    </div>
     ${review.state === 'layover' ? html`
       <div class="segmented segmented-compact" role="radiogroup" aria-label="Layover destination tone">
         ${TONES.map((t) => html`
@@ -63,18 +78,19 @@ function dockMarkup(review) {
 
 /** Converts the dock state into a controller mode. */
 export function reviewMode(review) {
-  return review ? { kind: 'sample', state: review.state, tone: review.tone } : { kind: 'production' };
+  return review ? { kind: 'sample', state: review.state, tone: review.tone, variant: review.variant ?? null } : { kind: 'production' };
 }
 
 /**
  * Mounts the dock and the top banner if review mode is requested (?review) or already active
  * in this tab. onChange(review | null) is called whenever the scenario changes or review ends.
  */
-export function mountReviewDock(dock, banner, onChange, onCalendarScenario = () => {}) {
+export function mountReviewDock(dock, banner, onChange, onCalendarScenario = () => {}, onFlightsScenario = () => {}) {
   const requested = new URLSearchParams(location.search).has('review');
   const initial = { state: 'flight', tone: 'ocean' };
   const stored = readSession();
-  let review = stored ? { ...initial, state: stored.state ?? initial.state, tone: stored.tone ?? initial.tone } : (requested ? initial : null);
+  let review = stored ? { ...initial, state: stored.state ?? initial.state, tone: stored.tone ?? initial.tone, variant: stored.variant ?? null } : (requested ? initial : null);
+  if (review && review.variant && !SAMPLE_VARIANTS.includes(review.variant)) review.variant = null;
   if (review && !ENVIRONMENTS.some((e) => e.state === review.state)) review.state = initial.state;
 
   const paint = () => {
@@ -97,9 +113,20 @@ export function mountReviewDock(dock, banner, onChange, onCalendarScenario = () 
 
   dock.addEventListener('click', (event) => {
     const state = event.target.closest('[data-review-state]');
-    if (state) { update({ ...review, state: state.dataset.reviewState }); return; }
+    if (state) { update({ ...review, state: state.dataset.reviewState, variant: null }); return; }
     const scenario = event.target.closest('[data-review-calendar]');
-    if (scenario) { onCalendarScenario(scenario.dataset.reviewCalendar === '' ? null : Number(scenario.dataset.reviewCalendar)); return; }
+    if (scenario) {
+      if (review.variant) update({ ...review, variant: null });
+      onCalendarScenario(scenario.dataset.reviewCalendar === '' ? null : Number(scenario.dataset.reviewCalendar));
+      return;
+    }
+    const flights = event.target.closest('[data-review-flights]');
+    if (flights) {
+      const f = FLIGHTS_SCENARIOS[Number(flights.dataset.reviewFlights)];
+      update({ ...review, state: f.state, tone: f.tone ?? review.tone, variant: f.variant });
+      onFlightsScenario(f);
+      return;
+    }
     const tone = event.target.closest('[data-review-tone]');
     if (tone) { update({ ...review, tone: tone.dataset.reviewTone }); return; }
     if (event.target.closest('[data-review-exit]')) {

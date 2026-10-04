@@ -67,7 +67,7 @@ export function createController({ profile, onChange }) {
       if (gen !== generation) return;
       const fetchedAt = Date.now();
       const fresh = adaptV5(data, { profile, fetchedAt, kind: 'live' });
-      const history = rememberSectors(store.getJSON(HISTORY_KEY, []), fresh, fetchedAt);
+      const history = rememberSectors(store.getJSON(HISTORY_KEY, []), fresh, fetchedAt, profile.homeTz);
       store.setJSON(HISTORY_KEY, history);
       store.setJSON(CACHE_KEY, { payload: data, fetchedAt });
       snapshot = withHistory(fresh, history, fetchedAt);
@@ -89,7 +89,7 @@ export function createController({ profile, onChange }) {
       error = null;
       snapshot = null;
       if (mode.kind === 'sample') {
-        snapshot = sampleSnapshot(mode.state, mode.tone, now(), sampleProfile(profile));
+        snapshot = sampleSnapshot(mode.state, mode.tone, now(), sampleProfile(profile), mode.variant ?? null);
         loading = false;
         emit();
       } else {
@@ -98,7 +98,7 @@ export function createController({ profile, onChange }) {
     },
     refresh({ force = false } = {}) {
       if (mode.kind === 'production') loadProduction({ force });
-      else { snapshot = sampleSnapshot(mode.state, mode.tone, now(), sampleProfile(profile)); emit(); }
+      else { snapshot = sampleSnapshot(mode.state, mode.tone, now(), sampleProfile(profile), mode.variant ?? null); emit(); }
     },
     /** Called periodically; re-fetches production data when stale. */
     tick() {

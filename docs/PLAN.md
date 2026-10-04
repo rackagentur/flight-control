@@ -14,6 +14,19 @@ Phase 1 approved 2026-10-04. Visual identity: **Adaptive Aviation**. Signature c
 | Rule 4 (LAYOVER) | May be **inferred** when the evidence is strong: `status: layover, confidence: inferred, provenance: derived`. No layover when the itinerary is ambiguous |
 | Navigation | Mobile: Today / Calendar / Flights / Map / More. More = Weather / Statistics / Controls / Settings |
 
+## Phase 6 decisions: Flights + Destination Intelligence (approved 2026-10-04)
+
+| ID | Topic | Decision |
+|---|---|---|
+| D1 | Weather | Open-Meteo, called directly from the browser with the **airport's** coordinates (as v5 did). No API key. **No weather network calls in review mode.** Failures degrade to an "unavailable" line and never block Flights |
+| D2 | History | Device-local recent flights, **120 days, at most 300 sectors**, labelled **"Seen on this device"**. Never presented as complete roster, employment or career history. Deduplicated by a stable identity (flight number + route + local departure date); the source is authoritative inside the window it covers, so corrected or removed sectors replace remembered ones instead of duplicating them. Current-source and remembered flights stay visibly distinct |
+| D3 | Crew intelligence | **Excluded** (privacy/product decision). v5's colleague history is derived from employee numbers of other people; V2 never reads, stores or shows it |
+| D4 | Hotel record | No assigned hotel is invented or inferred. Without a hotel record in the normalized payload only legitimate actions are offered (search, saved list). The hotel-record contract belongs to a later backend phase |
+| D5 | Destination intelligence | One reusable model (`model/destination.js`) and component (`ui/destination.js`). Flights uses it; Today adopts it only where it replaces a placeholder, without redesign. The dedicated Weather screen remains a later phase |
+| D6 | Flight detail | Per **sector**, always inside its parent **rotation** (`#/flights/<sector id>`) |
+
+Further Phase 6 rules: journeys/rotations before individual sectors; upcoming before remembered history; the v5 five-flight boundary is stated as a calm end of the list, not an error; destination intelligence appears only when applicable (never for home-base sectors); UNKNOWN/incomplete data follows the Phase 4–5 honesty rules; no new parser, classifier, airport table, time-zone code or rotation engine; no backend change; Map, Statistics, Controls and the Weather screen are not part of Phase 6.
+
 ---
 
 ## A. File structure
@@ -59,7 +72,7 @@ src/
   ui/components.js             shared primitives (page header, theme control, list row, slot, …);
                                split into ui/components/* when a component grows its own logic (Phase 4+)
   ui/environments.js           design-preview descriptions of the six environments (not roster data)
-  ui/screens/                  today, more, controls, settings, upcoming (placeholders for later phases)
+  ui/screens/                  today, calendar, flights, more, controls, settings, upcoming (placeholders for later phases)
 tests/                         *.test.js + fixtures/ (synthetic/redacted only) + regression/
 docs/                          AUDIT, PLAN, DATA-GAPS, BACKEND-HARDENING (+ DESIGN, REGRESSION later)
 legacy/index-v1.html           preserved legacy frontend
@@ -219,7 +232,7 @@ Layover tone comes from `airports.js` (deterministic; coastal/tropical → ocean
 2. Phase 3: tokens/theme, shell/router/store, labelled environment preview. (Per the Phase 3 brief, no backend integration and no sample roster data: the profile, sample source and **read-only CORS spike** move to the start of Phase 4.)
 3. Phase 4: **CORS spike first (go/no-go)**, profile, sample source, `airports.js`, `time.js` (T1–T9), adapter, roster, state, horizon, Today (6 states). Validation inputs: redacted fixture, B3 answer.
 4. Phase 5: Calendar.
-5. Phase 6: Flights, Map, Weather, Statistics, Controls, Settings.
+5. Phase 6: Flights + Destination Intelligence (scope approved 2026-10-04; see "Phase 6 decisions"). Map, Weather screen, Statistics and Controls follow in later phases.
 6. Phase 7: parity + manual regression → PR to `main` (V2 private until the BH gate).
 7. BH track: separately approved (`BACKEND-HARDENING.md`).
 

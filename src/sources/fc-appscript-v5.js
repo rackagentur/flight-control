@@ -22,6 +22,8 @@ export const V5_CAPABILITIES = Object.freeze({
 
 const IATA = /^[A-Z]{3}$/;
 const MAX_PICKUP_LEAD_MS = 8 * 3600 * 1000;
+/** v5 returns at most this many upcoming flights (`upcoming.slice(0, 5)` in the web app). */
+export const V5_FLIGHT_LIMIT = 5;
 
 const finite = (value) => typeof value === 'number' && Number.isFinite(value);
 
@@ -149,8 +151,8 @@ export function adaptV5(payload, { profile, fetchedAt, kind = 'live' }) {
     return true;
   }).sort((a, b) => a.dep - b.dep);
   assignPickups(sectors, warnings);
-  if (upcoming.length >= 5) {
-    warnings.push({ code: 'upcoming-truncated', message: 'The source lists only the next 5 flights; later days may be incomplete.' });
+  if (upcoming.length >= V5_FLIGHT_LIMIT) {
+    warnings.push({ code: 'upcoming-truncated', message: `The source lists only the next ${V5_FLIGHT_LIMIT} flights; later days may be incomplete.` });
   }
 
   const offBlocks = offBlocksFrom(payload.daysOff, todayKey, warnings);
@@ -175,7 +177,11 @@ export function adaptV5(payload, { profile, fetchedAt, kind = 'live' }) {
     // v5 lists flights from 00:00 of the fetch day (script time zone) onwards, for 60 days,
     // but at most 5: when truncated, flights are only known up to the 5th flight's day.
     coverageStart: startOfLocalDay(todayKey, profile.homeTz),
-    flightCoverageEnd: upcoming.length >= 5 && sectors.length
+    // The most flights the source ever lists at once (Flights states this calmly).
+    flightListLimit: V5_FLIGHT_LIMIT,
+    // No flight list at all: the payload vouches for no flight coverage.
+    flightCoverageEnd: !Array.isArray(payload.upcoming) ? null
+      : upcoming.length >= V5_FLIGHT_LIMIT && sectors.length
       ? localDateKey(sectors.at(-1).dep, profile.homeTz)
       : addDays(todayKey, 59),
     windows: [],

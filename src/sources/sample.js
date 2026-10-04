@@ -12,7 +12,7 @@ const M = 60000;
 
 export const SAMPLE_HOME = 'HOME';
 export const SAMPLE_AWAY = 'AWAY';
-const FIXED_TZ = { EAST: 'Europe/Athens', WEST: 'America/New_York' };
+const FIXED_TZ = { EAST: 'Europe/Athens', WEST: 'America/New_York', SOUTH: 'Europe/Lisbon' };
 
 /** Zone used for AWAY per layover tone (keeps the clock arithmetic realistic, the place fictional). */
 const AWAY_TZ = { ocean: 'America/Santo_Domingo', olive: 'Europe/Athens', sand: 'Asia/Dubai', stone: 'America/Toronto' };
@@ -29,11 +29,12 @@ export function sampleProfile(profile) {
   return Object.freeze({ ...profile, base: SAMPLE_HOME, homeBases: Object.freeze([SAMPLE_HOME]), noHotelAirports: Object.freeze([]), hotelListUrl: '' });
 }
 
-let seq = 0;
 function sector(n, origin, destination, dep, blockMin, tzOf, pickup = null) {
   const flightNumber = `SAMPLE ${String(n).padStart(2, '0')}`;
   return {
-    id: `sample-${n}-${dep}-${seq++}`, flightNumber, origin, destination, dep, arr: dep + blockMin * M, blockMin,
+    // Stable across rebuilds (each sample flight number is unique), so a selected sample sector
+    // survives a reload even when its scenario times move with the clock.
+    id: `sample-${n}`, flightNumber, origin, destination, dep, arr: dep + blockMin * M, blockMin,
     originTz: tzOf(origin), destTz: tzOf(destination), pickup, provenance: 'source', legacy: null,
   };
 }
@@ -88,16 +89,83 @@ function mixedMonth(at, offDay, tzOf) {
   };
 }
 
+/** Flights review variants (layered over a state scenario). */
+export const SAMPLE_VARIANTS = Object.freeze(['multi', 'incomplete', 'history']);
+
+function applyVariant(snap, variant, { at, tzOf, now, tz }) {
+  if (variant === 'multi') {
+    // A four-sector short-haul duty: out and back twice, one pickup at the start.
+    const multi = [
+      sector(71, SAMPLE_HOME, 'EAST', at(2, 6, 10), 155, tzOf, at(2, 4, 40)),
+      sector(72, 'EAST', SAMPLE_HOME, at(2, 9, 35), 165, tzOf),
+      sector(73, SAMPLE_HOME, 'SOUTH', at(2, 13, 5), 140, tzOf),
+      sector(74, 'SOUTH', SAMPLE_HOME, at(2, 16, 10), 135, tzOf),
+    ];
+    // It replaces the scenario's own flights of the next days, so it is the next rotation.
+    return { ...snap, sectors: [...snap.sectors.filter((x) => x.dep < at(0, 0) || x.dep >= at(4, 0)), ...multi].sort((a, b) => a.dep - b.dep) };
+  }
+  if (variant === 'incomplete') {
+    // The source shares only five flights; one airport has no known time zone, no pickup is
+    // listed, and the long-haul return lies beyond the last listed flight.
+    const listed = [
+      sector(81, SAMPLE_HOME, 'NORTH', at(1, 7, 0), 95, tzOf),
+      sector(82, 'NORTH', SAMPLE_HOME, at(1, 9, 40), 100, tzOf),
+      sector(83, SAMPLE_HOME, 'EAST', at(2, 6, 30), 150, tzOf, at(2, 4, 50)),
+      sector(84, 'EAST', SAMPLE_HOME, at(2, 9, 50), 160, tzOf),
+      sector(85, SAMPLE_HOME, SAMPLE_AWAY, at(4, 22, 0), 600, tzOf),
+    ];
+    return {
+      ...snap,
+      sectors: listed,
+      windows: snap.windows.filter((w) => w.kind !== 'layover'),
+      flightCoverageEnd: localDateKey(listed.at(-1).dep, tz),
+      flightListLimit: 5,
+      warnings: [{ code: 'upcoming-truncated', message: 'The source lists only the next 5 flights; later days may be incomplete.' }],
+    };
+  }
+  if (variant === 'history') {
+    // Flown sectors: two still in the current sample source window, three remembered from
+    // earlier syncs on this (sample) device. All fictional; nothing is stored.
+    const flown = [
+      sector(91, SAMPLE_HOME, 'EAST', at(-5, 6, 30), 150, tzOf, at(-5, 4, 50)),
+      sector(92, 'EAST', SAMPLE_HOME, at(-5, 9, 50), 160, tzOf),
+      ...[[-21, 'WEST', 520, 470, 2], [-48, SAMPLE_AWAY, 600, 570, 3], [-83, 'SOUTH', 140, 135, 0]].flatMap(([d, to, out, back, stay], i) => [
+        { ...sector(93 + i * 2, SAMPLE_HOME, to, at(d, 9, 0), out, tzOf), provenance: 'history', seenAt: at(d - 2, 8) },
+        { ...sector(94 + i * 2, to, SAMPLE_HOME, stay ? at(d + stay, 13, 0) : at(d, 9, 0) + (out + 50) * M, back, tzOf), provenance: 'history', seenAt: at(d - 2, 8) },
+      ]),
+    ];
+    return { ...snap, sectors: [...flown, ...snap.sectors].sort((a, b) => a.dep - b.dep) };
+  }
+  return snap;
+}
+
+/**
+ * Review-only weather: deterministic sample values for the fictional places, labelled as
+ * samples. Never makes a network request. Real airports and unknown zones stay unavailable.
+ */
+export function sampleWeather(query) {
+  if (!query || query.status !== 'unavailable' || query.reason !== 'no-coordinates' || !query.date) return query?.status === 'query' ? { status: 'unavailable', reason: 'review' } : query;
+  const ahead = Math.round((Date.parse(`${query.date}T12:00:00Z`) - Date.parse(`${query.todayLocal}T12:00:00Z`)) / 86400000);
+  if (ahead < 0) return { status: 'unavailable', reason: 'past' };
+  if (ahead >= 10) return { status: 'later', availableFrom: null, date: query.date };
+  const seed = [...`${query.iata}${query.date}`].reduce((n, ch) => (n * 31 + ch.charCodeAt(0)) % 997, 7);
+  const codes = [0, 1, 2, 3, 61, 80];
+  const code = codes[seed % codes.length];
+  const max = 14 + (seed % 15);
+  return { status: 'ok', sample: true, date: query.date, max, min: max - 5 - (seed % 4), code, text: ['Clear', 'Mainly clear', 'Partly cloudy', 'Overcast', 'Rain', 'Rain showers'][codes.indexOf(code)], source: 'Sample' };
+}
+
 /** @returns {import('../model/types.js').RosterSnapshot} */
-export function sampleSnapshot(state, tone, now, profile) {
+export function sampleSnapshot(state, tone, now, profile, variant = null) {
   const tz = profile.homeTz;
   const awayTz = AWAY_TZ[tone] ?? AWAY_TZ.stone;
-  const tzOf = (code) => (code === SAMPLE_HOME ? tz : FIXED_TZ[code] ?? awayTz);
+  // NORTH is deliberately an airport without a known time zone (incomplete-data scenario).
+  const tzOf = (code) => (code === SAMPLE_HOME ? tz : code === 'NORTH' ? null : FIXED_TZ[code] ?? awayTz);
   const today = localDateKey(now, tz);
   const at = (dayOffset, hh, mm = 0) => startOfLocalDay(addDays(today, dayOffset), tz) + hh * H + mm * M;
   const offDay = (d) => ({ kind: 'off', start: at(d, 0), end: at(d + 1, 0), label: 'OFF' });
   const month = mixedMonth(at, offDay, tzOf);
-  const snapshot_ = (parts) => snapshot(now, parts, month, tz);
+  const snapshot_ = (parts) => applyVariant(snapshot(now, parts, month, tz), variant, { at, tzOf, now, tz });
 
   switch (state) {
     case 'off':

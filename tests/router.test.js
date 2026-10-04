@@ -31,3 +31,14 @@ test('hrefFor and activeTabFor', () => {
   assert.equal(activeTabFor('settings'), 'more');
   assert.equal(activeTabFor('today'), 'today');
 });
+
+test('flights detail: one sub-path, decoded; other routes ignore sub-paths', async () => {
+  const { parseParam, hrefFor, parseHash } = await import('../src/router.js');
+  assert.equal(parseHash('#/flights/SAMPLE%2001-1-2'), 'flights');
+  assert.equal(parseParam('#/flights/SAMPLE%2001-1-2'), 'SAMPLE 01-1-2');
+  assert.equal(hrefFor('flights', 'SAMPLE 01-1-2'), '#/flights/SAMPLE%2001-1-2');
+  assert.equal(parseParam('#/flights'), null);
+  assert.equal(parseParam('#/flights/'), null);
+  assert.equal(parseParam('#/today/x'), null);
+  assert.equal(parseParam('#/flights/%E0%A4%A'), null, 'malformed encoding is ignored');
+});

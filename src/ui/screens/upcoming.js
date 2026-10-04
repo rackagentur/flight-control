@@ -19,21 +19,9 @@ function screen(id, { subtitle, phase, summary, items }) {
   };
 }
 
-export const flights = screen('flights', {
-  subtitle: 'Upcoming sectors, grouped by rotation',
-  phase: 'Phase 6',
-  summary: 'Every sector with corrected local times, grouped so a rotation reads as one trip.',
-  items: [
-    'Route, flight number, local departure and local arrival with +1 day',
-    'Block time and home-base reference time',
-    'Wake-up and pickup once per duty, with alarm shortcuts',
-    'Hotel actions at outstations',
-  ],
-});
-
 export const map = screen('map', {
   subtitle: 'Where you have flown',
-  phase: 'Phase 6',
+  phase: 'a later phase',
   summary: 'Your route network in earth tones.',
   items: [
     'Great-circle routes weighted by how often you flew them',
@@ -44,7 +32,7 @@ export const map = screen('map', {
 
 export const weather = screen('weather', {
   subtitle: 'Conditions where you are going',
-  phase: 'Phase 6',
+  phase: 'a later phase',
   summary: 'Forecasts for your next destinations, on the local date you arrive.',
   items: [
     'Next destinations with daily high, low and conditions',
@@ -54,7 +42,7 @@ export const weather = screen('weather', {
 
 export const statistics = screen('statistics', {
   subtitle: 'This month, this year, all time',
-  phase: 'Phase 6',
+  phase: 'a later phase',
   summary: 'Your flying history with editorial hierarchy instead of a wall of tiles.',
   items: [
     'This month: flights, rostered hours, days away, standby, reserve, progress',

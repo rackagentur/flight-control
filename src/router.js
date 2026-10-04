@@ -4,7 +4,8 @@
 export const ROUTES = [
   { id: 'today', title: 'Today', icon: 'today', group: 'primary', tab: true },
   { id: 'calendar', title: 'Calendar', icon: 'calendar', group: 'primary', tab: true },
-  { id: 'flights', title: 'Flights', icon: 'flights', group: 'primary', tab: true },
+  // detail: the route accepts one sub-path (#/flights/<sector id>, Phase 6 decision D6).
+  { id: 'flights', title: 'Flights', icon: 'flights', group: 'primary', tab: true, detail: true },
   { id: 'map', title: 'Map', icon: 'map', group: 'primary', tab: true },
   { id: 'more', title: 'More', icon: 'more', group: 'hidden', tab: true },
   { id: 'weather', title: 'Weather', icon: 'weather', group: 'insight', parent: 'more' },
@@ -27,8 +28,18 @@ export function parseHash(hash) {
   return BY_ID.has(id) ? id : DEFAULT_ROUTE;
 }
 
-export function hrefFor(id) {
-  return `#/${id}`;
+/** '#/flights/<id>' → '<id>' (decoded) for routes that accept a detail; otherwise null. */
+export function parseParam(hash) {
+  const path = String(hash ?? '').replace(/^#\/?/, '').split('?')[0];
+  const slash = path.indexOf('/');
+  if (slash < 0 || !routeById(parseHash(hash))?.detail) return null;
+  const rest = path.slice(slash + 1);
+  if (!rest) return null;
+  try { return decodeURIComponent(rest); } catch { return null; }
+}
+
+export function hrefFor(id, param = null) {
+  return param ? `#/${id}/${encodeURIComponent(param)}` : `#/${id}`;
 }
 
 /** The tab that should appear selected for a route (More owns its child screens). */
@@ -40,9 +51,10 @@ export function activeTabFor(id) {
 export function startRouter(onRoute, win = globalThis.window) {
   const emit = () => {
     const id = parseHash(win.location.hash);
+    const param = parseParam(win.location.hash);
     // Normalise unknown or malformed hashes so the URL always names the screen shown.
-    if (win.location.hash !== hrefFor(id)) win.history.replaceState(null, '', hrefFor(id));
-    onRoute(id);
+    if (win.location.hash !== hrefFor(id, param)) win.history.replaceState(null, '', hrefFor(id, param));
+    onRoute(id, param);
   };
   win.addEventListener('hashchange', emit);
   emit();

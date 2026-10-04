@@ -59,6 +59,8 @@
  * @property {Window[]} windows
  * @property {{start:string,days:number}[]} offBlocks   source-reported free blocks (date keys)
  * @property {string|null} offCoverageEnd               last date the offBlocks list speaks for
+ * @property {string|null} [flightCoverageEnd]          last date the sector list speaks for
+ * @property {number|null} [flightListLimit]            most sectors the source lists at once (v5: 5)
  * @property {{current:number,nextOffInDays:number,maxThisMonth:number}|null} dutyBlock
  * @property {Object|null} stats
  * @property {Object|null} map

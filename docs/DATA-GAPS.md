@@ -112,7 +112,7 @@ What the month view can genuinely show from `getStats`, and how V2 marks the res
 |---|---|---|
 | Flights | Next 5 flights within 60 days | Flight days and rotations up to the day of the 5th listed flight (live: ~1 week) |
 | Day-level duty vs free | `daysOff`: ≤ 3 free blocks within 30 days | Days up to the end of the 3rd free block: "no duty reported" (not OFF) or "duty, type not given" |
-| Past days | Nothing before today 00:00 | "No data", except flights this device remembered from earlier syncs (21 days) |
+| Past days | Nothing before today 00:00 | "No data", except flights this device remembered from earlier syncs (120 days, at most 300; Phase 6 decision D2) |
 | Standby / reserve / training | Monthly counts only | Never shown as SB/RE; such days are "duty, type not given" |
 | OFF | Not provable (see O1) | Never shown for v5 data |
 | Layovers | Derived from consecutive sectors | Inferred (dotted, italic, "Inferred") |
@@ -130,3 +130,26 @@ Live result (2026-10-04): 10 of 31 October days classified (4–13 Oct); Septemb
 - **Explicit roster layovers** (source-stated layover windows, `confidence: confirmed`) are **never capped**, and they keep the rotation connected.
 - Confirmed and inferred layovers remain visually distinct (solid vs dotted band, upright vs italic code, "Confirmed" vs "Inferred").
 - Implemented in `src/model/roster.js` (`MAX_INFERRED_LAYOVER_DAYS`, `layoverCalendarDays`); tests in `tests/layover-cap.test.js` (5/6/7 days, DST, time-zone date boundary, explicit exemption, never OFF).
+
+## Flights and destination intelligence with the v5 source (Phase 6)
+
+What the Flights screen can genuinely show from `getStats`, and what stays a documented gap. Nothing is synthesized.
+
+| Flights need | v5 provides | Flights today |
+|---|---|---|
+| Upcoming sectors | Next **5** flights within 60 days | Shown as rotations; after the 5th flight the list ends with a calm note ("your roster source shares the next 5 flights") |
+| Local times, +1 day, block, home-time reference | Instants; zones from the V2 airport table | Derived (IANA); unknown airports show UTC, labelled |
+| Wake-up / pickup | Pickup by departure date (B7: pre-midnight pickups missing) | Shown only when present, with alarm links |
+| Layover length | Not stated | Inferred from consecutive sectors (6-day rule); "return not yet listed" when the outbound is beyond the 5-flight boundary |
+| Destination city, country, zone, coordinates | V2 airport table | Local time and difference from home; coordinates only where the table has them (never guessed) |
+| Weather | Not in the payload (v5's page fetched Open-Meteo itself) | Open-Meteo from the browser (D1) for the local arrival date within the 10-day forecast; otherwise "unavailable" with the reason |
+| Assigned hotel | **Not exposed** (the hotel Sheet is never read by `getStats`) | Search + saved list only; "not provided by your roster source" (D4) |
+| Crew intelligence | Only as text in calendar event descriptions, built from employee numbers | **Excluded** (D3), not a gap to close |
+| Past flights | **Nothing** before today 00:00, no per-flight history | "Seen on this device": sectors this device observed in earlier syncs, 120 days / 300 sectors (D2) |
+
+**Later backend contract (separate track, additive, optional fields; no change in Phase 6):**
+
+1. `upcoming` not capped at 5 (or an explicit `upcomingLimit`, plus the window end it speaks for).
+2. `history[]`: `{flightNumber, origin, destination, depTimestamp, endTimestamp}` for a requested month range. Times and route only; nothing about other people.
+3. `layoverHotel` per outstation stay: `{airport, from, to, name, address, mapsUrl, phone?, verified}`. Only reviewed records; never the Places API key, raw roster text or unreviewed candidates.
+4. Report/briefing time per duty (already listed above).

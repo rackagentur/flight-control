@@ -11,6 +11,8 @@ import { pageHeader, previewBadge } from '../components.js';
 import { horizonView } from '../horizon.js';
 import { clock, city, field, dutyFields, sectorList, routeTitle } from '../duty.js';
 import { weekView } from '../week.js';
+import { buildDestination } from '../../model/destination.js';
+import { weatherText } from '../destination.js';
 
 const CONFIDENCE_LABEL = { confirmed: 'Confirmed', inferred: 'Inferred', unknown: 'Unknown' };
 const PHASE_LABEL = {
@@ -232,7 +234,34 @@ function sourceSection(view) {
     </section>`;
 }
 
-function intelligence(view) {
+/** Destination weather (shared destination model, D5): the outstation that matters now. */
+function weatherSection(view, weatherFor) {
+  const iata = relevantOutstation(view);
+  if (!iata) return '';
+  const { state, profile, now } = view;
+  const layover = state.layover?.airport === iata ? state.layover : null;
+  const sector = state.duty?.sectors.find((s) => s.destination === iata) ?? null;
+  const arrival = layover?.from ?? sector?.arr;
+  if (!Number.isFinite(arrival)) return '';
+  // The airport's zone as the roster knows it (any sector arriving there or leaving from there).
+  const known = view.snapshot?.sectors.find((s) => s.destination === iata && s.destTz)?.destTz
+    ?? view.snapshot?.sectors.find((s) => s.origin === iata && s.originTz)?.originTz;
+  const dest = buildDestination({
+    iata, tz: sector?.destTz ?? known ?? airport(iata)?.tz ?? null, arrival,
+    stay: layover ? { kind: 'layover', confidence: layover.confidence, from: layover.from, to: layover.to } : null,
+  }, profile, now);
+  const weather = dest && weatherFor ? weatherFor(dest.weather) : null;
+  const text = weatherText(weather, dest?.tz);
+  if (!dest || !text) return '';
+  const date = weather?.date ? formatDate(Date.parse(`${weather.date}T12:00:00Z`), 'UTC') : null;
+  return html`
+    <section class="section">
+      <div class="section-head"><h2 class="t-eyebrow">Weather</h2></div>
+      <div class="intel"><div class="intel-row"><span class="intel-label">${dest.city}${date ? ` · ${date}` : ''}</span><span class="intel-value">${text}${weather?.sample ? ' · sample' : ''}</span></div></div>
+    </section>`;
+}
+
+function intelligence(view, weatherFor) {
   return html`
     <aside class="today-context" aria-label="Intelligence">
       ${view.roster ? html`
@@ -243,10 +272,7 @@ function intelligence(view) {
       ${clocksSection(view)}
       ${restSection(view)}
       ${hotelSection(view)}
-      <section class="section">
-        <div class="section-head"><h2 class="t-eyebrow">Weather</h2></div>
-        <div class="intel"><div class="intel-row"><span class="intel-label">Destination forecast</span><span class="intel-value">Phase 6</span></div></div>
-      </section>
+      ${weatherSection(view, weatherFor)}
       ${sourceSection(view)}
     </aside>`;
 }
@@ -263,7 +289,7 @@ export const today = {
         ${pageHeader({ eyebrow: date, title: `${greeting(view.now, tz)}${view.profile.name ? `, ${view.profile.name}` : ''}` })}
         <div class="today">
           <div class="today-main">${view.loading && !view.state ? loadingPass(view) : statusPass(view)}</div>
-          ${intelligence(view)}
+          ${intelligence(view, ctx.weather)}
         </div>
       </div>`;
   },
