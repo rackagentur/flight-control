@@ -27,6 +27,20 @@ Phase 1 approved 2026-10-04. Visual identity: **Adaptive Aviation**. Signature c
 
 Further Phase 6 rules: journeys/rotations before individual sectors; upcoming before remembered history; the v5 five-flight boundary is stated as a calm end of the list, not an error; destination intelligence appears only when applicable (never for home-base sectors); UNKNOWN/incomplete data follows the Phase 4–5 honesty rules; no new parser, classifier, airport table, time-zone code or rotation engine; no backend change; Map, Statistics, Controls and the Weather screen are not part of Phase 6.
 
+## Phase 7 decisions: Roster Data Contract V2 (approved 2026-10-04)
+
+| ID | Topic | Decision |
+|---|---|---|
+| D-SRC | Sources | Airline feed for the fresh window (from today); the synced calendar for earlier days and bounded history |
+| D-HOTEL | Hotel blocks | A roster hotel block is source evidence that a stay exists and may lift the 6-day inferred-layover cap for that stay. It never creates sectors or rotations; provenance is kept explicit (stay `source`, end `derived`, standby-hotel airport `derived`/`unknown`) |
+| D-OFF | Empty days | Never OFF. OFF/free/leave/ORT only from explicit source codes; empty covered days stay UNKNOWN |
+| D-REPO | Backend sources | Tracked under `backend/apps-script/`, with no secrets, ids, URLs, tokens or personal data |
+| D-TOKEN | Auth | Shared token in the POST body (Script Property `FC_V2_TOKEN`), never in the URL |
+| ORT | Protected free day | Explicit source state in the rest family: `off`, subtype `ort`, `protected: true`, `source`. Visually distinct from ordinary OFF. Never inferred |
+| Aircraft | Metadata | Optional source metadata on the sector (type code, registration when present). Never inferred; absence never affects classification |
+
+Contract: `docs/CONTRACT-V2.md`. Status: steps 1–2 (local implementation and tests) only; installation, token, deployment and backend hardening are separate, later approvals.
+
 ---
 
 ## A. File structure
@@ -233,7 +247,7 @@ Layover tone comes from `airports.js` (deterministic; coastal/tropical → ocean
 3. Phase 4: **CORS spike first (go/no-go)**, profile, sample source, `airports.js`, `time.js` (T1–T9), adapter, roster, state, horizon, Today (6 states). Validation inputs: redacted fixture, B3 answer.
 4. Phase 5: Calendar.
 5. Phase 6: Flights + Destination Intelligence (scope approved 2026-10-04; see "Phase 6 decisions"). Map, Weather screen, Statistics and Controls follow in later phases.
-6. Phase 7: parity + manual regression → PR to `main` (V2 private until the BH gate).
+6. Phase 7: Roster Data Contract V2 (local implementation approved; deployment separate). Parity, manual regression and the PR to `main` follow (V2 private until the BH gate).
 7. BH track: separately approved (`BACKEND-HARDENING.md`).
 
 ## G. Rollback

@@ -39,6 +39,9 @@
  * @property {string|null} originTz IANA, null when the airport is unknown
  * @property {string|null} destTz
  * @property {number|null} pickup   only on the first sector of a duty
+ * @property {number|null} [report] check-in (report) time, first sector of a duty, when the source states it (v2)
+ * @property {{typeCode:string, registration:string|null, provenance:'source'}|null} [aircraft]  optional source metadata (v2)
+ * @property {'device'|'roster-calendar'} [historySource]  for remembered sectors: device memory or v2 server history
  * @property {Provenance} provenance
  * @property {Object|null} legacy   v5 display strings, kept only for parity tests
  */
@@ -46,6 +49,9 @@
 /**
  * @typedef {Object} Window   a standby/reserve/off window stated by the source
  * @property {'standby'|'reserve'|'off'|'layover'} kind
+ * @property {'off'|'free'|'leave'|'ort'} [subtype]  rest family (v2): ORT = protected free day
+ * @property {boolean} [protected]  ORT: assigned by the company, not reassignable
+ * @property {object|null} [hotel]  roster hotel for a stated layover (v2)
  * @property {number} start
  * @property {number} end
  * @property {string} [label]
@@ -66,6 +72,11 @@
  * @property {Object|null} map
  * @property {Object[]} achievements
  * @property {{code:string,message:string}[]} warnings
+ * @property {'v2'} [contract]                          set by the fc.roster v2 adapter
+ * @property {Object<string,'rostered'|'empty'|'unpublished'>} [dayStates]  v2 coverage per local date
+ * @property {string} [coverageEnd]                     v2 coverage end date
+ * @property {object[]} [stays]                         v2 roster-stated stays (hotel blocks)
+ * @property {'device'|'roster-calendar'} [historySource]
  */
 
 /**

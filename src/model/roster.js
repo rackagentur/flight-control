@@ -39,6 +39,8 @@ export function buildDuties(sectors, profile) {
     const last = d.sectors.at(-1);
     const pickup = first.pickup ?? null;
     const wakeup = pickup !== null ? pickup - profile.wakeupOffsetMin * 60000 : null;
+    // Report (check-in) time only when the source states it (v2); never estimated.
+    const report = Number.isFinite(first.report) ? first.report : null;
     const fromHistory = d.sectors.every((s) => s.provenance === 'history');
     return {
       id: `duty-${first.id}`,
@@ -47,8 +49,8 @@ export function buildDuties(sectors, profile) {
       sectors: d.sectors,
       wakeup,
       pickup,
-      report: null,
-      start: wakeup ?? pickup ?? first.dep,
+      report,
+      start: wakeup ?? pickup ?? report ?? first.dep,
       end: last.arr,
       confidence: 'confirmed',
       provenance: fromHistory ? 'history' : 'source',
@@ -128,6 +130,17 @@ export const EVIDENCE = {
   'no-flight-listed': 'No flight is listed for this day; other duties are not covered by the source.',
   'before-source': 'Before the period the source covers.',
   'outside-window': 'Outside the period the source covers.',
+  'nothing-rostered': 'The roster lists nothing for this day. Not proof of a day off.',
+  'not-published': 'The roster has not been published this far yet.',
+  'unknown-code': 'The roster lists a code Flight Control does not recognise. It is shown as it is, not as a duty or a day off.',
+};
+
+/** Free-family day subtypes stated by the source (v2). ORT is a protected free day. */
+export const OFF_SUBTYPE = {
+  off: { short: 'OFF', name: 'Off day' },
+  free: { short: 'FREE', name: 'Free day' },
+  leave: { short: 'LEAVE', name: 'Leave' },
+  ort: { short: 'ORT', name: 'Protected free day' },
 };
 
 /**
@@ -164,6 +177,7 @@ export function buildDays(snapshot, { duties, rotations }, profile, now, { from 
       .sort((a, b) => (WINDOW_RANK[a.kind] ?? 9) - (WINDOW_RANK[b.kind] ?? 9))[0];
     const layover = layovers.find((l) => l.from < end && l.to > start);
     const span = rotationSpans.find((x) => key >= x.first && key <= x.last);
+    const unknownCodes = (snapshot.unknownEvents ?? []).filter((u) => u.start < end && u.end > start).map((u) => u.code);
     const day = {
       date: key, start, end, isToday: key === todayKey, status: 'unknown', confidence: 'unknown', provenance: 'none',
       evidence: null, label: null, sectors: touching, duties: dayDuties, window: window ?? null, layover: layover ?? null,
@@ -171,6 +185,8 @@ export function buildDays(snapshot, { duties, rotations }, profile, now, { from 
       rotationPos: !span ? null : span.first === span.last ? 'single' : key === span.first ? 'start' : key === span.last ? 'end' : 'middle',
       rotationOpenStart: Boolean(span?.r.openStart && key === span.first),
       rotationOpenEnd: Boolean(span && !span.r.closed && key === span.last),
+      // Unrecognised roster codes on this day (v2), whatever else the day is.
+      unknownCodes,
     };
 
     if (dayDuties.length) {
@@ -181,13 +197,24 @@ export function buildDays(snapshot, { duties, rotations }, profile, now, { from 
       const away = pool.find((s) => !profile.homeBases.includes(s.destination));
       const fromHistory = dayDuties.every((d) => d.provenance === 'history');
       Object.assign(day, { status: 'flight', confidence: 'confirmed', provenance: fromHistory ? 'history' : 'source', label: (away ?? pool.at(-1)).destination });
-    } else if (window && !(window.kind === 'off' && layover)) {
+    } else if (window && !(window.kind === 'off' && layover && !window.subtype)) {
+      // An explicitly coded rest day (v2: OFF/free/leave/ORT) is a source fact and outranks an
+      // inferred layover; a generic off window during an inferred layover keeps the layover.
       Object.assign(day, { status: window.kind, confidence: 'confirmed', provenance: 'source', label: window.label ?? null });
+      if (window.kind === 'off' && window.subtype) Object.assign(day, { offSubtype: window.subtype, protected: window.protected === true });
     } else if (layover) {
       Object.assign(day, { status: 'layover', confidence: 'inferred', provenance: 'derived', label: layover.airport });
       // A source-stated off day while away stays attached (shown in the day detail).
       // The source may also count the day as a (non-flight) duty day: keep that evidence visible.
       if (!free.has(key) && snapshot.offCoverageEnd && diffDays(key, snapshot.offCoverageEnd) >= 0) day.evidence = 'duty-unspecified';
+    } else if (snapshot.unknownEvents?.some((u) => u.start < end && u.end > start)) {
+      const u = snapshot.unknownEvents.find((x) => x.start < end && x.end > start);
+      Object.assign(day, { evidence: 'unknown-code', label: u.code, sourceCode: u.code, sourceTitle: u.title });
+    } else if (snapshot.dayStates && snapshot.dayStates[key]) {
+      // v2 coverage: an empty day is never OFF, and an unpublished day is not "no flight".
+      day.evidence = snapshot.dayStates[key] === 'unpublished' ? 'not-published' : snapshot.dayStates[key] === 'empty' ? 'nothing-rostered' : 'duty-unspecified';
+    } else if (snapshot.dayStates && snapshot.coverageEnd && key > snapshot.coverageEnd) {
+      day.evidence = 'outside-window';
     } else if (snapshot.capabilities.explicitOff && free.has(key)) {
       Object.assign(day, { status: 'off', confidence: 'confirmed', provenance: 'source' });
     } else if (coverageStartKey && key < coverageStartKey) {

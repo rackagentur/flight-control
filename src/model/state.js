@@ -6,7 +6,7 @@
 // First matching rule wins; every result explains itself in `reasons`.
 
 import { localDateKey, startOfLocalDay, addDays } from '../lib/time.js';
-import { buildDays, WINDOW_RANK, MAX_INFERRED_LAYOVER_DAYS, layoverCalendarDays } from './roster.js';
+import { buildDays, WINDOW_RANK, MAX_INFERRED_LAYOVER_DAYS, layoverCalendarDays, OFF_SUBTYPE } from './roster.js';
 
 const HOUR = 3600000;
 
@@ -36,6 +36,17 @@ function nextEventAfter(now, duties, windows) {
 }
 
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+function offState(today, upcomingDuty, nextEvent) {
+  const kind = OFF_SUBTYPE[today.offSubtype];
+  const reason = today.offSubtype === 'ort'
+    ? 'The roster lists today as a protected free day (ORT): assigned by the company and not reassignable.'
+    : kind ? `The roster lists today as: ${kind.name.toLowerCase()}.` : 'The roster lists today as off.';
+  return base({
+    status: 'off', confidence: 'confirmed', provenance: 'source', phase: 'off', offSubtype: today.offSubtype ?? null, protected: today.protected === true,
+    window: today.window, duty: upcomingDuty, nextEvent, reasons: [reason],
+  });
+}
 
 function base(overrides) {
   return {
@@ -115,6 +126,9 @@ export function deriveState(snapshot, roster, profile, now) {
     });
   }
 
+  // An explicitly coded rest day (v2) is a source fact: it outranks an inferred layover.
+  if (today.status === 'off' && today.offSubtype) return offState(today, upcomingDuty, nextEvent);
+
   // 4. Layover: strong itinerary evidence only.
   const layover = rotations.flatMap((r) => r.layovers).find((l) => l.from <= now && now < l.to);
   if (layover) {
@@ -149,9 +163,7 @@ export function deriveState(snapshot, roster, profile, now) {
   }
 
   // 7. OFF only when the source states it (explicit window or explicit off day).
-  if (today.status === 'off') {
-    return base({ status: 'off', confidence: 'confirmed', provenance: 'source', phase: 'off', window: today.window, duty: upcomingDuty, nextEvent, reasons: ['The roster lists today as off.'] });
-  }
+  if (today.status === 'off') return offState(today, upcomingDuty, nextEvent);
 
   // 8. Everything else is UNKNOWN, explained with the same evidence the Calendar shows.
   const reasons = [];
@@ -161,6 +173,9 @@ export function deriveState(snapshot, roster, profile, now) {
     'no-flight-listed': 'No flight is listed today, but the source does not cover other duty types for this day.',
     'before-source': 'The roster source does not cover today.',
     'outside-window': 'The roster source does not cover today.',
+    'nothing-rostered': 'The roster lists nothing for today. That is not proof of a day off, so OFF is not shown.',
+    'not-published': 'The roster has not been published for today yet.',
+    'unknown-code': `The roster lists the code "${today.sourceCode ?? '?'}" today, which Flight Control does not recognise. It is not treated as a duty or a day off.`,
   }[today.evidence];
   if (evidenceReason) reasons.push(evidenceReason);
   const nextDeparture = upcomingDuty?.sectors[0];

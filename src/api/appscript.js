@@ -97,3 +97,44 @@ export function contractGaps(data) {
   if (first) missing.push(...V5_SECTOR_CONTRACT.filter((key) => !(key in first)).map((key) => `upcoming[].${key}`));
   return missing;
 }
+
+/**
+ * fc.roster v2 (Phase 7): POST with Content-Type text/plain so the request stays a CORS
+ * "simple request" (no preflight). The token travels in the body, never in the URL.
+ * Resolves to { data, meta } with the parsed JSON (which may be {ok:false, error}); throws
+ * ApiError for transport problems (network, timeout, HTTP error, HTML page, unreadable JSON).
+ * @param {string} endpoint
+ * @param {object} body  {contract, version, action, token, ...}
+ */
+export async function postContract(endpoint, body, { timeoutMs = DEFAULT_TIMEOUT_MS, fetchImpl = globalThis.fetch } = {}) {
+  if (!endpoint) throw new ApiError('not-configured', 'No roster source is configured.');
+  const check = validateEndpoint(endpoint);
+  if (!check.ok) throw new ApiError('invalid-endpoint', check.reason);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const started = Date.now();
+  let response;
+  try {
+    response = await fetchImpl(check.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(body),
+      credentials: 'omit',
+      cache: 'no-store',
+      redirect: 'follow',
+      referrerPolicy: 'no-referrer',
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error?.name === 'AbortError') throw new ApiError('timeout', `No response within ${Math.round(timeoutMs / 1000)} s.`);
+    throw new ApiError('network', 'The roster backend could not be reached from this page (network or cross-origin policy).', error?.message ?? null);
+  } finally {
+    clearTimeout(timer);
+  }
+  const text = await response.text();
+  const meta = { status: response.status, ms: Date.now() - started, bytes: text.length };
+  if (!response.ok) throw new ApiError('http', `The roster backend answered HTTP ${response.status}.`, meta);
+  // A deployment without doPost answers with an HTML error page.
+  if (/^\s*</.test(text)) throw new ApiError('html-response', 'The roster backend does not offer the v2 contract.', meta);
+  try { return { data: JSON.parse(text), meta }; } catch { throw new ApiError('invalid-json', 'The roster backend returned unreadable data.', meta); }
+}

@@ -114,13 +114,17 @@ export function destinationView(dest, weather, { now, review = false, titleId = 
           note: weather?.status === 'ok' ? (weather.sample ? 'Sample forecast' : `Forecast · ${weather.source}`) : null,
           attrs: html`data-weather="${weather?.status ?? 'none'}"`,
         }) : ''}
-        ${showHotel ? row('Hotel', 'Not provided by your roster source', {
+        ${showHotel && dest.hotel.record ? row('Hotel · from roster', html`${dest.hotel.record.name}${dest.hotel.record.address ? html`<span class="dest-note">${dest.hotel.record.address}</span>` : ''}`, {
+          note: dest.hotel.record.phone ? html`<a class="dest-link" href="tel:${dest.hotel.record.phone.replace(/[^\d+]/g, '')}">${dest.hotel.record.phone}</a>` : null,
+        }) : ''}
+        ${showHotel && !dest.hotel.record ? row('Hotel', 'Not provided by your roster source', {
           note: review ? 'Hotel links are off in review mode.' : null,
         }) : ''}
       </dl>
-      ${!review && (dest.maps || (showHotel && (dest.hotel.search || dest.hotel.savedList))) ? html`
+      ${!review && (dest.maps || (showHotel && (dest.hotel.search || dest.hotel.savedList || dest.hotel.record?.location?.mapsUrl))) ? html`
         <p class="dest-actions">
-          ${showHotel && dest.hotel.search ? link(dest.hotel.search, `Hotels in ${dest.city}`) : ''}
+          ${showHotel && dest.hotel.record?.location?.mapsUrl ? link(dest.hotel.record.location.mapsUrl, 'Hotel in Maps') : ''}
+          ${showHotel && !dest.hotel.record && dest.hotel.search ? link(dest.hotel.search, `Hotels in ${dest.city}`) : ''}
           ${showHotel && dest.hotel.savedList ? link(dest.hotel.savedList, 'My saved hotels') : ''}
           ${dest.maps ? link(dest.maps, `${dest.iata} in Maps`) : ''}
         </p>` : ''}

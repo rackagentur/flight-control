@@ -63,6 +63,8 @@ const minimal = (s, seenAt) => ({
   dep: s.dep, arr: s.arr, blockMin: Math.round((s.arr - s.dep) / 60000),
   originTz: zoneOrNull(s.originTz), destTz: zoneOrNull(s.destTz),
   seenAt: Number.isFinite(seenAt) ? seenAt : null,
+  // 'roster-calendar' for sectors from the v2 history action; device memory otherwise.
+  historySource: s.historySource === 'roster-calendar' ? 'roster-calendar' : 'device',
 });
 
 /**
@@ -119,7 +121,8 @@ export function withHistory(snapshot, history, now) {
     .filter((s) => {
       // The source's own copy wins, including a copy retimed across local midnight.
       if (listed.some((x) => sameFlight(x, s))) return false;
-      return s.dep < windowStart && s.dep <= now && s.arr > now - KEEP_DAYS * DAY;
+      // Device memory is kept 120 days; server history (v2) is bounded by the server (13 months).
+      return s.dep < windowStart && s.dep <= now && (s.historySource === 'roster-calendar' || s.arr > now - KEEP_DAYS * DAY);
     })
     // Ids are rebuilt from content: stored ids are not trusted (corrupt copies could collide).
     .map((s) => ({ ...minimal(s, s.seenAt), id: `${s.flightNumber}-${s.dep}-${s.arr}`, pickup: null, provenance: 'history', legacy: null }));

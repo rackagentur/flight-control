@@ -153,3 +153,20 @@ What the Flights screen can genuinely show from `getStats`, and what stays a doc
 2. `history[]`: `{flightNumber, origin, destination, depTimestamp, endTimestamp}` for a requested month range. Times and route only; nothing about other people.
 3. `layoverHotel` per outstation stay: `{airport, from, to, name, address, mapsUrl, phone?, verified}`. Only reviewed records; never the Places API key, raw roster text or unreviewed candidates.
 4. Report/briefing time per duty (already listed above).
+
+## Roster contract v2 (Phase 7, implemented locally, not deployed)
+
+What the richer contract closes once installed (`docs/CONTRACT-V2.md`), and what stays open:
+
+| Gap with v5 | With v2 |
+|---|---|
+| Only the next 5 flights | All sectors in the window (previous, current and next month) |
+| No standby/reserve windows | SB/RE windows with times (source) |
+| OFF not provable | OFF, free day, leave and **ORT (protected free day)** from explicit codes. Empty days stay UNKNOWN: the feed is not exhaustive (days away carry no event) |
+| No report time | Check-in events give the report time (source) |
+| Pickups by date (B7) | Pickup associated with the next check-in (derived); pickups exist at outstations only, so no wake-up is invented at home |
+| No hotel record | Hotel from the roster's own hotel block (source); location only when VERIFIED for this stay (derived) |
+| No history | Up to 13 months of my own flights from the synced calendar |
+| Fixed-offset times | IANA zones and local times with offsets |
+
+Still unknowable: whether the airline published the whole next month (days after the last rostered day are `unpublished`), rotation/pairing ids (not in the feed), the airport of a standby hotel without a preceding arrival, and changes made after the feed's last refresh (the synced copy can lag the feed by up to a day).

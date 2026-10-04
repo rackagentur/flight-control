@@ -12,6 +12,7 @@ import { horizonView } from '../horizon.js';
 import { clock, city, field, dutyFields, sectorList, routeTitle } from '../duty.js';
 import { weekView } from '../week.js';
 import { buildDestination } from '../../model/destination.js';
+import { OFF_SUBTYPE } from '../../model/roster.js';
 import { weatherText } from '../destination.js';
 
 const CONFIDENCE_LABEL = { confirmed: 'Confirmed', inferred: 'Inferred', unknown: 'Unknown' };
@@ -110,11 +111,14 @@ function statusPass(view) {
   }
 
   if (state.status === 'off') {
+    const kind = OFF_SUBTYPE[state.offSubtype];
+    const ort = state.offSubtype === 'ort';
     return html`
       <section class="pass" aria-labelledby="status-title">
         <div class="pass-head">
-          ${kicker('Off today', state, review)}
-          <h2 class="pass-state t-display" id="status-title">Off</h2>
+          ${kicker(ort ? 'Protected free day' : kind && state.offSubtype !== 'off' ? kind.name : 'Off today', state, review)}
+          <h2 class="pass-state t-display" id="status-title">${ort ? 'ORT' : state.offSubtype === 'leave' ? 'Leave' : 'Off'}</h2>
+          ${ort ? html`<p class="pass-lede">Assigned by the company; it cannot be taken away or reassigned.</p>` : ''}
           ${duty ? html`<p class="pass-lede">Next duty ${routeTitle(duty)} · ${relativeDayLabel(now, duty.sectors[0].dep, tz)}</p>` : ''}
         </div>
         ${nextEventBlock(state, now, tz)}
@@ -181,11 +185,26 @@ function clocksSection(view) {
     </section>`;
 }
 
+/** Consecutive explicit free days (any rest subtype) from v2 off windows, as {start, days}. */
+function explicitBlocks(snapshot, tz, todayKey) {
+  const dates = [...new Set(snapshot.windows.filter((w) => w.kind === 'off')
+    .map((w) => localDateKey(w.start + (w.end - w.start) / 2, tz)))].filter((d) => d >= todayKey).sort();
+  const blocks = [];
+  for (const d of dates) {
+    const last = blocks.at(-1);
+    if (last && addDays(last.start, last.days) === d) last.days += 1;
+    else blocks.push({ start: d, days: 1 });
+  }
+  return blocks;
+}
+
 function restSection(view) {
   const { snapshot, profile, now } = view;
   if (!snapshot) return '';
   const todayKey = localDateKey(now, profile.homeTz);
-  const blocks = snapshot.offBlocks.filter((b) => addDays(b.start, b.days - 1) >= todayKey).slice(0, 3);
+  // v2 states free days explicitly (off windows); v5 lists blocks by absence.
+  const blocks = snapshot.offBlocks.length ? snapshot.offBlocks.filter((b) => addDays(b.start, b.days - 1) >= todayKey).slice(0, 3)
+    : explicitBlocks(snapshot, profile.homeTz, todayKey).slice(0, 3);
   const explicit = snapshot.capabilities.explicitOff;
   const db = snapshot.dutyBlock;
   return html`

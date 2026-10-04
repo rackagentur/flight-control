@@ -5,8 +5,9 @@ import { html as h, render } from '../../lib/html.js';
 import { pageHeader, listRow, themeControl } from '../components.js';
 import { store } from '../../store.js';
 import { applyTheme } from '../../theme.js';
-import { validateEndpoint, fetchStats, contractGaps } from '../../api/appscript.js';
-import { ENDPOINT_KEY } from '../../controller.js';
+import { validateEndpoint, fetchStats, contractGaps, postContract } from '../../api/appscript.js';
+import { ENDPOINT_KEY, TOKEN_KEY, fallbackReason } from '../../controller.js';
+import { request as v2Request } from '../../sources/contract-v2.js';
 
 const ERROR_HELP = {
   network: 'The browser could not read the response. If the URL opens normally in a browser tab, the backend is blocking cross-origin requests (CORS) from this page.',
@@ -49,12 +50,31 @@ async function testEndpoint(endpoint) {
   }
 }
 
+/** Feature detection: does this backend offer fc.roster v2, and is the token accepted? */
+async function testContract(endpoint, token) {
+  try {
+    const { data } = await postContract(endpoint, v2Request('capabilities', token));
+    if (data?.ok === true && data.contract === 'fc.roster' && data.version === 2) return { ok: true, text: `Contract v2 available · actions: ${data.actions.join(', ')}` };
+    return { ok: false, text: `Not available: ${fallbackReason({ code: data?.error ?? 'contract-mismatch' })}.` };
+  } catch (error) {
+    return { ok: false, text: `Not available: ${fallbackReason(error)}. Flight Control keeps using the v5 contract.` };
+  }
+}
+
+function contractStatus(view) {
+  const c = view.contract;
+  if (!c?.active) return 'Not loaded yet';
+  if (c.active === 'v2') return 'In use: contract v2';
+  return c.fallback ? `In use: v5 (fallback: ${c.fallback})` : 'In use: v5';
+}
+
 export const settings = {
   title: 'Settings',
 
   render(ctx) {
     const profile = ctx.view().profile;
     const connected = Boolean(store.get(ENDPOINT_KEY));
+    const hasToken = Boolean(store.get(TOKEN_KEY));
     return html`
       <div class="page">
         ${pageHeader({ title: 'Settings' })}
@@ -92,6 +112,23 @@ export const settings = {
                   <button type="button" class="btn btn-critical" data-endpoint-remove ${connected ? '' : 'disabled'}>Disconnect</button>
                 </div>
                 <div class="source-result" data-endpoint-result role="status" aria-live="polite"></div>
+              </form>
+              <div class="setting-row">
+                <div class="setting-copy">
+                  <span class="list-label">Roster contract v2 (preview)</span>
+                  <span class="t-caption">Richer roster data (explicit off days, report times, roster hotels, history) from a backend that offers it. Needs the access token configured on the backend. Stored only in this browser; without it, or if v2 is unavailable, the v5 contract is used automatically.</span>
+                  <span class="t-caption" data-contract-state>${contractStatus(ctx.view())}${hasToken ? ' · token saved' : ''}</span>
+                </div>
+              </div>
+              <form class="source-form" data-token-form novalidate>
+                <label class="visually-hidden" for="token-input">Contract v2 access token</label>
+                <input class="field-input" id="token-input" name="token" type="password" autocomplete="off" spellcheck="false"
+                  placeholder="${hasToken ? 'Token saved · paste a new one to replace it' : 'Access token'}">
+                <div class="source-actions">
+                  <button type="submit" class="btn btn-quiet" ${connected ? '' : 'disabled'}>Save and test</button>
+                  <button type="button" class="btn btn-critical" data-token-remove ${hasToken ? '' : 'disabled'}>Remove token</button>
+                </div>
+                <div class="source-result" data-token-result role="status" aria-live="polite"></div>
               </form>
               ${listRow({ iconName: 'calendar', label: 'Airline calendar', detail: 'Read the airline roster calendar directly', trail: 'Planned', disabled: true })}
               ${listRow({ iconName: 'report', label: 'ICS import', detail: 'Import a roster file', trail: 'Planned', disabled: true })}
@@ -167,6 +204,32 @@ export const settings = {
       rerender();
     };
     form.addEventListener('submit', onSubmit);
+    const tokenForm = root.querySelector('[data-token-form]');
+    const tokenOut = tokenForm.querySelector('[data-token-result]');
+    const onToken = async (event) => {
+      event.preventDefault();
+      const value = tokenForm.querySelector('#token-input').value.trim();
+      const endpoint = store.get(ENDPOINT_KEY);
+      if (!value || !endpoint) return;
+      render(tokenOut, h`<p class="t-caption">Testing contract v2…</p>`);
+      const result = await testContract(endpoint, value);
+      if (result.ok) {
+        store.set(TOKEN_KEY, value);
+        ctx.controller.forgetContractData();
+        if (!ctx.review()) ctx.controller.setMode({ kind: 'production' });
+      }
+      tokenForm.querySelector('#token-input').value = '';
+      render(tokenOut, h`<p class="source-verdict ${result.ok ? 'is-ok' : 'is-error'}">${result.text}</p>${result.ok ? '' : h`<p class="t-caption">The token was not saved.</p>`}`);
+    };
+    const onTokenRemove = () => {
+      store.remove(TOKEN_KEY);
+      ctx.controller.forgetContractData();
+      if (!ctx.review()) ctx.controller.setMode({ kind: 'production' });
+      rerender();
+    };
+    tokenForm.addEventListener('submit', onToken);
+    const tokenRemove = root.querySelector('[data-token-remove]');
+    tokenRemove.addEventListener('click', onTokenRemove);
     const testButton = root.querySelector('[data-endpoint-test]');
     const removeButton = root.querySelector('[data-endpoint-remove]');
     testButton.addEventListener('click', onTest);
@@ -195,6 +258,8 @@ export const settings = {
       clearTimeout(timer);
       button.removeEventListener('click', onClick);
       form.removeEventListener('submit', onSubmit);
+      tokenForm.removeEventListener('submit', onToken);
+      tokenRemove.removeEventListener('click', onTokenRemove);
       testButton.removeEventListener('click', onTest);
       removeButton.removeEventListener('click', onRemove);
     };

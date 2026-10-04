@@ -9,7 +9,7 @@ import { pageHeader, previewBadge } from '../components.js';
 import { icon } from '../icons.js';
 import { buildMonth, addMonths, monthKeyOf } from '../../model/calendar.js';
 import { buildRotationHorizon } from '../../model/horizon.js';
-import { EVIDENCE } from '../../model/roster.js';
+import { EVIDENCE, OFF_SUBTYPE } from '../../model/roster.js';
 import { horizonView } from '../horizon.js';
 import { clock, city } from '../duty.js';
 import { airport } from '../../data/airports.js';
@@ -32,7 +32,7 @@ function noData(day) {
 
 /** Short text shown in the cell. Text, not colour, carries the meaning. */
 function cellCode(day) {
-  if (day.status === 'off') return 'OFF';
+  if (day.status === 'off') return OFF_SUBTYPE[day.offSubtype]?.short ?? 'OFF';
   if (day.status === 'standby') return 'SB';
   if (day.status === 'reserve') return 'RE';
   if (day.label) return day.label;
@@ -50,9 +50,9 @@ function cellSub(day, tz) {
 }
 
 function describe(day) {
-  const name = STATUS_NAME[day.status];
+  const name = day.status === 'off' && OFF_SUBTYPE[day.offSubtype] ? `${OFF_SUBTYPE[day.offSubtype].name}${day.offSubtype === 'ort' ? ' (ORT, protected)' : ''}` : STATUS_NAME[day.status];
   const conf = day.status === 'unknown' ? '' : day.confidence === 'inferred' ? ', inferred' : ', confirmed';
-  const label = day.label ? ` ${day.label}` : '';
+  const label = day.label && !(day.status === 'off' && day.offSubtype) ? ` ${day.label}` : '';
   const evidence = day.status === 'unknown' ? `: ${EVIDENCE[day.evidence] ?? 'no data'}` : day.evidence === 'duty-unspecified' ? ', duty also listed' : '';
   return `${name}${label}${conf}${evidence}`;
 }
@@ -68,7 +68,7 @@ function focusDate(month) {
 function token(day) {
   if (day.status === 'standby') return 'tok-sb';
   if (day.status === 'reserve') return 'tok-re';
-  if (day.status === 'off') return 'tok-off';
+  if (day.status === 'off') return day.offSubtype === 'ort' ? 'tok-off tok-ort' : day.offSubtype === 'leave' ? 'tok-off tok-leave' : 'tok-off';
   if (day.status === 'unknown' && day.evidence === 'duty-unspecified') return 'tok-duty';
   if (day.status === 'unknown' && !noData(day)) return 'tok-unknown';
   return '';
@@ -110,6 +110,8 @@ const KEY = [
   ['key-sb', 'Standby', 'SB'],
   ['key-re', 'Reserve', 'RE'],
   ['key-off', 'Off · stated by roster', 'OFF'],
+  ['key-ort', 'ORT · protected free day', 'ORT'],
+  ['key-leave', 'Leave', 'LEAVE'],
   ['key-duty', 'Duty · type not given', 'Duty'],
   ['key-unknown', 'Unknown', '?'],
   ['key-nodata', 'No data'],
@@ -205,6 +207,7 @@ function detailView(day, view) {
   const hz = rotation ? buildRotationHorizon(rotation, state, profile, now) : null;
   const title = noData(day) ? 'No data'
     : day.status === 'unknown' && day.evidence === 'duty-unspecified' ? 'Duty'
+    : day.status === 'off' && OFF_SUBTYPE[day.offSubtype] ? OFF_SUBTYPE[day.offSubtype].name
     : `${STATUS_NAME[day.status]}${day.label && (day.status === 'flight' || day.status === 'layover') ? ` · ${day.status === 'flight' ? `to ${city(day.label)}` : city(day.label)}` : ''}`;
   return html`
     <article class="cal-detail-card" aria-labelledby="cal-detail-title">
@@ -229,9 +232,19 @@ function detailView(day, view) {
             </p>` : ''}
         </section>`)}
 
+      ${day.unknownCodes?.length ? html`
+        <section class="cal-detail-section">
+          <p class="t-eyebrow">${day.evidence === 'unknown-code' ? 'On the roster' : 'Also on the roster'}</p>
+          <p class="t-callout">${day.unknownCodes.join(', ')}: a code Flight Control does not recognise. Shown as it is; not interpreted.</p>
+        </section>` : ''}
+      ${day.offSubtype === 'ort' ? html`
+        <section class="cal-detail-section">
+          <p class="t-eyebrow">ORT · from roster</p>
+          <p class="t-callout">Assigned by the company as a free day; it cannot be taken away or reassigned.</p>
+        </section>` : ''}
       ${day.window ? html`
         <section class="cal-detail-section">
-          <p class="t-eyebrow">${STATUS_NAME[day.window.kind] ?? day.window.kind} · from roster</p>
+          <p class="t-eyebrow">${day.window.kind === 'off' && OFF_SUBTYPE[day.window.subtype] ? OFF_SUBTYPE[day.window.subtype].name : STATUS_NAME[day.window.kind] ?? day.window.kind} · from roster</p>
           <p class="t-callout t-tabular">${windowText(day.window, day, tz)}${day.window.label && day.window.kind !== 'off' && day.window.kind !== 'layover' ? ` · ${day.window.label}` : ''}</p>
         </section>` : ''}
 

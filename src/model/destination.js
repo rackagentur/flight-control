@@ -57,6 +57,8 @@ export function buildDestination({ iata, tz, arrival, stay }, profile, now) {
   const minutes = stay && stay.to !== null ? Math.round((stay.to - stay.from) / 60000) : null;
   // Hotel actions apply to an overnight stay that has not ended yet.
   const overnight = stay && (stay.kind === 'layover' || stay.kind === 'open') && (stay.to === null || stay.to > now);
+  // A hotel the roster itself states for this stay (v2). Never inferred from the city.
+  const record = overnight && stay.hotel && typeof stay.hotel.name === 'string' ? stay.hotel : null;
   const dest = {
     iata,
     city: ref?.city ?? iata,
@@ -75,9 +77,10 @@ export function buildDestination({ iata, tz, arrival, stay }, profile, now) {
       current: stay.kind !== 'gap' && stay.from <= now && (stay.to === null || now < stay.to),
       remainingMin: stay.kind !== 'gap' && stay.to !== null && stay.from <= now && now < stay.to ? Math.round((stay.to - now) / 60000) : null,
     } : null,
-    // D4: an assigned hotel only ever comes from a source record; v5 has none.
-    hotel: overnight && !profile.noHotelAirports.includes(iata) ? {
-      record: null,
+    // D4: an assigned hotel only ever comes from a source record (v2 roster hotel block).
+    // A stated record is shown even at airports where search suggestions are suppressed.
+    hotel: overnight && (record || !profile.noHotelAirports.includes(iata)) ? {
+      record,
       search: ref ? mapsSearch(`hotels in ${ref.city}`) : null,
       savedList: profile.hotelListUrl || null,
     } : null,

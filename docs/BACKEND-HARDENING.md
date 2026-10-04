@@ -22,6 +22,11 @@ Detailed findings are tracked privately and are not published until fixed.
 | BH-3 | Framing protection | Default framing policy |
 | Later | Cleanup after V2 is stable | Remove the legacy wrapper; de-collide shared function names; fix B1/B2/B4/B7/B9–B13; additive `getStats` fields (`DATA-GAPS.md`) |
 
+## Phase 7 note (2026-10-04)
+
+- BH-0 baseline recorded privately (file hashes, deployments, triggers, scopes, Script Property names). Not published.
+- The fc.roster v2 sources (`backend/apps-script/`) are implemented and tested locally; **nothing was installed or deployed**. The v2 endpoint is token-protected from its first deployment; it does not fix the v5 GET surface, which remains the BH-1/BH-2 gate.
+
 ## Deployment log
 
 | Date | Step | Version | Verified by | Rollback version |

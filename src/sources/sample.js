@@ -80,7 +80,8 @@ function mixedMonth(at, offDay, tzOf) {
     ],
     windows: [
       { kind: 'layover', start: day(21, 18, 40), end: day(23, 18, 0), label: 'WEST' },
-      offDay(16), offDay(17),
+      // Rest family: an ordinary OFF day and an ORT (protected free day, contract v2), both stated.
+      offDay(16), { ...offDay(17), subtype: 'ort', protected: true, label: 'ORT' },
       { kind: 'standby', start: day(12, 5, 0), end: day(12, 17, 0), label: 'SB' },
       { kind: 'standby', start: day(13, 5, 0), end: day(13, 17, 0), label: 'SB' },
       { kind: 'reserve', start: day(14, 8, 0), end: day(14, 20, 0), label: 'RE' },

@@ -100,17 +100,21 @@ function boundaryView(b, tz) {
 
 function recentView(recent, view, selectedId) {
   const tz = view.profile.homeTz;
+  const server = view.snapshot?.historySource === 'roster-calendar';
   const since = recent.since ? formatDate(recent.since, tz) : null;
   return html`
     <section class="fl-recent" aria-labelledby="fl-recent-title" id="fl-recent">
-      <div class="section-head"><h2 class="t-eyebrow" id="fl-recent-title">Seen on this device</h2></div>
-      <p class="t-caption t-secondary fl-recent-intro">Flights this device saw in earlier roster syncs, kept for ${recent.keepDays} days. Not a complete flight history.${recent.count ? ` ${recent.count} ${recent.count === 1 ? 'flight' : 'flights'} since ${since}.` : ''}</p>
+      <div class="section-head"><h2 class="t-eyebrow" id="fl-recent-title">${server ? 'Flight history' : 'Seen on this device'}</h2></div>
+      <p class="t-caption t-secondary fl-recent-intro">${server
+        ? 'Flights from your roster calendar (synced copy), up to 13 months back, plus flights this device saw. Not a complete career history.'
+        : `Flights this device saw in earlier roster syncs, kept for ${recent.keepDays} days. Not a complete flight history.`}${recent.count ? ` ${recent.count} ${recent.count === 1 ? 'flight' : 'flights'} since ${since}.` : ''}</p>
       ${recent.count ? recent.months.map((m) => html`
         <h3 class="fl-recent-month t-caption">${monthName(m.month)}</h3>
         <ul class="fl-recent-list" role="list">
           ${m.rotations.map((r) => {
             const first = r.sectors[0].sector;
             const remembered = r.provenance !== 'source';
+            const fromRoster = r.sectors.every((e) => e.sector.historySource === 'roster-calendar');
             const selected = r.sectors.some((e) => e.sector.id === selectedId);
             return html`
               <li>
@@ -118,7 +122,7 @@ function recentView(recent, view, selectedId) {
                   <span class="fl-recent-date t-tabular">${rotationDates(r)}</span>
                   <span class="fl-recent-route">${routeTitle(r.route)}</span>
                   <span class="fl-recent-sub t-caption">${r.sectors.map((e) => e.sector.flightNumber).join(' · ')}</span>
-                  <span class="fl-tag ${remembered ? 'tag-remembered' : 'tag-source'}">${remembered ? 'Remembered' : 'Current roster'}</span>
+                  <span class="fl-tag ${remembered ? 'tag-remembered' : 'tag-source'}">${!remembered ? 'Current roster' : fromRoster ? 'Roster history' : 'Remembered'}</span>
                 </a>
               </li>`;
           })}
@@ -128,7 +132,9 @@ function recentView(recent, view, selectedId) {
 
 function provenancePill(e) {
   if (e.sector.provenance === 'history') {
-    return html`<span class="status-pill" data-confidence="remembered">Remembered on this device</span>`;
+    return e.sector.historySource === 'roster-calendar'
+      ? html`<span class="status-pill" data-confidence="remembered">From your roster history</span>`
+      : html`<span class="status-pill" data-confidence="remembered">Remembered on this device</span>`;
   }
   return html`<span class="status-pill" data-confidence="confirmed">Current roster</span>`;
 }
@@ -148,6 +154,7 @@ function timingView(e, view) {
         ${field('Departure', html`${clock(s.dep, s.originTz)}`, html`${city(s.origin)} · ${formatDate(s.dep, s.originTz ?? 'UTC')}${zoneNote(s.dep, s.originTz, profile) ? html` · ${zoneNote(s.dep, s.originTz, profile)}` : ''}`)}
         ${field('Arrival', html`${clock(s.arr, s.destTz)}${shift}`, html`${city(s.destination)} · ${formatDate(s.arr, s.destTz ?? 'UTC')}${zoneNote(s.arr, s.destTz, profile) ? html` · ${zoneNote(s.arr, s.destTz, profile)}` : ''}`)}
         ${field('Block', formatDuration(s.blockMin))}
+        ${s.aircraft ? field('Aircraft', s.aircraft.typeCode, s.aircraft.registration ?? null) : ''}
       </dl>
       ${e.firstOfDuty && e.pickup === null && upcoming ? html`<p class="t-caption t-secondary">No pickup listed for this duty by your roster source.</p>` : ''}
     </section>`;
@@ -178,7 +185,7 @@ function detailView(e, view, weatherFor, { explicit }) {
   const s = e.sector;
   const tz = profile.homeTz;
   const when = e.status === 'past' ? 'Flown' : e.status === 'active' ? 'In the air' : relativeDayLabel(now, s.dep, tz);
-  const seen = s.provenance === 'history' && Number.isFinite(s.seenAt) ? `Last seen in your roster ${formatDate(s.seenAt, tz)}` : null;
+  const seen = s.provenance === 'history' && s.historySource !== 'roster-calendar' && Number.isFinite(s.seenAt) ? `Last seen in your roster ${formatDate(s.seenAt, tz)}` : null;
   return html`
     <article class="fl-detail-card" aria-labelledby="fl-detail-title" data-fl-detail>
       ${explicit ? html`<a class="fl-back" href="${hrefFor('flights')}" data-fl-back><span aria-hidden="true">‹ </span>Flights</a>` : ''}

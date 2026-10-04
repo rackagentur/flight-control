@@ -1,0 +1,134 @@
+# fc.roster v2: the Flight Control roster contract
+
+Status: **implemented locally and tested (Phase 7, steps 1–2). Not deployed.** The v5 `getStats` contract is unchanged and remains the fallback.
+
+## Rule of truth
+
+`source` fact > backend `derived` fact > frontend presentation. A derivation or inference is never upgraded to a fact. Every item carries its provenance:
+
+| Provenance | Meaning |
+|---|---|
+| `source` | Stated by the airline duty-plan feed |
+| `derived` | Computed mechanically from source facts (IANA local times, duty grouping, check-in/pickup association, stay end = next listed departure) |
+| `inferred` | A conservative rule (only the frontend's 6-calendar-day layover inference; the backend never infers) |
+| `unknown` | Not provable from the data |
+
+## Source inventory (read-only, 2026-10-04; sanitized)
+
+The airline feed is a calendar of timed events (no all-day events). Day codes are 24-hour events aligned to local midnight in the base zone (25/23 h on DST days).
+
+| Code | Meaning | Contract kind |
+|---|---|---|
+| `DE<n> AAA-AAA` | flight | `flight` → sector |
+| `C/I` | check-in (report time) | `checkin` → duty.report |
+| `P/U` | pickup (outstations) | `pickup` → duty.pickup |
+| `SB<n>` / `RE<n>` | standby / reserve window | `standby` / `reserve` |
+| `OFF` | off day | `off` / subtype `off` |
+| `-` | free day ("Freier Tag") | `off` / subtype `free` |
+| `U` | leave | `off` / subtype `leave` |
+| `ORT` | **protected free day**: assigned by the company, cannot be taken away or reassigned | `off` / subtype `ort`, `protected: true` |
+| anything else | unknown | `unknown`, original code and title kept |
+
+Descriptions may contain a hotel block ("Hotel" + name, address lines, phone), an aircraft line (`REGISTRATION (TYP)`), and a crew list with colleagues' names and employee numbers plus a booking code. **Only the hotel block and the aircraft line are read; nothing else from a description is ever returned.**
+
+Hotel parsing is **fail-closed**: the name is the first line after "Hotel" and is dropped if it looks like a crew entry (rank code, employee number, crew base "(XXX)"), a name list ("Surname, Given" without a hotel word, "A / B") or a code (letters mixed with digits, booking/confirmation/reservation words). Address lines are taken **only** when the block ends with a "+digits" phone line, and each must contain a number (street, postcode) or be the single city line directly before the phone; otherwise address and phone are dropped. The frontend applies a second, airline-independent check before display. The aircraft line is only read outside the hotel block and only when its type code contains a digit.
+
+*Residual risk (documented, accepted for review):* a letters-only line placed by the source directly before the phone line is accepted as the city line; text alone cannot distinguish a city name from a person's name there. The airline's real crew-list format (rank, employee number, "SURNAME, GIVEN (BASE)") is always rejected, wherever it appears (fuzzed across thousands of variants).
+
+The feed keeps only a few days of past events and extends to the end of the next month once that month is published (around the 1st). It is **not exhaustive**: days away at an outstation can carry no event at all. Therefore an empty day is **never** OFF (decision D-OFF); OFF, free, leave and ORT come only from their explicit codes.
+
+## Transport
+
+- `POST` to the existing web-app URL, `Content-Type: text/plain` (a CORS simple request: no preflight).
+- Body: `{"contract":"fc.roster","version":2,"action":"…","token":"…", …}`. The token is never in the URL.
+- Always HTTP 200; failures are `{"ok":false,"error":"<code>"}`: `bad-request`, `not-configured`, `unauthorized`, `rate-limited`, `unsupported-contract`, `unknown-action`, `bad-range`, `range-too-long`, `before-history-start`, `history-is-past-only`.
+- Auth: Script Property `FC_V2_TOKEN` (constant-time comparison). Without the property every call is refused. More than 20 failed tokens in 10 minutes → `rate-limited`.
+
+## Actions
+
+| Action | Input | Output / bounds |
+|---|---|---|
+| `capabilities` | — | `{ok, contract, version, actions, limits, source}` (feature detection) |
+| `roster` | optional `from`, `to` (`YYYY-MM-DD`) | Default: previous, current and next month. ≤ 100 days. Days before today from the **synced copy**, from today from the **airline feed** (decision D-SRC) |
+| `history` | optional `from`, `to` | My own flown sectors from the synced copy (sync-tagged events only). ≤ 13 months, ≥ configured start date, past only, ≤ 2,000 sectors (most recent kept, `truncated: true`). Cached 6 h |
+
+## `roster` response (synthetic example, shortened)
+
+```json
+{
+  "ok": true, "contract": "fc.roster", "version": 2, "action": "roster", "generatedAt": 1791100800000,
+  "source": { "adapter": "condor-calendar", "baseTimeZone": "Europe/Berlin",
+              "segments": [ { "from": "2026-09-01", "to": "2026-10-03", "basis": "synced-copy" },
+                            { "from": "2026-10-04", "to": "2026-11-30", "basis": "airline-feed" } ] },
+  "capabilities": { "sectors": true, "reportTime": true, "pickups": true, "standby": true, "reserve": true,
+                    "explicitOff": true, "protectedOff": true, "leave": true, "stays": "hotel-block",
+                    "hotels": true, "aircraft": true, "rotations": false, "history": true },
+  "coverage": { "from": "2026-09-01", "to": "2026-11-30", "lastRosteredDate": "2026-10-26",
+    "days": [
+      { "date": "2026-10-04", "state": "rostered",
+        "codes": [ { "kind": "off", "subtype": "ort", "code": "ORT", "protected": true, "eventId": "e_1a2b3c4d5e6f7a8b", "provenance": "source" } ] },
+      { "date": "2026-10-20", "state": "empty", "codes": [] },
+      { "date": "2026-10-27", "state": "unpublished", "codes": [] } ] },
+  "events": [ { "id": "e_1a2b3c4d5e6f7a8b", "kind": "off", "subtype": "ort", "code": "ORT", "title": "ORT",
+                "start": 1791064800000, "end": 1791151200000, "location": "FRA", "protected": true,
+                "provenance": "source", "basis": "airline-feed" },
+              { "id": "e_9f8e7d6c5b4a3f2e", "kind": "unknown", "subtype": null, "code": "XYZ7", "title": "XYZ7",
+                "start": 1791921600000, "end": 1791936000000, "location": "FRA", "protected": false,
+                "provenance": "source", "basis": "airline-feed" } ],
+  "sectors": [ { "id": "s_0c1d2e3f4a5b6c7d", "eventId": "e_0c1d2e3f4a5b6c7d", "flightNumber": "DE9201",
+                 "origin": "FRA", "destination": "BKK", "dep": 1791446400000, "arr": 1791486000000,
+                 "originTz": "Europe/Berlin", "destTz": "Asia/Bangkok",
+                 "depLocal": "2026-10-08T10:00+02:00", "arrLocal": "2026-10-09T02:00+07:00", "dayShift": 1,
+                 "blockMin": 660, "aircraft": { "typeCode": "339", "registration": "DABCD", "provenance": "source" },
+                 "provenance": "source", "zoneProvenance": "derived", "basis": "airline-feed" } ],
+  "duties": [ { "id": "d_0c1d2e3f4a5b6c7d", "kind": "flight", "sectorIds": [ "s_0c1d2e3f4a5b6c7d" ],
+                "report": { "at": 1791441000000, "eventId": "e_…", "provenance": "source", "association": "derived" },
+                "pickup": null, "start": 1791441000000, "end": 1791486000000, "provenance": "derived" } ],
+  "windows": [ { "kind": "standby", "code": "SB90", "start": 1791860100000, "end": 1791903300000,
+                 "eventId": "e_…", "provenance": "source" } ],
+  "stays": [ { "id": "h_0c1d2e3f4a5b6c7d", "airport": "BKK", "airportProvenance": "source",
+               "from": 1791486000000, "to": 1791653400000, "endProvenance": "derived",
+               "provenance": "source", "basis": "hotel-block", "evidenceEventIds": [ "e_0c1d2e3f4a5b6c7d" ],
+               "hotel": { "name": "Sample Riverside Hotel", "address": "99 Sample Street, Bangkok",
+                          "phone": "+66 2 000 0000", "provenance": "source",
+                          "location": { "lat": 13.7, "lon": 100.5, "mapsUrl": "https://maps.example.invalid/riverside",
+                                        "placeId": "place-sample-1", "status": "verified", "provenance": "derived" } } } ],
+  "rotations": [],
+  "warnings": [ { "code": "unknown-code", "message": "1 roster event(s) with an unrecognised code are kept as unknown." } ]
+}
+```
+
+Field rules:
+
+- **Ids** are short SHA-256 hashes of the source event id (opaque; raw calendar ids never leave the backend). They are not assumed stable across roster changes; the frontend keeps its flight + route + local-date identity.
+- **Sectors**: zones come from the generated airport table (`AirportsV2.gs`, same data as `src/data/airports.js`); unknown airport → `null` zone and `null` local time plus a warning. Never a fixed offset.
+- **Aircraft** is optional source metadata (3-character type code, registration if present and well-formed). Absent or malformed → `null`; never inferred and never used for classification.
+- **Duties**: grouped like the frontend (≤ 6 h continuous ground gap). `report` = the check-in ≤ 4 h before the first departure; `pickup` = the pickup ≤ 3 h before the check-in (outstations). The association is `derived`; the times are `source`.
+- **Stays**: a hotel block is source evidence that a stay exists. On a flight: the stay is at that flight's destination (`airportProvenance: source`) and ends at the next listed departure from there (`derived`), or `to: null` (`endProvenance: unknown`). On a standby/reserve: the airport is derived from the previous arrival, or `null`. Stays never create sectors or rotations.
+- **Hotel location** only from a VERIFIED Sheet row whose name and airport match **and** whose recorded stays include this stay's source event; REVIEW/UNRESOLVED rows and candidate fields are never used.
+- **Coverage** states: `rostered` (any event), `empty` (inside coverage, nothing rostered; UNKNOWN, never OFF), `unpublished` (feed segment after the last rostered day). Days outside `from`–`to` are not returned.
+- **Rotations** are not stated by the feed (`capabilities.rotations: false`); the frontend derives them.
+- **Unknown codes** are kept by the frontend too (`unknownEvents`): a day with only an unknown code is UNKNOWN with evidence `unknown-code` and shows the code itself (never "Duty" or OFF); unknown codes on otherwise classified days are listed in the day detail.
+- **Rest family precedence**: an explicitly coded rest day (OFF, free, leave, ORT) is a source fact and outranks an inferred layover. Generic off windows without a subtype keep the earlier rule (an inferred layover wins).
+
+## `history` response (synthetic example)
+
+```json
+{ "ok": true, "contract": "fc.roster", "version": 2, "action": "history", "generatedAt": 1791100800000,
+  "source": { "adapter": "condor-calendar", "basis": "synced-copy" },
+  "range": { "from": "2025-10-01", "to": "2026-10-03" }, "truncated": false,
+  "sectors": [ { "id": "s_…", "flightNumber": "DE9101", "origin": "FRA", "destination": "YYZ",
+                 "dep": 1789891200000, "arr": 1789922400000, "originTz": "Europe/Berlin", "destTz": "America/Toronto",
+                 "blockMin": 520, "provenance": "source", "basis": "synced-copy" } ] }
+```
+
+## Frontend use
+
+- **Feature detection and fallback** (`src/controller.js`): with a v2 token saved in Settings, the `roster` action is called first and validated (`src/sources/contract-v2.js`). Any failure (no `doPost` → HTML page, refused token, wrong version, invalid payload, network, timeout) falls back to v5 `getStats` in the same refresh; structural failures are not retried for an hour. Settings shows which contract is in use and why.
+- **Adapter** (`src/sources/fc-appscript-v2.js`) maps v2 onto the same `RosterSnapshot`: explicit rest-family windows (`off` with `subtype` off/free/leave/ort and `protected`), standby/reserve windows, report and pickup on the first sector of a duty, aircraft, stays (with hotels), and `dayStates` for coverage evidence. Only stays whose airport is a source fact and whose end is known become confirmed layover windows.
+- **UI**: ORT is shown as a ringed "ORT" capsule in the rest family (Calendar, key, day detail, Today); leave as a striped "LEAVE" capsule; roster hotels as a record ("Hotel · from roster") with phone and, when verified, a map link; aircraft in the flight detail.
+- **History**: server history is cached for a day and merged with device memory; labelled "Flight history" / "From your roster history", never as complete career history.
+
+## Backend files (`backend/apps-script/`)
+
+`CondorAdapterV2.gs` (airline codes and description whitelist), `RosterModelV2.gs` (airline-independent builder), `RosterApiV2.gs` (`doPost`, token, reads), `AirportsV2.gs` (generated: `node scripts/gen-airports-gs.mjs`). They reference project constants (calendar/sheet ids, sync tag) by name only and contain no ids, URLs or secrets. Installation is a later, separately approved step (see `backend/apps-script/README.md`).

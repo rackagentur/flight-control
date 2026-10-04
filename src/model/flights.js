@@ -63,6 +63,9 @@ function journeyOf(rotation, snapshot, profile, now) {
         else stay = { kind: 'open', confidence: null, from: s.arr, to: null };
       }
       if (stay) stay = sized(stay);
+      // A roster-stated stay (v2 hotel block) beginning with this arrival carries its hotel.
+      const stated = (snapshot.stays ?? []).find((h) => h.airport === s.destination && Math.abs(h.from - s.arr) < 60000);
+      if (stay && stated?.hotel && stay.kind !== 'turn') stay = { ...stay, hotel: stated.hotel };
       const index = all.indexOf(s);
       const entry = {
         sector: s,
