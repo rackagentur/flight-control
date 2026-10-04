@@ -127,3 +127,18 @@ test('every committed JSON fixture is explicitly synthetic or redacted', () => {
     assert.ok(data._synthetic === true || data._redacted === true, `${path} must declare "_synthetic": true or "_redacted": true`);
   }
 });
+
+test('the private fc.roster v2 token never appears in a committable file (local check)', (t) => {
+  // The token lives only in a private file outside the repo (and later in Script Properties
+  // and the browser). If that file exists on this machine, its value must not be committable.
+  const home = process.env.HOME ?? '';
+  const file = join(home, '.config', 'flight-control', 'fc_v2_token');
+  if (!home || !existsSync(file)) { t.skip('no local token file: check NOT performed'); return; }
+  const token = readFileSync(file, 'utf8').trim();
+  assert.ok(token.length >= 32, 'token file present but too short to be the real token');
+  const hits = committableFiles().filter((path) => readFileSync(join(ROOT, path), 'utf8').includes(token));
+  assert.deepEqual(hits, [], 'the v2 token was found in committable files');
+  // Defence in depth: no committable file assigns a literal value to FC_V2_TOKEN.
+  const assigned = committableFiles().filter((path) => /FC_V2_TOKEN\s*[:=]\s*['"][^'"]{16,}['"]/.test(readFileSync(join(ROOT, path), 'utf8')));
+  assert.deepEqual(assigned, []);
+});
