@@ -23,7 +23,7 @@ index.html                     shell: theme bootstrap (no flash), nav + main mou
 manifest.webmanifest           home-screen install
 package.json                   type=module, node --test, no dependencies
 assets/
-  icons/                       icon.svg, apple-touch-icon.png, icon-512.png
+  icons/                       icon.svg, apple-touch-icon.png (180), icon-192.png, icon-512.png
   css/
     tokens.css                 primitives → semantic tokens → light/dark → state palettes
     base.css                   reset, type scale, layout primitives, focus, reduced motion
@@ -31,9 +31,11 @@ assets/
     components.css             hero, horizon, week strip, rotation, rows, sheets, buttons, stats
     screens.css                per-screen layouts
 src/
-  main.js                      boot: theme → profile → source → router → render; refresh loop
+  main.js                      boot: storage schema → theme → environment (UNKNOWN) → shell → router;
+                               Phase 4 adds profile → roster source → refresh loop
   router.js                    hash routes (#/today …)
   store.js                     namespaced fc.v2.* storage, schema version, try/catch, reset
+  theme.js                     Light/Dark/System preference + operational environment (data-state/tone)
   config/profile.js            user profile + defaults
   config/sources.js            source registry, active source, per-source settings
   sources/source.js            RosterSource interface + capability flags
@@ -52,15 +54,21 @@ src/
   data/airports.js             ONE merged airport table: iata, city, country, cc, tz, lat, lon, tone
   services/weather.js          weather provider interface (Open-Meteo impl), session cache
   services/map.js              lazy Leaflet (CDN + SRI), earth-tone styling, tile provider config
-  ui/components/               hero, horizon, week-strip, rotation-card, sector-row, stat-block,
-                               status-pill, empty-state, action-button, sheet
-  ui/screens/                  today, calendar, flights, map, more, weather, statistics, controls, settings
+  ui/shell.js                  navigation surfaces (tab bar / rail / sidebar) from one route list
+  ui/icons.js                  inline SVG icon set + brand mark
+  ui/components.js             shared primitives (page header, theme control, list row, slot, …);
+                               split into ui/components/* when a component grows its own logic (Phase 4+)
+  ui/environments.js           design-preview descriptions of the six environments (not roster data)
+  ui/screens/                  today, more, controls, settings, upcoming (placeholders for later phases)
 tests/                         *.test.js + fixtures/ (synthetic/redacted only) + regression/
 docs/                          AUDIT, PLAN, DATA-GAPS, BACKEND-HARDENING (+ DESIGN, REGRESSION later)
 legacy/index-v1.html           preserved legacy frontend
 ```
 
 Files are created in the phase that first needs them (no empty stubs).
+
+**Phase 3 status (implemented):** tokens, theme engine, shell, router, store, icons, Today (UNKNOWN status + labelled environment preview), More, Controls (structure), Settings (live theme, structure), placeholders for Calendar/Flights/Map/Weather/Statistics.
+Theme colours use CSS `light-dark()` driven by `color-scheme` (single definition per token; requires iOS/Safari 17.5+, Chrome 123+, Firefox 120+).
 
 ## B. Normalized data model
 
@@ -205,8 +213,8 @@ Layover tone comes from `airports.js` (deterministic; coastal/tropical → ocean
 ## F. Migration steps
 
 1. Phase 2: hygiene, local `v1-legacy` tag, `v2-redesign` branch, legacy preserved, scaffold, docs, synthetic fixture.
-2. Phase 3: tokens/theme, shell/router/store/profile, sample source, **read-only CORS spike** against `getStats` (go/no-go).
-3. Phase 4: `airports.js`, `time.js` (T1–T9), adapter, roster, state, horizon, Today (6 states). Validation inputs: redacted fixture, B3 answer.
+2. Phase 3: tokens/theme, shell/router/store, labelled environment preview. (Per the Phase 3 brief, no backend integration and no sample roster data: the profile, sample source and **read-only CORS spike** move to the start of Phase 4.)
+3. Phase 4: **CORS spike first (go/no-go)**, profile, sample source, `airports.js`, `time.js` (T1–T9), adapter, roster, state, horizon, Today (6 states). Validation inputs: redacted fixture, B3 answer.
 4. Phase 5: Calendar.
 5. Phase 6: Flights, Map, Weather, Statistics, Controls, Settings.
 6. Phase 7: parity + manual regression → PR to `main` (V2 private until the BH gate).

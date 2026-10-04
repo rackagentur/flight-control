@@ -2,7 +2,7 @@
 
 An operational roster companion for airline crew: today's duty state, the Duty Horizon, roster calendar, flights, route map, weather and flying statistics.
 
-> **Status:** V2 redesign in progress on the `v2-redesign` branch (Phase 2 scaffold).
+> **Status:** V2 redesign in progress on the `v2-redesign` branch (Phase 3: design system and shell).
 > The production app is still the Apps Script v5 web app; V2 is not live.
 
 ## Architecture (V2)
@@ -28,7 +28,7 @@ See [`docs/PLAN.md`](docs/PLAN.md) for the full plan, [`docs/DATA-GAPS.md`](docs
 npm run serve        # python3 -m http.server 8080, then open http://localhost:8080
 ```
 
-The backend endpoint is entered at runtime in Settings (Phase 3+) and stored only in the browser. **Never commit it.**
+The backend endpoint is entered at runtime in Settings (Phase 4+) and stored only in the browser. **Never commit it.**
 
 ## Test
 

@@ -1,0 +1,265 @@
+/* ==========================================================================
+   Flight Control V2: design tokens ("Adaptive Aviation")
+
+   Layers
+     1. Scale primitives: type, space, radii, motion, layout
+     2. Theme mechanics: color-scheme drives light-dark() for every colour token
+     3. Operational state palettes: [data-state] (+ [data-tone] for layover)
+     4. Semantic tokens: what components consume (never raw hex in components)
+
+   Theme: <html data-theme="light|dark">; no attribute = System (prefers-color-scheme).
+   State: any element may carry data-state; the nearest ancestor wins, so a preview
+   card can render a different environment than the app canvas.
+   Contrast targets are enforced by tests/tokens.test.js.
+   ========================================================================== */
+
+/* 1. Scale primitives ---------------------------------------------------- */
+:root {
+  /* Typography: system stack (SF Pro on Apple platforms), no web fonts */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  --text-display: clamp(2.75rem, 1.9rem + 3.6vw, 4rem);   /* 44 → 64 */
+  --text-title-1: clamp(1.75rem, 1.5rem + 1vw, 2.125rem);  /* 28 → 34 */
+  --text-title-2: 1.375rem;                                 /* 22 */
+  --text-headline: 1.0625rem;                               /* 17 */
+  --text-body: 1rem;                                        /* 16 */
+  --text-callout: 0.875rem;                                 /* 14 */
+  --text-caption: 0.8125rem;                                /* 13 */
+  --text-micro: 0.6875rem;                                  /* 11 */
+
+  --leading-tight: 1.05;
+  --leading-snug: 1.25;
+  --leading-body: 1.5;
+  --tracking-display: -0.035em;
+  --tracking-title: -0.02em;
+  --tracking-micro: 0.08em;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
+  /* Spacing: 4-pt scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+
+  /* Radii */
+  --radius-control: 10px;
+  --radius-row: 16px;
+  --radius-card: 24px;
+  --radius-hero: 32px;
+  --radius-pill: 999px;
+
+  /* Motion */
+  --dur-instant: 120ms;
+  --dur-quick: 200ms;
+  --dur-standard: 320ms;
+  --dur-atmosphere: 560ms;
+  --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+  /* Layout */
+  --gutter: var(--space-4);
+  --tabbar-height: 56px;
+  --rail-width: 92px;
+  --sidebar-width: 256px;
+  --context-width: 340px;
+  --content-max: 1040px;
+  --touch-min: 44px;
+
+  /* Elevation: translucency first, shadow only where depth is functional */
+  --blur-glass: 22px;
+  --shadow-float: 0 1px 0 rgb(0 0 0 / 0.04), 0 12px 32px -12px rgb(0 0 0 / 0.18);
+}
+
+/* 2. Theme mechanics ------------------------------------------------------- */
+:root { color-scheme: light dark; }               /* System */
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+
+/* 3. Operational state palettes --------------------------------------------
+   Each token is light-dark(<light>, <dark>). Hex only: the contrast test parses these.
+   canvas    app background            surface   quiet raised surface
+   atmos-1…3 hero atmosphere (top → bottom)
+   ink       primary text (fg-1)        ink-2     secondary text (fg-2)
+   ink-3     tertiary/decorative        accent    state accent (UI, large text)
+   line      hairlines                  tint      atmosphere glow colour
+   ------------------------------------------------------------------------- */
+
+/* UNKNOWN: neutral graphite / stone (also the default: no evidence, no colour claim) */
+:root,
+[data-state="unknown"] {
+  --st-canvas:  light-dark(#ECECE9, #191918);
+  --st-surface: light-dark(#F6F6F4, #232321);
+  --st-atmos-1: light-dark(#E8E8E5, #21211F);
+  --st-atmos-2: light-dark(#DADAD6, #2A2A28);
+  --st-atmos-3: light-dark(#C8C8C3, #383835);
+  --st-ink:     light-dark(#222221, #EDEDEA);
+  --st-ink-2:   light-dark(#52524C, #ADADA7);
+  --st-ink-3:   light-dark(#858580, #74746F);
+  --st-accent:  light-dark(#5F5F59, #A3A39C);
+  --st-line:    light-dark(#D3D3CF, #2E2E2C);
+  --st-tint:    light-dark(#9A9A94, #6B6B66);
+}
+
+/* OFF: stone / tobacco / sand */
+[data-state="off"] {
+  --st-canvas:  light-dark(#EFE9E1, #1A1612);
+  --st-surface: light-dark(#F7F2EC, #241F1A);
+  --st-atmos-1: light-dark(#EDE3D6, #251F19);
+  --st-atmos-2: light-dark(#E1D2BE, #33291F);
+  --st-atmos-3: light-dark(#D3BEA2, #46372A);
+  --st-ink:     light-dark(#2A221B, #F2EAE0);
+  --st-ink-2:   light-dark(#594C40, #C2B5A6);
+  --st-ink-3:   light-dark(#90806B, #85786A);
+  --st-accent:  light-dark(#85552F, #D2A273);
+  --st-line:    light-dark(#DDD0C0, #362E26);
+  --st-tint:    light-dark(#B08A62, #8A6A4A);
+}
+
+/* FLIGHT: slate / steel / muted sky */
+[data-state="flight"] {
+  --st-canvas:  light-dark(#E8ECF0, #10151B);
+  --st-surface: light-dark(#F3F6F8, #18202A);
+  --st-atmos-1: light-dark(#E2E9EF, #16202A);
+  --st-atmos-2: light-dark(#CFDAE4, #1E2C3A);
+  --st-atmos-3: light-dark(#BACADA, #2A3D51);
+  --st-ink:     light-dark(#1B232C, #EAF0F5);
+  --st-ink-2:   light-dark(#414F5C, #AAB8C6);
+  --st-ink-3:   light-dark(#778492, #6F7F8F);
+  --st-accent:  light-dark(#3A5B7C, #94B4D2);
+  --st-line:    light-dark(#CDD6DF, #26313D);
+  --st-tint:    light-dark(#6E8AA6, #5A7896);
+}
+
+/* STANDBY: graphite / taupe / muted amber ("armed but waiting") */
+[data-state="standby"] {
+  --st-canvas:  light-dark(#ECE8E3, #151413);
+  --st-surface: light-dark(#F6F3EF, #1F1D1B);
+  --st-atmos-1: light-dark(#E8E2DA, #1F1C19);
+  --st-atmos-2: light-dark(#DBD2C6, #2B2621);
+  --st-atmos-3: light-dark(#CCBFAE, #3B332B);
+  --st-ink:     light-dark(#23201D, #EFEAE4);
+  --st-ink-2:   light-dark(#514B44, #B8B0A6);
+  --st-ink-3:   light-dark(#888177, #7A7269);
+  --st-accent:  light-dark(#8E6322, #D9A85C);
+  --st-line:    light-dark(#D8D0C6, #312D29);
+  --st-tint:    light-dark(#B58A45, #8F6C36);
+}
+
+/* RESERVE: same family as STANDBY, taupe accent */
+[data-state="reserve"] {
+  --st-canvas:  light-dark(#EBE8E4, #151414);
+  --st-surface: light-dark(#F5F3F0, #1F1E1C);
+  --st-atmos-1: light-dark(#E6E1DB, #1E1C1A);
+  --st-atmos-2: light-dark(#D8D0C7, #2A2724);
+  --st-atmos-3: light-dark(#C8BDB1, #39342F);
+  --st-ink:     light-dark(#23201E, #EEEAE5);
+  --st-ink-2:   light-dark(#504A44, #B7AFA7);
+  --st-ink-3:   light-dark(#878078, #79716A);
+  --st-accent:  light-dark(#6E5F51, #C2AF9A);
+  --st-line:    light-dark(#D7D0C8, #302D2A);
+  --st-tint:    light-dark(#9C8B79, #7A6B5C);
+}
+
+/* LAYOVER: destination-derived earth tone. Default tone = stone */
+[data-state="layover"],
+[data-state="layover"][data-tone="stone"] {
+  --st-canvas:  light-dark(#ECEAE6, #151413);
+  --st-surface: light-dark(#F6F4F1, #1F1E1C);
+  --st-atmos-1: light-dark(#E7E3DD, #1E1C1A);
+  --st-atmos-2: light-dark(#D9D3CA, #2A2724);
+  --st-atmos-3: light-dark(#C9C0B4, #3A3530);
+  --st-ink:     light-dark(#232120, #EEEBE7);
+  --st-ink-2:   light-dark(#504B45, #B6B0A9);
+  --st-ink-3:   light-dark(#868179, #7A746D);
+  --st-accent:  light-dark(#6A6259, #BBB1A5);
+  --st-line:    light-dark(#D6D0C8, #302E2B);
+  --st-tint:    light-dark(#988D80, #776D62);
+}
+
+[data-state="layover"][data-tone="ocean"] {
+  --st-canvas:  light-dark(#E6ECEC, #0F1617);
+  --st-surface: light-dark(#F1F6F6, #172122);
+  --st-atmos-1: light-dark(#DEE8E8, #142123);
+  --st-atmos-2: light-dark(#C7D9DA, #1A2E31);
+  --st-atmos-3: light-dark(#AFC7C9, #24414A);
+  --st-ink:     light-dark(#172426, #E6F0F0);
+  --st-ink-2:   light-dark(#3A4E51, #A3BCBE);
+  --st-ink-3:   light-dark(#6F8685, #6A8486);
+  --st-accent:  light-dark(#2B5A63, #86BCC3);
+  --st-line:    light-dark(#C9D7D8, #223234);
+  --st-tint:    light-dark(#4F8A93, #3F6F77);
+}
+
+[data-state="layover"][data-tone="olive"] {
+  --st-canvas:  light-dark(#EAEBE3, #131410);
+  --st-surface: light-dark(#F4F5EE, #1D1F18);
+  --st-atmos-1: light-dark(#E4E6D9, #1B1E15);
+  --st-atmos-2: light-dark(#D3D7C2, #262B1C);
+  --st-atmos-3: light-dark(#C0C6A8, #353C25);
+  --st-ink:     light-dark(#21231A, #ECEEE3);
+  --st-ink-2:   light-dark(#494E3C, #B2B79F);
+  --st-ink-3:   light-dark(#82876E, #777C64);
+  --st-accent:  light-dark(#56622F, #B5C27F);
+  --st-line:    light-dark(#D3D6C6, #2C2F24);
+  --st-tint:    light-dark(#7C8A4B, #5F6B37);
+}
+
+[data-state="layover"][data-tone="sand"] {
+  --st-canvas:  light-dark(#F0EAE0, #18150F);
+  --st-surface: light-dark(#F8F3EB, #221E17);
+  --st-atmos-1: light-dark(#EFE5D4, #231E15);
+  --st-atmos-2: light-dark(#E5D4B8, #30281B);
+  --st-atmos-3: light-dark(#D8C19B, #433624);
+  --st-ink:     light-dark(#2A2318, #F2EBDF);
+  --st-ink-2:   light-dark(#5B4E3A, #C6B79F);
+  --st-ink-3:   light-dark(#928164, #887A62);
+  --st-accent:  light-dark(#8A6630, #D9B27A);
+  --st-line:    light-dark(#DFD2BD, #382F22);
+  --st-tint:    light-dark(#BC9658, #8E6E3C);
+}
+
+/* 4. Semantic tokens (components use only these) --------------------------- */
+:root,
+[data-state] {
+  --canvas: var(--st-canvas);
+  --surface-1: var(--st-surface);
+  --fg-1: var(--st-ink);
+  --fg-2: var(--st-ink-2);
+  --fg-3: var(--st-ink-3);
+  --accent: var(--st-accent);
+  --line: var(--st-line);
+  --tint: var(--st-tint);
+
+  --glass: color-mix(in oklab, var(--st-canvas) 74%, transparent);
+  --glass-strong: color-mix(in oklab, var(--st-surface) 86%, transparent);
+  --glass-edge: color-mix(in oklab, var(--st-ink) 9%, transparent);
+  --fill-quiet: color-mix(in oklab, var(--st-ink) 5%, transparent);
+  --fill-hover: color-mix(in oklab, var(--st-ink) 8%, transparent);
+  --fill-selected: color-mix(in oklab, var(--st-accent) 14%, transparent);
+  --focus-ring: color-mix(in oklab, var(--st-accent) 70%, transparent);
+
+  --horizon-track: color-mix(in oklab, var(--st-ink) 16%, transparent);
+  --horizon-fill: var(--st-accent);
+
+  /* Functional signals: muted, never saturated alarm colours */
+  --caution: light-dark(#8E6322, #D9A85C);
+  --critical: light-dark(#9A3B2E, #E08C7E);
+  --positive: light-dark(#4F6B45, #A4C097);
+}
+
+/* Registered colours so atmosphere changes cross-fade instead of snapping */
+@property --st-atmos-1 { syntax: "<color>"; inherits: true; initial-value: #E8E8E5; }
+@property --st-atmos-2 { syntax: "<color>"; inherits: true; initial-value: #DADAD6; }
+@property --st-atmos-3 { syntax: "<color>"; inherits: true; initial-value: #C8C8C3; }
+@property --st-canvas  { syntax: "<color>"; inherits: true; initial-value: #ECECE9; }
+@property --st-tint    { syntax: "<color>"; inherits: true; initial-value: #9A9A94; }

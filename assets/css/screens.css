@@ -1,0 +1,63 @@
+/* ==========================================================================
+   Screens: per-screen composition
+   ========================================================================== */
+
+/* --- Today ---------------------------------------------------------------------- */
+.today { display: grid; gap: var(--space-7); }
+.today-main { display: grid; gap: var(--space-7); min-width: 0; }
+.today-context { display: grid; gap: var(--space-5); align-content: start; }
+.today-context .section + .section { margin-top: 0; }
+
+.preview-controls { display: grid; gap: var(--space-3); }
+.preview-note { color: var(--fg-2); font-size: var(--text-caption); max-width: 60ch; }
+.preview-apply { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-2) var(--space-1); }
+.tone-row[hidden] { display: none; }
+
+.palette-strip { display: flex; gap: 6px; }
+.palette-strip span {
+  width: 22px; height: 22px;
+  border-radius: 7px;
+  box-shadow: inset 0 0 0 0.5px color-mix(in oklab, var(--st-ink) 22%, transparent);
+}
+
+@media (min-width: 1200px) {
+  /* Desktop: operational column + persistent context pane, not a stretched phone */
+  .today {
+    grid-template-columns: minmax(0, 1fr) var(--context-width);
+    align-items: start;
+    gap: var(--space-7);
+  }
+  .today-context {
+    position: sticky;
+    top: var(--space-8);
+    padding-left: var(--space-6);
+    border-left: 0.5px solid var(--line);
+  }
+  .hero { min-height: 480px; }
+}
+
+/* --- More ------------------------------------------------------------------------- */
+.more { display: grid; gap: var(--space-6); max-width: 640px; }
+
+/* --- Settings ---------------------------------------------------------------------- */
+.settings { display: grid; gap: var(--space-7); max-width: 720px; }
+.setting-block { display: grid; gap: var(--space-3); }
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-5);
+  padding: var(--space-4);
+}
+.setting-copy { display: grid; gap: 2px; min-width: 0; flex: 1 1 220px; }
+.setting-copy .t-caption { color: var(--fg-2); }
+
+@media (min-width: 1200px) {
+  .settings { grid-template-columns: 200px minmax(0, 1fr); max-width: 920px; column-gap: var(--space-7); }
+  .setting-block { grid-column: 1 / -1; grid-template-columns: subgrid; align-items: start; }
+  .setting-block > .section-head { padding-top: var(--space-4); }
+}
+
+/* --- Placeholder screens ------------------------------------------------------------- */
+.placeholder { display: grid; gap: var(--space-5); max-width: 720px; }

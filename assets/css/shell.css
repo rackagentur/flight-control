@@ -1,0 +1,200 @@
+/* ==========================================================================
+   Shell: responsive application frame
+     < 768     mobile: large-title pages + floating glass tab bar (5 items)
+     768–1199  tablet: icon rail with every destination
+     ≥ 1200    desktop: sidebar (brand, grouped nav, status) + content + context pane
+   ========================================================================== */
+
+.app {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* --- Main column ---------------------------------------------------------- */
+.main {
+  min-width: 0;
+  padding:
+    calc(env(safe-area-inset-top) + var(--space-5))
+    calc(env(safe-area-inset-right) + var(--gutter))
+    calc(var(--tabbar-height) + env(safe-area-inset-bottom) + var(--space-7))
+    calc(env(safe-area-inset-left) + var(--gutter));
+}
+.main:focus { outline: none; }
+
+.page {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  animation: fc-enter var(--dur-standard) var(--ease-standard) both;
+}
+
+.page-header {
+  display: grid;
+  gap: var(--space-1);
+  margin-bottom: var(--space-5);
+}
+.page-header .t-eyebrow { color: var(--fg-2); }
+.page-title { outline: none; }
+
+/* --- Mobile tab bar ---------------------------------------------------------- */
+.tabbar {
+  position: fixed;
+  z-index: 20;
+  left: calc(env(safe-area-inset-left) + var(--space-3));
+  right: calc(env(safe-area-inset-right) + var(--space-3));
+  bottom: calc(env(safe-area-inset-bottom) + var(--space-2));
+  height: var(--tabbar-height);
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  align-items: stretch;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(1.5);
+  backdrop-filter: blur(var(--blur-glass)) saturate(1.5);
+  box-shadow: inset 0 0 0 0.5px var(--glass-edge), var(--shadow-float);
+}
+
+.tab {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 2px;
+  min-height: var(--touch-min);
+  text-decoration: none;
+  color: var(--fg-2);
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.01em;
+  border-radius: var(--radius-pill);
+  transition: color var(--dur-quick) var(--ease-standard);
+  -webkit-tap-highlight-color: transparent;
+}
+.tab svg { width: 22px; height: 22px; }
+.tab[aria-current="page"] { color: var(--fg-1); }
+.tab[aria-current="page"] svg { color: var(--accent); }
+.tab:active { transform: scale(0.96); }
+
+/* --- Sidebar / rail (hidden on mobile) --------------------------------------- */
+.sidebar { display: none; }
+
+.nav-list { display: grid; gap: 2px; }
+.nav-group + .nav-group { margin-top: var(--space-5); }
+.nav-group-label { display: none; }
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--touch-min);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-control);
+  text-decoration: none;
+  color: var(--fg-2);
+  font-size: var(--text-callout);
+  font-weight: var(--weight-medium);
+  transition: background-color var(--dur-quick) var(--ease-standard), color var(--dur-quick) var(--ease-standard);
+}
+.nav-item svg { width: 20px; height: 20px; flex: none; }
+.nav-item:hover { background: var(--fill-hover); color: var(--fg-1); }
+.nav-item[aria-current="page"] { background: var(--fill-selected); color: var(--fg-1); }
+.nav-item[aria-current="page"] svg { color: var(--accent); }
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  text-decoration: none;
+}
+.brand-mark { width: 32px; height: 32px; flex: none; }
+.brand-name { font-weight: var(--weight-semibold); letter-spacing: -0.01em; }
+.brand-sub { display: block; font-size: var(--text-micro); color: var(--fg-2); letter-spacing: var(--tracking-micro); text-transform: uppercase; }
+
+.sidebar-footer { margin-top: auto; display: grid; gap: var(--space-3); }
+
+/* --- Tablet: icon rail ------------------------------------------------------- */
+@media (min-width: 768px) {
+  :root { --gutter: var(--space-6); }
+
+  .app { grid-template-columns: var(--rail-width) minmax(0, 1fr); }
+  .tabbar { display: none; }
+
+  .main {
+    padding-top: calc(env(safe-area-inset-top) + var(--space-7));
+    padding-bottom: var(--space-8);
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 0;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    padding: calc(env(safe-area-inset-top) + var(--space-5)) var(--space-2) var(--space-5);
+    border-right: 0.5px solid var(--line);
+    background: var(--glass);
+    -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(1.3);
+    backdrop-filter: blur(var(--blur-glass)) saturate(1.3);
+    overflow-y: auto;
+  }
+
+  .brand { justify-content: center; }
+  .brand-text { display: none; }
+
+  .nav-item {
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    min-height: 56px;
+    padding: var(--space-2) 0;
+    font-size: 10.5px;
+    font-weight: var(--weight-semibold);
+    text-align: center;
+  }
+  .nav-item svg { width: 22px; height: 22px; }
+
+  .nav-group + .nav-group { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 0.5px solid var(--line); }
+  .sidebar-footer .status-line,
+  .sidebar-footer .theme-quick { display: none; }
+}
+
+/* --- Desktop: full sidebar + context pane ------------------------------------ */
+@media (min-width: 1200px) {
+  :root { --gutter: var(--space-7); }
+
+  .app { grid-template-columns: var(--sidebar-width) minmax(0, 1fr); }
+
+  .sidebar { padding: var(--space-6) var(--space-4) var(--space-5); gap: var(--space-6); }
+  .brand { justify-content: flex-start; padding: 0 var(--space-2); }
+  .brand-text { display: block; }
+
+  .nav-group-label {
+    display: block;
+    padding: 0 var(--space-3) var(--space-2);
+    color: var(--fg-2);
+  }
+  .nav-group + .nav-group { margin-top: var(--space-5); padding-top: 0; border-top: 0; }
+
+  .nav-item {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: var(--space-3);
+    min-height: 40px;
+    padding: 0 var(--space-3);
+    font-size: var(--text-callout);
+    font-weight: var(--weight-medium);
+    text-align: left;
+  }
+  .nav-item svg { width: 19px; height: 19px; }
+
+  .sidebar-footer .status-line,
+  .sidebar-footer .theme-quick { display: flex; }
+
+  .main { padding-top: var(--space-8); }
+}
+
+/* Very wide screens: keep line lengths and hero proportions composed */
+@media (min-width: 1680px) {
+  :root { --content-max: 1180px; --context-width: 360px; }
+}

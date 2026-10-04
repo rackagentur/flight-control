@@ -1,41 +1,51 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-state="unknown">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
-  <meta name="theme-color" content="#EFE9E1">
+  <meta name="theme-color" content="#ECECE9">
+  <meta name="description" content="Flight Control: your operational roster companion.">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Flight Control">
   <title>Flight Control</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="./assets/icons/icon.svg">
+  <link rel="apple-touch-icon" href="./assets/icons/apple-touch-icon.png">
   <script>
-    // Theme bootstrap: runs before first paint so the stored theme never flashes.
-    // 'system' (or no stored value) leaves data-theme unset and defers to prefers-color-scheme.
+    // Theme bootstrap: runs before first paint so a stored theme never flashes.
+    // 'system' (or nothing stored) leaves data-theme unset → prefers-color-scheme decides.
     try {
       var t = localStorage.getItem('fc.v2.theme');
       if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
     } catch (e) {}
   </script>
-  <style>
-    /* Phase 2 scaffold only. Replaced by assets/css/* (tokens, base, shell) in Phase 3. */
-    :root { --canvas: #EFE9E1; --fg-1: #2B241D; --fg-2: #5E5246; color-scheme: light dark; }
-    @media (prefers-color-scheme: dark) {
-      :root:not([data-theme="light"]) { --canvas: #1C1814; --fg-1: #F1E9DF; --fg-2: #BFB2A3; }
-    }
-    :root[data-theme="dark"] { --canvas: #1C1814; --fg-1: #F1E9DF; --fg-2: #BFB2A3; }
-    html, body { margin: 0; background: var(--canvas); color: var(--fg-1); }
-    body { font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
-    main { max-width: 40rem; margin: 0 auto; padding: max(48px, env(safe-area-inset-top)) 16px 48px; }
-    .eyebrow { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--fg-2); }
-    h1 { font-size: 44px; line-height: 1.05; letter-spacing: -.02em; margin: 8px 0 16px; font-weight: 600; }
-    p { color: var(--fg-2); margin: 0; }
-  </style>
+  <link rel="stylesheet" href="./assets/css/tokens.css">
+  <link rel="stylesheet" href="./assets/css/base.css">
+  <link rel="stylesheet" href="./assets/css/shell.css">
+  <link rel="stylesheet" href="./assets/css/components.css">
+  <link rel="stylesheet" href="./assets/css/screens.css">
 </head>
 <body>
-  <main id="app" aria-live="polite">
-    <noscript>Flight Control requires JavaScript.</noscript>
-  </main>
-  <nav id="nav" aria-label="Primary"></nav>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="atmosphere" aria-hidden="true"></div>
+
+  <div class="preview-banner" id="preview-banner" role="status" hidden>
+    <span data-banner-text></span>
+    <button type="button" class="btn btn-quiet" data-banner-exit>Exit preview</button>
+  </div>
+
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main" id="main" tabindex="-1">
+      <noscript><p>Flight Control requires JavaScript.</p></noscript>
+    </main>
+  </div>
+
+  <nav class="tabbar" id="tabbar" aria-label="Primary"></nav>
+
   <script type="module" src="./src/main.js"></script>
 </body>
 </html>
