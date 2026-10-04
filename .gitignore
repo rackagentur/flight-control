@@ -1,0 +1,16 @@
+# --- Private production reference (Apps Script source with personal identifiers) ---
+reference/
+
+# --- Real roster captures: never commit; committed fixtures must be synthetic/redacted ---
+**/*.raw.json
+**/*.prod.json
+
+# --- Local configuration and secrets ---
+.env
+.env.*
+*.local.*
+
+# --- Tooling ---
+node_modules/
+.foreman/
+.DS_Store

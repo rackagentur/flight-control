@@ -1,0 +1,14 @@
+{
+  "name": "flight-control",
+  "version": "2.0.0-dev",
+  "private": true,
+  "description": "Flight Control V2: an operational roster app for airline crew (static frontend).",
+  "type": "module",
+  "engines": {
+    "node": ">=21"
+  },
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.js\"",
+    "serve": "python3 -m http.server 8080"
+  }
+}

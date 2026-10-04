@@ -1,0 +1,395 @@
+{
+  "_synthetic": true,
+  "_description": "SYNTHETIC getStats (v5 contract) fixture. All values are invented. Legacy fields replay v5 getFlightStats semantics, including known defects B1/B3/B4/B7, so parity tests can classify intended fixes. Generated for now=2026-10-04T08:00 Europe/Berlin.",
+  "_now": "2026-10-04T06:00:00.000Z",
+  "_scriptTimeZone": "Europe/Berlin",
+  "success": true,
+  "today": {
+    "dateStr": "Sunday, 4 October"
+  },
+  "daysOff": [
+    {
+      "count": 2,
+      "startDate": "Sun, 4 Oct",
+      "endDate": "Mon, 5 Oct",
+      "daysUntil": 0
+    },
+    {
+      "count": 2,
+      "startDate": "Thu, 8 Oct",
+      "endDate": "Fri, 9 Oct",
+      "daysUntil": 4
+    },
+    {
+      "count": 2,
+      "startDate": "Sun, 11 Oct",
+      "endDate": "Mon, 12 Oct",
+      "daysUntil": 7
+    }
+  ],
+  "upcoming": [
+    {
+      "flightNumber": "DE2074",
+      "origin": "FRA",
+      "destination": "YYZ",
+      "date": "Sat, 10 Oct",
+      "time": "09:40",
+      "arrivalLocal": "10:20",
+      "arrivalNextDay": false,
+      "fraDep": "07:40",
+      "fraArr": "16:20",
+      "isFraFlight": true,
+      "daysUntil": 7,
+      "duration": 8.7,
+      "depTimestamp": 1791618000000,
+      "endTimestamp": 1791649200000,
+      "pickup": "07:25",
+      "wakeup": "06:25",
+      "pickupTimestamp": 1791609900000,
+      "originTz": 2,
+      "destTz": -4,
+      "destCountry": "CA"
+    },
+    {
+      "flightNumber": "DE2075",
+      "origin": "YYZ",
+      "destination": "FRA",
+      "date": "Tue, 13 Oct",
+      "time": "00:30",
+      "arrivalLocal": "12:00",
+      "arrivalNextDay": true,
+      "fraDep": "04:30",
+      "fraArr": "12:00",
+      "isFraFlight": true,
+      "daysUntil": 9,
+      "duration": 7.5,
+      "depTimestamp": 1791844200000,
+      "endTimestamp": 1791871200000,
+      "pickup": null,
+      "wakeup": null,
+      "pickupTimestamp": null,
+      "originTz": -4,
+      "destTz": 2,
+      "destCountry": "DE"
+    },
+    {
+      "flightNumber": "DE2324",
+      "origin": "FRA",
+      "destination": "DXB",
+      "date": "Mon, 26 Oct",
+      "time": "10:00",
+      "arrivalLocal": "17:00",
+      "arrivalNextDay": false,
+      "fraDep": "09:00",
+      "fraArr": "15:00",
+      "isFraFlight": true,
+      "daysUntil": 23,
+      "duration": 6,
+      "depTimestamp": 1793005200000,
+      "endTimestamp": 1793026800000,
+      "pickup": "08:00",
+      "wakeup": "07:00",
+      "pickupTimestamp": 1792998000000,
+      "originTz": 2,
+      "destTz": 4,
+      "destCountry": "AE"
+    },
+    {
+      "flightNumber": "DE2325",
+      "origin": "DXB",
+      "destination": "FRA",
+      "date": "Tue, 27 Oct",
+      "time": "23:30",
+      "arrivalLocal": "03:00",
+      "arrivalNextDay": true,
+      "fraDep": "20:30",
+      "fraArr": "03:00",
+      "isFraFlight": true,
+      "daysUntil": 24,
+      "duration": 6.5,
+      "depTimestamp": 1793140200000,
+      "endTimestamp": 1793163600000,
+      "pickup": null,
+      "wakeup": null,
+      "pickupTimestamp": null,
+      "originTz": 4,
+      "destTz": 2,
+      "destCountry": "DE"
+    },
+    {
+      "flightNumber": "DE2160",
+      "origin": "FRA",
+      "destination": "BKK",
+      "date": "Fri, 30 Oct",
+      "time": "21:55",
+      "arrivalLocal": "12:55",
+      "arrivalNextDay": true,
+      "fraDep": "20:55",
+      "fraArr": "07:55",
+      "isFraFlight": true,
+      "daysUntil": 27,
+      "duration": 11,
+      "depTimestamp": 1793393700000,
+      "endTimestamp": 1793433300000,
+      "pickup": null,
+      "wakeup": null,
+      "pickupTimestamp": null,
+      "originTz": 2,
+      "destTz": 7,
+      "destCountry": "TH"
+    }
+  ],
+  "dutyBlock": {
+    "current": 0,
+    "nextOffInDays": 0,
+    "maxThisMonth": 2
+  },
+  "month": {
+    "flights": 7,
+    "flightsRemaining": 5,
+    "hours": 44.2,
+    "projectedHours": 342.3,
+    "daysAway": 7,
+    "daysLeft": 27,
+    "standby": 1,
+    "reserve": 0,
+    "daysInMonth": 31
+  },
+  "year": {
+    "flights": 118,
+    "hours": 902.4,
+    "projectedHours": 1189
+  },
+  "allTime": {
+    "flights": 512,
+    "hours": 3871,
+    "topDestination": "YYZ",
+    "topDestinationCount": 41,
+    "topRoute": "FRA-YYZ",
+    "topRouteCount": 41,
+    "kmFlown": 3290350,
+    "countries": 23,
+    "airports": 47,
+    "longestFlight": {
+      "hours": 11.8,
+      "route": "FRA-BKK",
+      "date": "Feb 2025"
+    },
+    "busiestMonth": {
+      "month": "2025-07",
+      "count": 24
+    },
+    "yearsActive": 4.2,
+    "avgFlightsPerMonth": 10
+  },
+  "map": {
+    "airports": [
+      {
+        "code": "FRA",
+        "lat": 50.0379,
+        "lon": 8.5622,
+        "count": 240
+      },
+      {
+        "code": "YYZ",
+        "lat": 43.6772,
+        "lon": -79.6306,
+        "count": 41
+      },
+      {
+        "code": "DXB",
+        "lat": 25.2532,
+        "lon": 55.3657,
+        "count": 18
+      },
+      {
+        "code": "BKK",
+        "lat": 13.69,
+        "lon": 100.7501,
+        "count": 12
+      },
+      {
+        "code": "PMI",
+        "lat": 39.5517,
+        "lon": 2.7388,
+        "count": 9
+      }
+    ],
+    "routes": [
+      {
+        "from": [
+          50.0379,
+          8.5622
+        ],
+        "to": [
+          43.6772,
+          -79.6306
+        ],
+        "count": 41
+      },
+      {
+        "from": [
+          43.6772,
+          -79.6306
+        ],
+        "to": [
+          50.0379,
+          8.5622
+        ],
+        "count": 40
+      },
+      {
+        "from": [
+          50.0379,
+          8.5622
+        ],
+        "to": [
+          25.2532,
+          55.3657
+        ],
+        "count": 18
+      },
+      {
+        "from": [
+          25.2532,
+          55.3657
+        ],
+        "to": [
+          50.0379,
+          8.5622
+        ],
+        "count": 18
+      },
+      {
+        "from": [
+          50.0379,
+          8.5622
+        ],
+        "to": [
+          13.69,
+          100.7501
+        ],
+        "count": 12
+      },
+      {
+        "from": [
+          13.69,
+          100.7501
+        ],
+        "to": [
+          50.0379,
+          8.5622
+        ],
+        "count": 12
+      },
+      {
+        "from": [
+          50.0379,
+          8.5622
+        ],
+        "to": [
+          39.5517,
+          2.7388
+        ],
+        "count": 9
+      },
+      {
+        "from": [
+          39.5517,
+          2.7388
+        ],
+        "to": [
+          50.0379,
+          8.5622
+        ],
+        "count": 9
+      }
+    ]
+  },
+  "achievements": [
+    {
+      "id": "flights100",
+      "label": "100 Flights",
+      "target": 100,
+      "current": 512,
+      "unlocked": true
+    },
+    {
+      "id": "flights500",
+      "label": "500 Flights",
+      "target": 500,
+      "current": 512,
+      "unlocked": true
+    },
+    {
+      "id": "flights1000",
+      "label": "1,000 Flights",
+      "target": 1000,
+      "current": 512,
+      "unlocked": false
+    },
+    {
+      "id": "hours1000",
+      "label": "1,000 Hours",
+      "target": 1000,
+      "current": 3871,
+      "unlocked": true
+    },
+    {
+      "id": "hours2500",
+      "label": "2,500 Hours",
+      "target": 2500,
+      "current": 3871,
+      "unlocked": true
+    },
+    {
+      "id": "hours5000",
+      "label": "5,000 Hours",
+      "target": 5000,
+      "current": 3871,
+      "unlocked": false
+    },
+    {
+      "id": "airports50",
+      "label": "50 Airports",
+      "target": 50,
+      "current": 47,
+      "unlocked": false
+    },
+    {
+      "id": "airports100",
+      "label": "100 Airports",
+      "target": 100,
+      "current": 47,
+      "unlocked": false
+    },
+    {
+      "id": "countries20",
+      "label": "20 Countries",
+      "target": 20,
+      "current": 23,
+      "unlocked": true
+    },
+    {
+      "id": "countries50",
+      "label": "50 Countries",
+      "target": 50,
+      "current": 23,
+      "unlocked": false
+    },
+    {
+      "id": "km1m",
+      "label": "1M km flown",
+      "target": 1000000,
+      "current": 3290350,
+      "unlocked": true
+    },
+    {
+      "id": "km5m",
+      "label": "5M km flown",
+      "target": 5000000,
+      "current": 3290350,
+      "unlocked": false
+    }
+  ]
+}
