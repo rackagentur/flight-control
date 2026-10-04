@@ -103,3 +103,30 @@ Static frontend (http://localhost:8080) → Apps Script v5 `?action=getStats`: *
 - A future source must provide **explicit OFF/FREE day events** where the airline roster has them (`type: 'off'`, airline code preserved), **and** a **coverage/completeness signal** (`coverage.from`, `coverage.to`, `coverage.complete`, `syncedAt`).
 - An empty day may be interpreted as OFF **only** when the source declares the window complete; V2 will label that `confidence: inferred`, distinct from an explicit OFF event (`confirmed`).
 - Normalized model already supports it: `DutyStatus 'off'`, `Window {kind:'off'}`, capability `explicitOff`; the v5 adapter sets `explicitOff: false`.
+
+## Calendar coverage with the v5 source (Phase 5, live verification)
+
+What the month view can genuinely show from `getStats`, and how V2 marks the rest. Nothing is synthesized.
+
+| Calendar need | v5 provides | Month view today |
+|---|---|---|
+| Flights | Next 5 flights within 60 days | Flight days and rotations up to the day of the 5th listed flight (live: ~1 week) |
+| Day-level duty vs free | `daysOff`: ≤ 3 free blocks within 30 days | Days up to the end of the 3rd free block: "no duty reported" (not OFF) or "duty, type not given" |
+| Past days | Nothing before today 00:00 | "No data", except flights this device remembered from earlier syncs (21 days) |
+| Standby / reserve / training | Monthly counts only | Never shown as SB/RE; such days are "duty, type not given" |
+| OFF | Not provable (see O1) | Never shown for v5 data |
+| Layovers | Derived from consecutive sectors | Inferred (dotted, italic, "Inferred") |
+| Beyond coverage | — | Hatched "no data"; the coverage window is stated above the grid |
+
+Live result (2026-10-04): 10 of 31 October days classified (4–13 Oct); September and November entirely "no data".
+
+**To populate a full arbitrary month** a source needs (backend track, unchanged in Phase 5): the `days[]` + `coverage` contract above, a sector list not capped at 5 (at least the visible month, ideally ±1 month), and past sectors for the current month.
+
+## Approved classifier rule: maximum inferred layover length (2026-10-04)
+
+- An arrival at an outstation followed by the next departure from the **same** airport may be classified **LAYOVER · inferred** (provenance `derived`) only if the departure date is **at most 6 calendar days** after the arrival date.
+- Calendar days are counted in the **outstation's local dates** (home time zone if the airport's zone is unknown), so DST changes do not shift the count. Example: arrive 28 Oct, depart 3 Nov = 6 → inferred; depart 4 Nov = 7 → not inferred.
+- **Gap > 6 days:** no layover is inferred and the rotation is **not** connected across the gap. The days in between are **UNKNOWN** with their normal source evidence ("no flight listed", "duty, type not given", "no data", …), **never OFF**. Today explains it ("More than 6 days between arriving … and the next departure from there") and the Source panel shows a `layover-too-long` warning.
+- **Explicit roster layovers** (source-stated layover windows, `confidence: confirmed`) are **never capped**, and they keep the rotation connected.
+- Confirmed and inferred layovers remain visually distinct (solid vs dotted band, upright vs italic code, "Confirmed" vs "Inferred").
+- Implemented in `src/model/roster.js` (`MAX_INFERRED_LAYOVER_DAYS`, `layoverCalendarDays`); tests in `tests/layover-cap.test.js` (5/6/7 days, DST, time-zone date boundary, explicit exemption, never OFF).

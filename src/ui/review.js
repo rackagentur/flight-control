@@ -8,6 +8,19 @@ import { html, render } from '../lib/html.js';
 import { ENVIRONMENTS, TONES } from './environments.js';
 
 const KEY = 'fc.v2.review';
+
+/** Calendar scenarios inside the fictional sample month (day offsets from today). */
+export const CALENDAR_SCENARIOS = [
+  { label: 'Mixed month', offset: null },
+  { label: 'Long-haul rotation', offset: 5 },
+  { label: 'Inferred layover', offset: 6 },
+  { label: 'Roster layover', offset: 22 },
+  { label: 'Duty', offset: 18 },
+  { label: 'Standby / reserve week', offset: 12 },
+  { label: 'Explicit OFF', offset: 16 },
+  { label: 'UNKNOWN day', offset: 2 },
+  { label: 'No data', offset: 27 },
+];
 export const REVIEW_LABEL = 'Sample data · not your roster';
 
 function readSession() {
@@ -36,6 +49,9 @@ function dockMarkup(review) {
           </button>`;
       })}
     </div>
+    <div class="chip-row" role="group" aria-label="Calendar scenarios">
+      ${CALENDAR_SCENARIOS.map((c) => html`<button type="button" class="chip" data-review-calendar="${c.offset ?? ''}">${c.label}</button>`)}
+    </div>
     ${review.state === 'layover' ? html`
       <div class="segmented segmented-compact" role="radiogroup" aria-label="Layover destination tone">
         ${TONES.map((t) => html`
@@ -54,7 +70,7 @@ export function reviewMode(review) {
  * Mounts the dock and the top banner if review mode is requested (?review) or already active
  * in this tab. onChange(review | null) is called whenever the scenario changes or review ends.
  */
-export function mountReviewDock(dock, banner, onChange) {
+export function mountReviewDock(dock, banner, onChange, onCalendarScenario = () => {}) {
   const requested = new URLSearchParams(location.search).has('review');
   const initial = { state: 'flight', tone: 'ocean' };
   const stored = readSession();
@@ -82,6 +98,8 @@ export function mountReviewDock(dock, banner, onChange) {
   dock.addEventListener('click', (event) => {
     const state = event.target.closest('[data-review-state]');
     if (state) { update({ ...review, state: state.dataset.reviewState }); return; }
+    const scenario = event.target.closest('[data-review-calendar]');
+    if (scenario) { onCalendarScenario(scenario.dataset.reviewCalendar === '' ? null : Number(scenario.dataset.reviewCalendar)); return; }
     const tone = event.target.closest('[data-review-tone]');
     if (tone) { update({ ...review, tone: tone.dataset.reviewTone }); return; }
     if (event.target.closest('[data-review-exit]')) {

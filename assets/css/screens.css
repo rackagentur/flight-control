@@ -45,3 +45,182 @@
 
 /* --- Placeholder screens ------------------------------------------------------------- */
 .placeholder { display: grid; gap: var(--space-5); max-width: 720px; }
+
+/* --- Calendar ---------------------------------------------------------------------
+   A roster, not a dashboard. Rotation continuity is the strongest element: one journey
+   line per rotation with a node where it departs and where it ends (the Duty Horizon motif).
+   Every state is identifiable without colour:
+     FLIGHT   solid journey line          LAYOVER  dotted line (inferred) / tinted line (roster)
+     STANDBY  outlined SB capsule         RESERVE  dashed RE capsule
+     OFF      filled OFF capsule          DUTY     dot + "Duty"
+     UNKNOWN  dashed ring + "?"           NO DATA  hatched cell, no mark                     */
+.cal-layout { display: grid; gap: var(--space-6); }
+.cal-main { display: grid; gap: var(--space-3); min-width: 0; }
+.cal-side { display: grid; gap: var(--space-5); align-content: start; }
+
+.cal-toolbar { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.cal-nav { display: flex; gap: var(--space-1); }
+.cal-step { width: var(--touch-min); padding: 0; font-size: 22px; line-height: 1; border-radius: var(--radius-pill); }
+.cal-toolbar .btn { border-radius: var(--radius-pill); }
+.cal-toolbar .preview-badge { margin-left: auto; }
+
+/* Coverage: one quiet line, never a banner. */
+.cal-coverage-chip { display: inline-flex; align-items: center; gap: var(--space-2); justify-self: start; color: var(--fg-2); font-size: var(--text-caption); }
+.cal-hatch { width: 14px; height: 14px; border-radius: 4px; flex: none; box-shadow: inset 0 0 0 0.5px var(--glass-edge);
+  background: repeating-linear-gradient(135deg, transparent 0 3px, color-mix(in oklab, var(--fg-1) 22%, transparent) 3px 4px); }
+
+.cal-grid { display: grid; gap: 2px; margin-top: var(--space-1); }
+.cal-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+.cal-dow { text-align: center; font-size: 10px; font-weight: var(--weight-semibold); letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-2); padding: 0 0 var(--space-2); }
+
+.cal-day {
+  --journey: light-dark(#3A5B7C, #94B4D2);
+  --layover-tone: light-dark(#6A6259, #BBB1A5);
+  --tok-standby: light-dark(#8E6322, #D9A85C);
+  --tok-reserve: light-dark(#6E5F51, #C2AF9A);
+  --tok-off: light-dark(#85552F, #D2A273);
+  position: relative;
+  display: grid;
+  grid-template-rows: 26px 12px 18px auto;
+  justify-items: center;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  min-height: 72px;
+  padding: 6px 0 8px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--fg-1);
+  font: inherit;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--dur-instant) var(--ease-standard);
+}
+.cal-day:hover { background: var(--fill-quiet); }
+.cal-day.is-selected { background: var(--fill-selected); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.cal-day:focus-visible { outline-offset: -2px; }
+
+.cal-num { display: grid; place-items: center; min-width: 26px; height: 26px; padding: 0 4px; border-radius: 13px;
+  font-size: var(--text-callout); font-weight: var(--weight-semibold); }
+/* Today: a filled date pill, identifiable at a glance in every state and theme. */
+.cal-day.is-today .cal-num { background: var(--fg-1); color: var(--canvas); }
+.cal-day.is-outside .cal-num, .cal-day.is-outside .cal-code, .cal-day.is-outside .cal-sub { color: var(--fg-2); font-weight: var(--weight-regular); }
+.cal-day.is-outside .cal-band, .cal-day.is-outside .cal-mark, .cal-day.is-outside .cal-code[class*="tok-"] { opacity: 0.55; }
+
+/* No data: hatched, muted number, nothing else. Never empty, never OFF. */
+.cal-day.is-nodata { background-image: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in oklab, var(--fg-1) 6%, transparent) 6px 7px); }
+.cal-day.is-nodata .cal-num { color: var(--fg-2); font-weight: var(--weight-regular); }
+
+/* Track row: holds the journey line or the day's mark. */
+.cal-track { position: relative; align-self: center; width: 100%; height: 12px; display: grid; place-items: center; }
+
+/* Journey line: continuous across cells (bleeds through the 2px gaps), nodes at start and end. */
+.cal-band { position: absolute; top: 3.5px; left: -1px; right: -1px; height: 5px; background: var(--journey); }
+/* Roster-stated layover: a double rail (shape differs from the solid flight line and the dotted inferred layover). */
+.cal-band.kind-layover.is-confirmed { top: 3px; height: 7px; background: linear-gradient(var(--layover-tone) 0 2px, transparent 2px 5px, var(--layover-tone) 5px 7px); }
+.cal-band.kind-layover.is-inferred { background: repeating-linear-gradient(90deg, var(--layover-tone) 0 4px, transparent 4px 8px); }
+/* Nodes sit inside the line's box (so fade masks never clip them): the line starts 5px early. */
+.cal-band.pos-start { left: calc(50% - 5px); }
+.cal-band.pos-end { right: calc(50% - 5px); }
+.cal-band.pos-single { left: calc(22% - 5px); right: calc(22% - 5px); }
+.cal-band.pos-start::before, .cal-band.pos-single::before,
+.cal-band.pos-end::after, .cal-band.pos-single::after {
+  content: ""; position: absolute; top: -3.5px; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--canvas); box-shadow: inset 0 0 0 3px var(--journey);
+}
+.cal-band.pos-start::before, .cal-band.pos-single::before { left: 0; }
+.cal-band.pos-end::after, .cal-band.pos-single::after { right: 0; }
+/* Continuation beyond the row or beyond the data fades instead of ending in a node. */
+.cal-band.wrap-in, .cal-band.open-start { -webkit-mask-image: linear-gradient(90deg, transparent, #000 60%); mask-image: linear-gradient(90deg, transparent, #000 60%); }
+.cal-band.wrap-out, .cal-band.open-end { -webkit-mask-image: linear-gradient(90deg, #000 40%, transparent); mask-image: linear-gradient(90deg, #000 40%, transparent); }
+.cal-band.open-start::before, .cal-band.open-end::after { display: none; }
+.cal-band.open-start { left: -1px; }
+.cal-band.open-end { right: -1px; }
+
+/* Marks for days without a journey line. */
+.cal-mark { width: 0; height: 0; }
+.cal-day.ev-duty-unspecified .cal-mark { width: 7px; height: 7px; border-radius: 50%; background: color-mix(in oklab, var(--fg-1) 55%, transparent); }
+.cal-day.is-unknown:not(.ev-duty-unspecified):not(.is-nodata) .cal-mark { width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--fg-2); -webkit-mask-image: repeating-conic-gradient(#000 0 30deg, transparent 30deg 50deg); mask-image: repeating-conic-gradient(#000 0 30deg, transparent 30deg 50deg); }
+
+/* Code row: IATA for journeys, capsule tokens for SB / RE / OFF. */
+.cal-code { display: inline-grid; place-items: center; min-height: 18px; max-width: 100%; padding: 0 2px; overflow: hidden;
+  font-size: 11px; font-weight: var(--weight-semibold); letter-spacing: 0.03em; line-height: 1; white-space: nowrap; color: var(--fg-1); }
+.cal-day.is-inferred .cal-code { font-style: italic; }
+.cal-code.tok-sb, .cal-code.tok-re, .cal-code.tok-off { min-width: 30px; padding: 0 6px; border-radius: 9px; font-size: 10.5px; letter-spacing: 0.06em; }
+.cal-code.tok-sb { box-shadow: inset 0 0 0 1.5px var(--tok-standby); }
+.cal-code.tok-re { background: repeating-linear-gradient(90deg, color-mix(in oklab, var(--tok-reserve) 26%, transparent) 0 3px, transparent 3px 5px); box-shadow: inset 0 0 0 1px var(--tok-reserve); }
+.cal-code.tok-off { background: color-mix(in oklab, var(--tok-off) 30%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--tok-off) 70%, transparent); }
+.cal-code.tok-duty, .cal-code.tok-unknown { color: var(--fg-2); font-weight: var(--weight-medium); }
+.cal-sub { display: none; }
+
+/* Key: a disclosure, closed on phones, open on wide screens (calendar.js mount). */
+.cal-key { color: var(--fg-2); font-size: var(--text-caption); }
+.cal-key > summary { display: inline-flex; align-items: center; gap: 6px; min-height: var(--touch-min); cursor: pointer; list-style: none; font-weight: var(--weight-semibold); color: var(--fg-2); }
+.cal-key > summary::-webkit-details-marker { display: none; }
+.cal-key > summary::before { content: ""; width: 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform var(--dur-quick) var(--ease-standard); }
+.cal-key[open] > summary::before { transform: rotate(45deg); }
+.cal-key-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-2) var(--space-4); padding: 0 0 var(--space-2); margin: 0; list-style: none; }
+.cal-key-item { display: flex; align-items: center; gap: var(--space-2); }
+.cal-key-sample { position: relative; display: inline-grid; place-items: center; flex: none; width: 34px; height: 18px; border-radius: 9px; font-size: 10px; font-weight: var(--weight-semibold); color: var(--fg-1); letter-spacing: 0.04em; }
+.key-flight .cal-key-sample::before { content: ""; position: absolute; left: 4px; right: 4px; top: 7px; height: 4px; background: light-dark(#3A5B7C, #94B4D2); border-radius: 2px; }
+.key-flight .cal-key-sample::after { content: ""; position: absolute; left: 1px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--canvas); box-shadow: inset 0 0 0 2.5px light-dark(#3A5B7C, #94B4D2); }
+.key-layover .cal-key-sample { font-style: italic; background: repeating-linear-gradient(90deg, light-dark(#6A6259, #BBB1A5) 0 3px, transparent 3px 6px) bottom / 100% 3px no-repeat; border-radius: 0; }
+.key-layover-roster .cal-key-sample { background: linear-gradient(light-dark(#6A6259, #BBB1A5) 0 2px, transparent 2px 4px, light-dark(#6A6259, #BBB1A5) 4px 6px) bottom / 100% 6px no-repeat; border-radius: 0; }
+.key-sb .cal-key-sample { box-shadow: inset 0 0 0 1.5px light-dark(#8E6322, #D9A85C); }
+.key-re .cal-key-sample { background: repeating-linear-gradient(90deg, color-mix(in oklab, light-dark(#6E5F51, #C2AF9A) 26%, transparent) 0 3px, transparent 3px 5px); box-shadow: inset 0 0 0 1px light-dark(#6E5F51, #C2AF9A); }
+.key-off .cal-key-sample { background: color-mix(in oklab, light-dark(#85552F, #D2A273) 30%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, light-dark(#85552F, #D2A273) 70%, transparent); }
+.key-duty .cal-key-sample, .key-unknown .cal-key-sample { color: var(--fg-2); }
+.key-nodata .cal-key-sample { border-radius: 5px; background: repeating-linear-gradient(135deg, transparent 0 3px, color-mix(in oklab, var(--fg-1) 22%, transparent) 3px 4px); }
+
+/* Detail */
+.cal-detail-card {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  border-radius: var(--radius-card);
+  background: linear-gradient(180deg, var(--sheen), transparent 40%), var(--glass-strong);
+  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(1.3);
+  backdrop-filter: blur(var(--blur-glass)) saturate(1.3);
+  box-shadow: inset 0 0.5px 0 var(--sheen-edge), inset 0 0 0 0.5px var(--glass-edge);
+}
+.cal-detail-head { display: grid; gap: var(--space-2); }
+.cal-detail-head .t-eyebrow { color: var(--fg-2); }
+.cal-detail-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.cal-detail-section { display: grid; gap: var(--space-2); padding-top: var(--space-4); border-top: 0.5px solid var(--line); }
+.cal-detail-section .t-eyebrow { color: var(--fg-2); }
+.cal-sectors { display: grid; gap: var(--space-2); padding: 0; margin: 0; list-style: none; }
+.cal-sector { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: var(--space-3); }
+.cal-sector-flight { display: grid; font-size: var(--text-caption); color: var(--fg-2); }
+.cal-sector-date { font-size: 10.5px; font-weight: var(--weight-regular); letter-spacing: 0; }
+.cal-sector-route { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px var(--space-2); font-size: var(--text-body); }
+.cal-sector-route b { font-weight: var(--weight-semibold); }
+.cal-sector-arrow { color: var(--fg-2); }
+/* A leg never splits from its arrow: wraps read "FRA 08:00" / "→ BER 09:05". */
+.cal-sector-leg { white-space: nowrap; }
+.cal-sector-block { font-size: var(--text-caption); color: var(--fg-2); }
+.cal-pickup { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); color: var(--fg-2); font-size: var(--text-callout); }
+.cal-pickup b { color: var(--fg-1); font-weight: var(--weight-semibold); }
+.cal-detail-empty { padding: var(--space-5); border-radius: var(--radius-card); border: 1px dashed color-mix(in oklab, var(--fg-2) 30%, transparent); }
+.cal-summary { display: grid; gap: var(--space-2); }
+.cal-summary .t-eyebrow { color: var(--fg-2); }
+.cal-summary-line { font-weight: var(--weight-semibold); }
+.cal-summary-list { display: flex; flex-wrap: wrap; gap: 4px var(--space-4); padding: 0; margin: 0; list-style: none; color: var(--fg-2); font-size: var(--text-callout); }
+.cal-summary-list span { color: var(--fg-1); font-weight: var(--weight-semibold); }
+
+@media (min-width: 768px) {
+  .cal-day { min-height: 84px; }
+}
+@media (min-width: 1200px) {
+  .cal-layout { grid-template-columns: minmax(0, 1fr) var(--context-width); gap: var(--space-7); align-items: start; }
+  .cal-side { position: sticky; top: var(--space-8); }
+  .cal-grid, .cal-row { gap: 4px; }
+  .cal-band { left: -2px; right: -2px; }
+  .cal-band.pos-start { left: calc(50% - 5px); }
+  .cal-band.pos-end { right: calc(50% - 5px); }
+  .cal-band.open-start { left: -2px; }
+  .cal-band.open-end { right: -2px; }
+  .cal-day { min-height: 108px; grid-template-rows: 28px 12px 20px auto; padding: 8px 0 10px; border-radius: 16px; }
+  .cal-num { font-size: var(--text-body); min-width: 28px; height: 28px; border-radius: 14px; }
+  .cal-code { font-size: var(--text-caption); }
+  .cal-sub { display: block; font-size: 10.5px; color: var(--fg-2); white-space: nowrap; overflow: hidden; max-width: 100%; padding: 0 4px; }
+}

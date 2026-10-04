@@ -7,7 +7,7 @@ import { store } from './store.js';
 import { applyTheme, setThemePreference, watchSystemTheme, applyEnvironment, getThemePreference } from './theme.js';
 import { startRouter, routeById } from './router.js';
 import { render } from './lib/html.js';
-import { formatTime, countdown } from './lib/time.js';
+import { formatTime, countdown, addDays, localDateKey } from './lib/time.js';
 import { airport } from './data/airports.js';
 import { loadProfile } from './config/profile.js';
 import { createController } from './controller.js';
@@ -17,7 +17,8 @@ import { today } from './ui/screens/today.js';
 import { more } from './ui/screens/more.js';
 import { controls } from './ui/screens/controls.js';
 import { settings } from './ui/screens/settings.js';
-import { calendar, flights, map, weather, statistics } from './ui/screens/upcoming.js';
+import { calendar, focusCalendar } from './ui/screens/calendar.js';
+import { flights, map, weather, statistics } from './ui/screens/upcoming.js';
 
 const SCREENS = { today, calendar, flights, map, more, weather, statistics, controls, settings };
 
@@ -42,11 +43,24 @@ const controller = createController({
     const env = environmentFor(view);
     applyEnvironment(env.state, env.tone);
     shell.setStatus(view);
-    if (currentRoute === 'today') show('today', { quiet: true });
+    if (currentRoute === 'today' || currentRoute === 'calendar') show(currentRoute, { quiet: true });
   },
 });
 
-const review = mountReviewDock(document.getElementById('review-dock'), document.getElementById('review-banner'), (next) => controller.setMode(reviewMode(next)));
+const review = mountReviewDock(
+  document.getElementById('review-dock'),
+  document.getElementById('review-banner'),
+  (next) => controller.setMode(reviewMode(next)),
+  (offset) => {
+    // Review-only: jump to a scenario day of the fictional sample month.
+    const { now, profile } = controller.view();
+    const today = localDateKey(now, profile.homeTz);
+    const date = offset === null ? null : addDays(today, offset);
+    focusCalendar((date ?? today).slice(0, 7), date);
+    if (location.hash !== '#/calendar') location.hash = '#/calendar';
+    else show('calendar', { quiet: true });
+  },
+);
 
 const ctx = {
   view: () => controller.view(),

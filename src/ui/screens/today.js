@@ -4,16 +4,17 @@
 // nothing here knows about v5. Missing fields are omitted, never invented.
 
 import { html } from '../../lib/html.js';
-import { formatTime, formatUtcOffset, offsetMinutes, dayShift, formatDuration, relativeDayLabel, countdown, formatDate, localDateKey, addDays } from '../../lib/time.js';
+import { formatTime, formatUtcOffset, offsetMinutes, relativeDayLabel, countdown, formatDate, localDateKey, addDays } from '../../lib/time.js';
 import { airport } from '../../data/airports.js';
 import { hrefFor } from '../../router.js';
 import { pageHeader, previewBadge } from '../components.js';
 import { horizonView } from '../horizon.js';
+import { clock, city, field, dutyFields, sectorList, routeTitle } from '../duty.js';
 import { weekView } from '../week.js';
 
 const CONFIDENCE_LABEL = { confirmed: 'Confirmed', inferred: 'Inferred', unknown: 'Unknown' };
 const PHASE_LABEL = {
-  airborne: 'Airborne', 'pre-departure': 'Flight duty', turnaround: 'On the ground', 'post-duty': 'Duty complete',
+  airborne: 'Airborne', 'pre-departure': 'Flight duty', 'duty-today': 'Flight duty', turnaround: 'On the ground', 'post-duty': 'Duty complete',
   layover: 'Layover', window: null, off: 'Off', 'no-duty-reported': 'Status', 'insufficient-evidence': 'Status', 'no-source': 'Status',
 };
 
@@ -23,58 +24,6 @@ function greeting(now, tz) {
   if (hour < 12) return 'Good morning';
   if (hour < 18) return 'Good afternoon';
   return 'Good evening';
-}
-
-/** Local time with an explicit marker when the zone is unknown (never a guessed local time). */
-function clock(ms, tz) {
-  return tz ? formatTime(ms, tz) : `${formatTime(ms, 'UTC')} UTC`;
-}
-
-const city = (iata) => airport(iata)?.city ?? iata;
-
-function alarmLink(profile, ms, tz, label) {
-  const value = clock(ms, tz);
-  const href = `shortcuts://run-shortcut?name=${encodeURIComponent(profile.alarmShortcutName)}&input=text&text=${encodeURIComponent(value)}`;
-  return html`<a class="pass-alarm" href="${href}" title="Set an alarm for ${label} ${value} with the ${profile.alarmShortcutName} shortcut">${value}</a>`;
-}
-
-function field(label, value, note = null) {
-  return html`
-    <div class="pass-field">
-      <dt class="t-eyebrow">${label}</dt>
-      <dd>${value}${note ? html`<span class="pass-note">${note}</span>` : ''}</dd>
-    </div>`;
-}
-
-function zoneNote(ms, tz, profile) {
-  if (!tz) return 'Time zone unknown (UTC shown)';
-  if (offsetMinutes(ms, tz) === offsetMinutes(ms, profile.homeTz)) return null;
-  return `${formatUtcOffset(ms, tz)} · ${formatTime(ms, profile.homeTz)} at home`;
-}
-
-/** Fields describing a duty: wake-up, pickup, departure, arrival (+N), block, flight. */
-function dutyFields(duty, profile) {
-  const first = duty.sectors[0];
-  const last = duty.sectors.at(-1);
-  const shift = first.originTz && last.destTz ? dayShift(first.dep, first.originTz, last.arr, last.destTz) : null;
-  const block = duty.sectors.reduce((sum, s) => sum + s.blockMin, 0);
-  return html`
-    ${duty.wakeup !== null ? field('Wake-up', alarmLink(profile, duty.wakeup, first.originTz, 'wake-up')) : ''}
-    ${duty.pickup !== null ? field('Pickup', alarmLink(profile, duty.pickup, first.originTz, 'pickup')) : ''}
-    ${field('Departure', html`${clock(first.dep, first.originTz)}`, html`${city(first.origin)}${zoneNote(first.dep, first.originTz, profile) ? html` · ${zoneNote(first.dep, first.originTz, profile)}` : ''}`)}
-    ${field('Arrival', html`${clock(last.arr, last.destTz)}${shift ? html`<sup class="pass-shift" aria-label="${shift > 0 ? `plus ${shift} day` : `minus ${-shift} day`}">${shift > 0 ? `+${shift}` : shift}</sup>` : ''}`,
-      html`${city(last.destination)}${zoneNote(last.arr, last.destTz, profile) ? html` · ${zoneNote(last.arr, last.destTz, profile)}` : ''}`)}
-    ${field('Block', formatDuration(block), duty.sectors.length > 1 ? `${duty.sectors.length} sectors` : null)}
-    ${field('Flight', duty.sectors.map((s) => s.flightNumber).join(' · '))}`;
-}
-
-function sectorList(duty) {
-  if (duty.sectors.length < 2) return '';
-  return html`
-    <ol class="pass-sectors" role="list">
-      ${duty.sectors.map((s) => html`
-        <li><span class="t-code">${s.flightNumber}</span> ${s.origin} ${clock(s.dep, s.originTz)} → ${s.destination} ${clock(s.arr, s.destTz)}</li>`)}
-    </ol>`;
 }
 
 function nextEventBlock(state, now, tz) {
@@ -90,10 +39,6 @@ function nextEventBlock(state, now, tz) {
       </div>
       <p class="pass-countdown t-tabular" data-countdown-to="${ev.at}" aria-live="off">${cd.past ? 'Now' : `in ${cd.label}`}</p>
     </div>`;
-}
-
-function routeTitle(duty) {
-  return [duty.sectors[0].origin, ...duty.sectors.map((s) => s.destination)].join(' → ');
 }
 
 function kicker(eyebrow, state, review) {

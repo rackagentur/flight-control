@@ -6,6 +6,7 @@
 // First matching rule wins; every result explains itself in `reasons`.
 
 import { localDateKey, startOfLocalDay, addDays } from '../lib/time.js';
+import { buildDays, WINDOW_RANK, MAX_INFERRED_LAYOVER_DAYS, layoverCalendarDays } from './roster.js';
 
 const HOUR = 3600000;
 
@@ -94,33 +95,42 @@ export function deriveState(snapshot, roster, profile, now) {
     }
   }
 
-  // 3. Source-stated standby / reserve / off windows.
-  const window = snapshot.windows.find((w) => w.start <= now && now < w.end);
+  // Today's day, from the SAME classifier the 7-day strip and Calendar use.
+  const today = buildDays(snapshot, roster, profile, now, { count: 1 })[0];
+
+  // 3. Source-stated standby / reserve / layover windows.
+  // Same ranking as the day classifier: duty windows outrank a stated layover, then off.
+  const window = snapshot.windows.filter((w) => w.start <= now && now < w.end)
+    .sort((a, b) => (WINDOW_RANK[a.kind] ?? 9) - (WINDOW_RANK[b.kind] ?? 9))[0];
   if (window && (window.kind === 'standby' || window.kind === 'reserve')) {
     return base({
       status: window.kind, confidence: 'confirmed', provenance: 'source', phase: 'window', window, nextEvent,
       duty: upcomingDuty, reasons: [`The roster lists ${window.kind} until the window ends.`],
     });
   }
+  if (window && window.kind === 'layover') {
+    return base({
+      status: 'layover', confidence: 'confirmed', provenance: 'source', phase: 'layover', location: window.label ?? null,
+      window, duty: upcomingDuty, nextEvent, reasons: ['The roster lists this layover.'],
+    });
+  }
 
   // 4. Layover: strong itinerary evidence only.
   const layover = rotations.flatMap((r) => r.layovers).find((l) => l.from <= now && now < l.to);
   if (layover) {
-    const todayKey = localDateKey(now, tz);
-    const listedFree = snapshot.offBlocks.some((b) => todayKey >= b.start && todayKey <= addDays(b.start, b.days - 1));
-    const listedDuty = !listedFree && snapshot.offCoverageEnd !== null && todayKey <= snapshot.offCoverageEnd;
     return base({
       status: 'layover', confidence: 'inferred', provenance: 'derived', phase: 'layover', location: layover.airport,
       layover, duty: upcomingDuty, nextEvent,
       reasons: [
         `Last flight arrived ${layover.airport}; the next departs ${layover.airport}. Derived, not a roster entry.`,
-        ...(listedDuty ? ['The roster also lists a non-flight duty today (standby, reserve or ground duty) without details.'] : []),
+        ...(today.evidence === 'duty-unspecified' ? ['The roster also lists a non-flight duty today (standby, reserve or ground duty) without details.'] : []),
       ],
     });
   }
 
   // 5. Post-duty on the same day (back at base): still the flight day, duty complete.
-  const finishedToday = duties.filter((d) => d.end <= now && d.end >= todayStart).at(-1);
+  //    Uses today's duties from the shared classifier, so the day boundary is identical.
+  const finishedToday = today.duties.filter((d) => d.end <= now).at(-1);
   if (finishedToday && home.has(finishedToday.sectors.at(-1).destination)) {
     return base({
       status: 'flight', confidence: 'confirmed', provenance: finishedToday.provenance, phase: 'post-duty',
@@ -129,38 +139,43 @@ export function deriveState(snapshot, roster, profile, now) {
     });
   }
 
-  // 6. OFF only when the source states it.
-  if (window && window.kind === 'off') {
-    return base({ status: 'off', confidence: 'confirmed', provenance: 'source', phase: 'off', window, duty: upcomingDuty, nextEvent, reasons: ['The roster lists today as off.'] });
+  // 6. A duty overlaps today (e.g. an evening departure from an outstation): a flight day.
+  if (today.status === 'flight') {
+    const duty = today.duties.find((d) => d.end > now) ?? today.duties.at(-1);
+    return base({
+      status: 'flight', confidence: 'confirmed', provenance: duty.provenance, phase: duty.end > now ? 'duty-today' : 'post-duty',
+      location: duty.sectors[0].origin, duty, nextEvent, reasons: [`Duty ${duty.sectors[0].flightNumber} is rostered today.`],
+    });
   }
 
-  // 7. Everything else is UNKNOWN, with the evidence that was considered.
+  // 7. OFF only when the source states it (explicit window or explicit off day).
+  if (today.status === 'off') {
+    return base({ status: 'off', confidence: 'confirmed', provenance: 'source', phase: 'off', window: today.window, duty: upcomingDuty, nextEvent, reasons: ['The roster lists today as off.'] });
+  }
+
+  // 8. Everything else is UNKNOWN, explained with the same evidence the Calendar shows.
   const reasons = [];
+  const evidenceReason = {
+    'no-duty-reported': 'The roster reports no flight, standby or reserve starting today. That is not proof of a day off, so OFF is not shown.',
+    'duty-unspecified': 'The roster counts today as a duty day without a flight (standby, reserve or ground duty), but the source does not say which, or when.',
+    'no-flight-listed': 'No flight is listed today, but the source does not cover other duty types for this day.',
+    'before-source': 'The roster source does not cover today.',
+    'outside-window': 'The roster source does not cover today.',
+  }[today.evidence];
+  if (evidenceReason) reasons.push(evidenceReason);
   const nextDeparture = upcomingDuty?.sectors[0];
-  if (nextDeparture && !home.has(nextDeparture.origin) && nextDeparture.dep - now < 7 * 24 * HOUR) {
+  const previous = duties.filter((d) => d.end <= now).at(-1);
+  const lastArrival = previous?.sectors.at(-1);
+  if (nextDeparture && lastArrival && lastArrival.destination === nextDeparture.origin && !home.has(nextDeparture.origin)
+    && layoverCalendarDays(previous.end, nextDeparture.dep, lastArrival.destTz ?? tz) > MAX_INFERRED_LAYOVER_DAYS) {
+    reasons.push(`More than ${MAX_INFERRED_LAYOVER_DAYS} days between arriving ${lastArrival.destination} and the next departure from there, so a layover is not inferred.`);
+  } else if (nextDeparture && !home.has(nextDeparture.origin) && nextDeparture.dep - now < 7 * 24 * HOUR) {
     reasons.push(`The next departure is from ${nextDeparture.origin}, but the flight there is not visible, so a layover is not assumed.`);
   }
-  const todayFree = snapshot.offBlocks.some((b) => {
-    const startKey = b.start;
-    const endKey = addDays(b.start, b.days - 1);
-    const key = localDateKey(now, tz);
-    return key >= startKey && key <= endKey;
-  });
-  const todayKey = localDateKey(now, tz);
-  const todayBusyUnspecified = !todayFree && snapshot.offCoverageEnd !== null && todayKey <= snapshot.offCoverageEnd
-    && !duties.some((d) => d.sectors.some((s) => s.dep < tomorrowStart && s.arr > todayStart));
-  if (todayBusyUnspecified) {
-    reasons.unshift('The roster counts today as a duty day without a flight (standby, reserve or ground duty), but the source does not say which, or when.');
-  }
-  if (todayFree) {
-    reasons.push(snapshot.capabilities.explicitOff
-      ? 'The roster lists no duty today.'
-      : 'The roster reports no flight, standby or reserve starting today. That is not proof of a day off, so OFF is not shown.');
-  } else if (!reasons.length) {
+  if (!reasons.length) {
     reasons.push(now < tomorrowStart && !upcomingDuty
       ? 'No upcoming duties are visible in the roster source.'
       : 'The roster source does not describe today in enough detail.');
   }
-  const phase = todayFree ? 'no-duty-reported' : todayBusyUnspecified ? 'duty-unspecified' : 'insufficient-evidence';
-  return base({ phase, duty: upcomingDuty, nextEvent, reasons });
+  return base({ phase: today.evidence ?? 'insufficient-evidence', duty: upcomingDuty, nextEvent, reasons });
 }

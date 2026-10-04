@@ -25,7 +25,7 @@ function dayLabel(day) {
 function dayDescription(day) {
   const base = {
     flight: `Flight${day.label ? ` · ${day.label}` : ''}`,
-    layover: `Layover ${day.label} (inferred)${day.evidence === 'duty-unspecified' ? ', duty also listed' : ''}`,
+    layover: `Layover ${day.label}${day.confidence === 'inferred' ? ' (inferred)' : ''}${day.evidence === 'duty-unspecified' ? ', duty also listed' : ''}`,
     standby: 'Standby',
     reserve: 'Reserve',
     off: 'Off',

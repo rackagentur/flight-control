@@ -62,7 +62,18 @@ function spanLabel(kind, a, b) {
 export function buildHorizon(roster, state, profile, now) {
   const picked = pickRotation(roster.rotations, now);
   if (!picked) return null;
-  const { rotation, phase: mode } = picked;
+  return horizonFor(picked.rotation, picked.phase, state, profile, now);
+}
+
+/** Horizon of a specific rotation (Calendar day detail); mode is relative to now. */
+export function buildRotationHorizon(rotation, state, profile, now) {
+  const mode = rotation.start > now ? 'upcoming'
+    : now < rotation.end ? 'active'
+    : rotation.closed && now - rotation.end < RECOVERY_VIEW_MS ? 'recovery' : 'past';
+  return horizonFor(rotation, mode, state, profile, now);
+}
+
+function horizonFor(rotation, mode, state, profile, now) {
   const home = new Set(profile.homeBases);
   const stops = stopsFor(rotation);
   if (!stops.length) return null;

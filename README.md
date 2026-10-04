@@ -2,7 +2,7 @@
 
 An operational roster companion for airline crew: today's duty state, the Duty Horizon, roster calendar, flights, route map, weather and flying statistics.
 
-> **Status:** V2 redesign in progress on the `v2-redesign` branch (Phase 4: operational Today, normalized model, state engine, Duty Horizon).
+> **Status:** V2 redesign in progress on the `v2-redesign` branch (Phase 5: roster Calendar).
 > The production app is still the Apps Script v5 web app; V2 is not live.
 
 ## Architecture (V2)

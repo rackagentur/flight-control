@@ -45,7 +45,7 @@
 
 /**
  * @typedef {Object} Window   a standby/reserve/off window stated by the source
- * @property {'standby'|'reserve'|'off'} kind
+ * @property {'standby'|'reserve'|'off'|'layover'} kind
  * @property {number} start
  * @property {number} end
  * @property {string} [label]

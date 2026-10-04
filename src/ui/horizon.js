@@ -56,7 +56,7 @@ export function horizonView(h, { variant = 'full' } = {}) {
           <span class="hz-span hz-${s.kind} is-${s.status}" style="left:${pct(s.x0)};width:${pct(s.x1 - s.x0)}"></span>`)}
         ${h.stops.map((s) => html`
           <span class="hz-stop hz-stop-${s.kind} is-${s.status} ${s.next ? 'is-next' : ''}" style="left:${pct(s.x)}"></span>`)}
-        ${h.mode === 'upcoming' ? '' : html`<span class="hz-now" style="left:${pct(h.now.x)}"></span>`}
+        ${h.mode === 'upcoming' || h.mode === 'past' ? '' : html`<span class="hz-now" style="left:${pct(h.now.x)}"></span>`}
       </div>
       <div class="hz-times" aria-hidden="true">
         ${h.stops.map((s) => html`

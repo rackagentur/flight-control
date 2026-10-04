@@ -69,6 +69,7 @@ Files are created in the phase that first needs them (no empty stubs).
 
 **Phase 3 status (implemented):** tokens, theme engine, shell, router, store, icons, Today (UNKNOWN status + labelled environment preview), More, Controls (structure), Settings (live theme, structure), placeholders for Calendar/Flights/Map/Weather/Statistics.
 **Phase 4 status (implemented):** normalized model (`model/types.js`), v5 adapter (`sources/fc-appscript-v5.js`), sector history (`model/history.js`), roster/duties/rotations/days (`model/roster.js`), state engine (`model/state.js`), Duty Horizon model + view (`model/horizon.js`, `ui/horizon.js`), 7-day strip (`ui/week.js`), IANA time library (`lib/time.js`), merged airport table (`data/airports.js`), transport + connection test (`api/appscript.js`), data controller (`controller.js`), profile (`config/profile.js`), review samples (`sources/sample.js`), Today with real normalized data, Settings → Roster source.
+**Phase 5 status (implemented, uncommitted):** Calendar (`ui/screens/calendar.js`, `model/calendar.js`) on the shared day classifier (`roster.buildDays`, now range-based and duty-overlap based; rotations split at itinerary gaps); the state engine reads today from the same classifier; shared duty rendering (`ui/duty.js`); per-rotation Duty Horizon; review sample month with calendar scenarios.
 Theme colours use CSS `light-dark()` driven by `color-scheme` (single definition per token; requires iOS/Safari 17.5+, Chrome 123+, Firefox 120+).
 
 ## B. Normalized data model

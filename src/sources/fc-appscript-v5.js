@@ -172,8 +172,12 @@ export function adaptV5(payload, { profile, fetchedAt, kind = 'live' }) {
     source: { id: 'fc-appscript-v5', label: 'Flight Control calendar', kind, fetchedAt },
     capabilities: V5_CAPABILITIES,
     sectors,
-    // v5 lists flights from 00:00 of the fetch day (script time zone) onwards.
+    // v5 lists flights from 00:00 of the fetch day (script time zone) onwards, for 60 days,
+    // but at most 5: when truncated, flights are only known up to the 5th flight's day.
     coverageStart: startOfLocalDay(todayKey, profile.homeTz),
+    flightCoverageEnd: upcoming.length >= 5 && sectors.length
+      ? localDateKey(sectors.at(-1).dep, profile.homeTz)
+      : addDays(todayKey, 59),
     windows: [],
     offBlocks,
     offCoverageEnd,

@@ -19,18 +19,6 @@ function screen(id, { subtitle, phase, summary, items }) {
   };
 }
 
-export const calendar = screen('calendar', {
-  subtitle: 'Your roster, month by month',
-  phase: 'Phase 5',
-  summary: 'A true roster calendar, not another statistics page.',
-  items: [
-    'Month grid with rotations drawn as connected bands across days',
-    'Outstation codes, standby, reserve, days off and unknown days marked distinctly',
-    'Today highlighted; days beyond the data window shown as “no data”, never as off',
-    'Month summary: flights, rostered hours, standby and reserve',
-  ],
-});
-
 export const flights = screen('flights', {
   subtitle: 'Upcoming sectors, grouped by rotation',
   phase: 'Phase 6',
