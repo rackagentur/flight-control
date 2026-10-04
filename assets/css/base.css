@@ -105,20 +105,37 @@ a { color: inherit; }
 }
 .skip-link:focus-visible { transform: none; }
 
-/* --- Atmosphere: the state environment behind the whole app --------------- */
+/* --- Atmosphere: the operational state as environmental light ----------------
+   One fixed scene behind the whole app, lit like a sky:
+     key light   soft state-coloured light from high on the right
+     fill light  low counter-light from the left, in the deepest atmosphere tone
+     horizon     a faint luminous band low in the scene (the aviation horizon)
+     depth       sky-to-ground gradient
+     vignette    gentle falloff at the edges (::before)
+     grain       film texture against banding (::after)
+   ------------------------------------------------------------------------- */
 .atmosphere {
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(120% 70% at 85% -10%, color-mix(in oklab, var(--st-tint) 22%, transparent), transparent 62%),
-    radial-gradient(90% 60% at 0% 0%, color-mix(in oklab, var(--st-atmos-2) 70%, transparent), transparent 70%),
-    var(--st-canvas);
+    radial-gradient(75% 60% at 82% -12%, var(--env-key), transparent 72%),
+    radial-gradient(55% 55% at -8% 38%, var(--env-fill), transparent 70%),
+    radial-gradient(140% 24% at 50% 82%, var(--env-horizon), transparent 72%),
+    linear-gradient(180deg, var(--st-atmos-1) 0%, var(--st-canvas) 48%, var(--env-ground) 100%);
   transition:
     --st-canvas var(--dur-atmosphere) var(--ease-standard),
+    --st-atmos-1 var(--dur-atmosphere) var(--ease-standard),
     --st-atmos-2 var(--dur-atmosphere) var(--ease-standard),
+    --st-atmos-3 var(--dur-atmosphere) var(--ease-standard),
     --st-tint var(--dur-atmosphere) var(--ease-standard);
+}
+.atmosphere::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(130% 110% at 55% 35%, transparent 58%, var(--env-vignette) 100%);
 }
 .atmosphere::after {
   /* Film grain: breaks gradient banding and gives the surface a material quality */

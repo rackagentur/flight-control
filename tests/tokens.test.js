@@ -118,3 +118,20 @@ test('tertiary ink is never used as a text colour', () => {
   const offenders = sheets.flatMap((sheet) => sheet.match(/(?:^|[;{\s])color:\s*var\(--fg-3\)/g) ?? []);
   assert.deepEqual(offenders, []);
 });
+
+test('page text stays legible under the environment key light (strongest region)', () => {
+  // Mirrors --env-key: tint at 30% (light) / 42% (dark) over the top of the scene (atmos-1).
+  const strength = { light: 0.30, dark: 0.42 };
+  const failures = [];
+  for (const state of REQUIRED_STATES) {
+    for (const mode of ['light', 'dark']) {
+      const t = states[state];
+      const lit = over(t.tint[mode], t['atmos-1'][mode], strength[mode]);
+      for (const fg of ['ink', 'ink-2']) {
+        const ratio = contrast(t[fg][mode], lit);
+        if (ratio < 4.5) failures.push(`${state} ${mode}: ${fg} under key light ${lit} = ${ratio.toFixed(2)} < 4.5`);
+      }
+    }
+  }
+  assert.deepEqual(failures, [], `\n${failures.join('\n')}`);
+});

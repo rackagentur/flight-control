@@ -6,7 +6,7 @@ import { applyTheme, setThemePreference, watchSystemTheme, applyEnvironment, get
 import { startRouter, routeById } from './router.js';
 import { render } from './lib/html.js';
 import { mountShell } from './ui/shell.js';
-import { environment, TONES } from './ui/environments.js';
+import { mountReviewDock } from './ui/review.js';
 import { today } from './ui/screens/today.js';
 import { more } from './ui/screens/more.js';
 import { controls } from './ui/screens/controls.js';
@@ -18,34 +18,20 @@ const SCREENS = { today, calendar, flights, map, more, weather, statistics, cont
 store.ensureSchema();
 applyTheme();
 watchSystemTheme();
-// No roster source yet: the honest operational state is UNKNOWN.
-applyEnvironment('unknown');
 
 const shell = mountShell();
-const banner = document.getElementById('preview-banner');
 
-// --- App-wide environment preview (design preview only; always bannered) -----------
-// main.js owns whether the app-wide preview is active; screens only read it.
-let appPreviewActive = false;
-const ctx = {
-  isAppPreviewActive: () => appPreviewActive,
-  setAppPreview(state, tone) {
-    appPreviewActive = true;
-    applyEnvironment(state, tone);
-    const env = environment(state);
-    const toneName = state === 'layover' ? TONES.find((t) => t.tone === tone)?.name : null;
-    banner.querySelector('[data-banner-text]').textContent =
-      `Previewing the ${env.name.toLowerCase()}${toneName ? ` (${toneName.toLowerCase()})` : ''} environment · not roster data`;
-    banner.hidden = false;
-  },
-  clearAppPreview() {
-    appPreviewActive = false;
-    applyEnvironment('unknown');
-    banner.hidden = true;
-    document.dispatchEvent(new CustomEvent('fc:preview-cleared'));
-  },
-};
-banner.querySelector('[data-banner-exit]').addEventListener('click', () => ctx.clearAppPreview());
+// --- Design review (development only; ?review) ---------------------------------------
+// The reviewed environment lights the whole app; production state remains UNKNOWN.
+let currentRoute = null;
+const review = mountReviewDock(document.getElementById('review-dock'), (next) => {
+  applyEnvironment(next ? next.state : 'unknown', next?.tone);
+  if (currentRoute) show(currentRoute, { quiet: true });
+});
+// No roster source yet: the honest operational state is UNKNOWN (unless a design review is active).
+applyEnvironment(review.current()?.state ?? 'unknown', review.current()?.tone);
+
+const ctx = { review: () => review.current() };
 
 // --- Theme controls (sidebar quick switch + Settings) share one behaviour ----------
 function syncThemeControls() {
@@ -81,7 +67,8 @@ document.documentElement.addEventListener('fc:theme', syncThemeControls);
 let cleanup = null;
 let firstRender = true;
 
-function show(routeId) {
+function show(routeId, { quiet = false } = {}) {
+  currentRoute = routeId;
   const screen = SCREENS[routeId] ?? SCREENS.today;
   cleanup?.();
   cleanup = null;
@@ -90,7 +77,7 @@ function show(routeId) {
   shell.setActive(routeId);
   syncThemeControls();
   document.title = `${routeById(routeId)?.title ?? 'Today'} · Flight Control`;
-  if (!firstRender) {
+  if (!firstRender && !quiet) {
     window.scrollTo({ top: 0 });
     // Move focus to the new page title so screen readers announce the change.
     shell.main.querySelector('.page-title')?.focus({ preventScroll: true });

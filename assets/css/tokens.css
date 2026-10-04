@@ -97,11 +97,11 @@
 /* UNKNOWN: neutral graphite / stone (also the default: no evidence, no colour claim) */
 :root,
 [data-state="unknown"] {
-  --st-canvas:  light-dark(#ECECE9, #191918);
-  --st-surface: light-dark(#F6F6F4, #232321);
-  --st-atmos-1: light-dark(#E8E8E5, #21211F);
-  --st-atmos-2: light-dark(#DADAD6, #2A2A28);
-  --st-atmos-3: light-dark(#C8C8C3, #383835);
+  --st-canvas:  light-dark(#EDEBE6, #191918);
+  --st-surface: light-dark(#F6F4F0, #232321);
+  --st-atmos-1: light-dark(#E9E6E0, #21211F);
+  --st-atmos-2: light-dark(#DBD7CF, #2A2A28);
+  --st-atmos-3: light-dark(#C9C4BA, #383835);
   --st-ink:     light-dark(#222221, #EDEDEA);
   --st-ink-2:   light-dark(#52524C, #ADADA7);
   --st-ink-3:   light-dark(#858580, #74746F);
@@ -110,7 +110,7 @@
   --st-tint:    light-dark(#9A9A94, #6B6B66);
 }
 
-/* OFF: stone / tobacco / sand */
+/* OFF: stone / tobacco / warm sand / soft bronze */
 [data-state="off"] {
   --st-canvas:  light-dark(#EFE9E1, #1A1612);
   --st-surface: light-dark(#F7F2EC, #241F1A);
@@ -125,7 +125,7 @@
   --st-tint:    light-dark(#B08A62, #8A6A4A);
 }
 
-/* FLIGHT: slate / steel / muted sky */
+/* FLIGHT: slate / steel / muted sky / cool atmospheric blue */
 [data-state="flight"] {
   --st-canvas:  light-dark(#E8ECF0, #10151B);
   --st-surface: light-dark(#F3F6F8, #18202A);
@@ -155,7 +155,7 @@
   --st-tint:    light-dark(#B58A45, #8F6C36);
 }
 
-/* RESERVE: same family as STANDBY, taupe accent */
+/* RESERVE: graphite / stone / restrained taupe */
 [data-state="reserve"] {
   --st-canvas:  light-dark(#EBE8E4, #151414);
   --st-surface: light-dark(#F5F3F0, #1F1E1C);
@@ -240,9 +240,26 @@
   --line: var(--st-line);
   --tint: var(--st-tint);
 
-  --glass: color-mix(in oklab, var(--st-canvas) 74%, transparent);
-  --glass-strong: color-mix(in oklab, var(--st-surface) 86%, transparent);
+  /* Materials: translucent surfaces carry a trace of the environment's light */
+  --glass: color-mix(in oklab, color-mix(in oklab, var(--st-canvas) 90%, var(--st-tint)) 70%, transparent);
+  --glass-strong: color-mix(in oklab, color-mix(in oklab, var(--st-surface) 88%, var(--st-tint)) 70%, transparent);
   --glass-edge: color-mix(in oklab, var(--st-ink) 9%, transparent);
+  --sheen: light-dark(rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.06));   /* top reflection */
+  --sheen-edge: light-dark(rgb(255 255 255 / 0.85), rgb(255 255 255 / 0.10)); /* lit top edge */
+
+  /* Environment light: the state colour as illumination, not as a flat background */
+  --env-key: light-dark(color-mix(in oklab, var(--st-tint) 30%, transparent), color-mix(in oklab, var(--st-tint) 42%, transparent));
+  --env-fill: light-dark(color-mix(in oklab, var(--st-atmos-3) 42%, transparent), color-mix(in oklab, var(--st-atmos-3) 60%, transparent));
+  --env-horizon: light-dark(color-mix(in oklab, var(--st-atmos-2) 75%, transparent), color-mix(in oklab, var(--st-tint) 16%, transparent));
+  --env-ground: light-dark(color-mix(in oklab, var(--st-atmos-2) 55%, var(--st-canvas)), color-mix(in oklab, #000 16%, var(--st-canvas)));
+  --env-vignette: light-dark(color-mix(in oklab, var(--st-atmos-3) 30%, transparent), rgb(0 0 0 / 0.28));
+
+  /* Pass (hero) material */
+  --pass-lift: light-dark(color-mix(in oklab, var(--st-tint) 38%, transparent), rgb(0 0 0 / 0.45));
+  --pass-rule: color-mix(in oklab, var(--st-ink) 12%, transparent);
+
+  /* Quiet chrome: navigation stays stable while the scene changes */
+  --chrome: light-dark(color-mix(in oklab, var(--st-surface) 72%, transparent), color-mix(in oklab, #0E0E0D 62%, transparent));
   --fill-quiet: color-mix(in oklab, var(--st-ink) 5%, transparent);
   --fill-hover: color-mix(in oklab, var(--st-ink) 8%, transparent);
   --fill-selected: color-mix(in oklab, var(--st-accent) 14%, transparent);
@@ -258,8 +275,8 @@
 }
 
 /* Registered colours so atmosphere changes cross-fade instead of snapping */
-@property --st-atmos-1 { syntax: "<color>"; inherits: true; initial-value: #E8E8E5; }
-@property --st-atmos-2 { syntax: "<color>"; inherits: true; initial-value: #DADAD6; }
-@property --st-atmos-3 { syntax: "<color>"; inherits: true; initial-value: #C8C8C3; }
-@property --st-canvas  { syntax: "<color>"; inherits: true; initial-value: #ECECE9; }
+@property --st-atmos-1 { syntax: "<color>"; inherits: true; initial-value: #E9E6E0; }
+@property --st-atmos-2 { syntax: "<color>"; inherits: true; initial-value: #DBD7CF; }
+@property --st-atmos-3 { syntax: "<color>"; inherits: true; initial-value: #C9C4BA; }
+@property --st-canvas  { syntax: "<color>"; inherits: true; initial-value: #EDEBE6; }
 @property --st-tint    { syntax: "<color>"; inherits: true; initial-value: #9A9A94; }

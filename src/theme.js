@@ -56,10 +56,17 @@ export function syncThemeColor() {
 
 export function watchSystemTheme() {
   const query = systemDark();
-  if (!query) return () => {};
-  const onChange = () => { if (getThemePreference() === 'system') applyTheme('system'); };
-  query.addEventListener('change', onChange);
-  return () => query.removeEventListener('change', onChange);
+  const onSystem = () => { if (getThemePreference() === 'system') applyTheme('system'); };
+  // Another tab changed the stored preference (or cleared local data): follow it.
+  const onStorage = (event) => {
+    if (event.key === null || event.key === `fc.v2.${THEME_KEY}`) applyTheme(getThemePreference());
+  };
+  query?.addEventListener('change', onSystem);
+  globalThis.addEventListener?.('storage', onStorage);
+  return () => {
+    query?.removeEventListener('change', onSystem);
+    globalThis.removeEventListener?.('storage', onStorage);
+  };
 }
 
 /** Applies an operational environment to an element (default: the whole app). */

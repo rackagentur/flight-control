@@ -36,10 +36,6 @@ export function previewBadge(text = 'Preview') {
   return html`<span class="preview-badge">${text}</span>`;
 }
 
-export function slot(label, phase) {
-  return html`<div class="slot"><span>${label}</span><span class="slot-phase">${phase}</span></div>`;
-}
-
 /** Placeholder for a screen whose content arrives in a later phase. Says so plainly. */
 export function upcomingScreen({ route, phase, summary, items }) {
   return html`
