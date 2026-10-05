@@ -248,9 +248,7 @@ export const settings = {
       render(tokenOut, h`<p class="source-verdict ${result.ok ? 'is-ok' : 'is-error'}">${result.text}</p>${result.ok ? '' : h`<p class="t-caption">The token was not saved.</p>`}`);
     };
     const onTokenRemove = () => {
-      store.remove(TOKEN_KEY);
-      ctx.controller.forgetContractData();
-      if (!ctx.review()) ctx.controller.setMode({ kind: 'production' });
+      ctx.controller.removeToken();   // S6: also purges every roster-derived key
       rerender();
     };
     tokenForm.addEventListener('submit', onToken);

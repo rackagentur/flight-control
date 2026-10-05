@@ -209,14 +209,15 @@ export const flights = {
     const view = ctx.view();
     const param = ctx.param?.() ?? null;
     if (!view.snapshot) {
+      const needsToken = !view.loading && view.error?.code === 'auth-required';   // S6
       return html`
         <div class="page">
           ${pageHeader({ title: 'Flights', subtitle: 'Your rotations and destinations' })}
           <div class="empty">
             <div class="empty-icon">${icon('flights')}</div>
-            <p class="t-headline">${view.loading ? 'Loading roster…' : 'No roster source connected'}</p>
-            <p class="empty-text t-callout">Flights shows only what your roster source provides. ${view.loading ? '' : 'Connect it in Settings.'}</p>
-            ${view.loading ? '' : html`<a class="btn btn-quiet" href="#/settings">Connect roster source</a>`}
+            <p class="t-headline">${view.loading ? 'Loading roster…' : needsToken ? 'Access token required' : 'No roster source connected'}</p>
+            <p class="empty-text t-callout">${needsToken ? 'Your roster is only shown with the access token. Add it under Roster contract v2 in Settings.' : html`Flights shows only what your roster source provides. ${view.loading ? '' : 'Connect it in Settings.'}`}</p>
+            ${view.loading ? '' : html`<a class="btn btn-quiet" href="#/settings">${needsToken ? 'Open Settings' : 'Connect roster source'}</a>`}
           </div>
         </div>`;
     }

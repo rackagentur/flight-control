@@ -129,13 +129,14 @@ function statusPass(view) {
 
   // UNKNOWN: say why, and still show what is known about the next duty.
   const noSource = state.phase === 'no-source';
+  const needsToken = noSource && !view.snapshot && view.error?.code === 'auth-required';   // S6
   return html`
     <section class="pass" aria-labelledby="status-title">
       <div class="pass-head">
         ${kicker('Operational status', state, review)}
-        <h2 class="pass-state t-display" id="status-title">${noSource ? 'Not yet known' : 'Status unknown'}</h2>
-        <p class="pass-lede">${state.reasons[0] ?? ''}</p>
-        ${noSource && !review ? html`<p><a class="btn btn-quiet" href="${hrefFor('settings')}">Connect roster source</a></p>` : ''}
+        <h2 class="pass-state t-display" id="status-title">${needsToken ? 'Access token required' : noSource ? 'Not yet known' : 'Status unknown'}</h2>
+        <p class="pass-lede">${needsToken ? 'Your roster is only shown with the access token. Add it under Roster contract v2 in Settings.' : state.reasons[0] ?? ''}</p>
+        ${noSource && !review ? html`<p><a class="btn btn-quiet" href="${hrefFor('settings')}">${needsToken ? 'Open Settings' : 'Connect roster source'}</a></p>` : ''}
       </div>
       ${duty ? html`
         ${nextEventBlock(state, now, tz)}

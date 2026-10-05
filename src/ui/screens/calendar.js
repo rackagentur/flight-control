@@ -193,6 +193,38 @@ function sectorRow(s, day) {
     </li>`;
 }
 
+/**
+ * The roster hotel for a day inside a source-stated stay, never inferred from the city:
+ *  1. a stated layover window with a hotel that covers the day (its own window, else any other);
+ *  2. an "Away from base" (inferred) layover whose arrival matches a roster stay's start at the
+ *     same airport, the same rule the Flights destination uses (model/flights.js).
+ */
+export function stayHotel(day, snapshot) {
+  const named = (h) => (h && typeof h.name === 'string' && h.name ? h : null);
+  const stated = (w) => w?.kind === 'layover' && named(w.hotel);
+  const w = stated(day.window) ? day.window : (snapshot?.windows ?? []).find((x) => stated(x) && x.start < day.end && x.end > day.start);
+  if (w) return w.hotel;
+  const l = day.layover;
+  const stay = l && (snapshot?.stays ?? []).find((h) => named(h.hotel) && h.airport === l.airport && Math.abs(h.from - l.from) < 60000);
+  return stay ? stay.hotel : null;
+}
+
+/** "Hotel · from roster" section: name, address, phone, and a map link only for a verified location (as in destination.js). */
+export function hotelSection(day, snapshot, { review = false } = {}) {
+  const hotel = stayHotel(day, snapshot);
+  if (!hotel) return '';
+  const phone = hotel.phone ? hotel.phone.replace(/[^\d+]/g, '') : '';
+  const maps = !review && hotel.location?.mapsUrl;
+  return html`
+    <section class="cal-detail-section" data-cal-hotel>
+      <p class="t-eyebrow">Hotel · from roster</p>
+      <p class="t-headline">${hotel.name}</p>
+      ${hotel.address ? html`<p class="t-caption t-secondary">${hotel.address}</p>` : ''}
+      ${phone ? html`<p class="t-callout t-tabular"><a class="dest-link" href="tel:${phone}">${hotel.phone}</a></p>` : ''}
+      ${maps ? html`<p class="t-callout"><a class="dest-link" href="${maps}" target="_blank" rel="noopener noreferrer">Hotel in Maps<span aria-hidden="true"> ↗</span><span class="visually-hidden"> (opens in a new tab)</span></a></p>` : ''}
+    </section>`;
+}
+
 function detailView(day, view) {
   const { profile, now, roster, state } = view;
   const tz = profile.homeTz;
@@ -255,6 +287,8 @@ function detailView(day, view) {
           <p class="t-caption t-secondary">${day.layover.confidence === 'inferred' ? 'Arrived there and the next departure is from there. Derived from your itinerary, not a roster entry.' : 'Listed by the roster.'}</p>
         </section>` : ''}
 
+      ${hotelSection(day, view.snapshot, { review: view.review })}
+
       ${rotation ? html`
         <section class="cal-detail-section">
           <p class="t-eyebrow">Rotation · day ${rotationIndex} of ${rotationDays}</p>
@@ -274,14 +308,15 @@ export const calendar = {
     const todayKey = localDateKey(view.now, tz);
     if (!ui.month) ui.month = monthKeyOf(todayKey);
     if (!view.snapshot) {
+      const needsToken = !view.loading && view.error?.code === 'auth-required';   // S6
       return html`
         <div class="page">
           ${pageHeader({ title: 'Calendar', subtitle: 'Your roster, month by month' })}
           <div class="empty">
             <div class="empty-icon">${icon('calendar')}</div>
-            <p class="t-headline">${view.loading ? 'Loading roster…' : 'No roster source connected'}</p>
-            <p class="empty-text t-callout">The calendar shows only what your roster source provides. ${view.loading ? '' : 'Connect it in Settings.'}</p>
-            ${view.loading ? '' : html`<a class="btn btn-quiet" href="#/settings">Connect roster source</a>`}
+            <p class="t-headline">${view.loading ? 'Loading roster…' : needsToken ? 'Access token required' : 'No roster source connected'}</p>
+            <p class="empty-text t-callout">${needsToken ? 'Your roster is only shown with the access token. Add it under Roster contract v2 in Settings.' : html`The calendar shows only what your roster source provides. ${view.loading ? '' : 'Connect it in Settings.'}`}</p>
+            ${view.loading ? '' : html`<a class="btn btn-quiet" href="#/settings">${needsToken ? 'Open Settings' : 'Connect roster source'}</a>`}
           </div>
         </div>`;
     }

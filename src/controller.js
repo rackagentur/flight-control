@@ -87,7 +87,8 @@ export function createController({ profile, onChange, store = defaultStore, api 
 
     const token = store.get(TOKEN_KEY);
     const cachedV2 = token ? store.getJSON(CACHE_V2_KEY) : null;
-    const cached = store.getJSON(CACHE_KEY);
+    // No token: no cached roster at start-up (S6); a cache only reappears after a live read succeeds.
+    const cached = token ? store.getJSON(CACHE_KEY) : null;
     // Start-up: whichever cache is newer (a stale v2 cache never hides a fresher v5 one).
     const v2First = cachedV2?.payload && Number.isFinite(cachedV2.fetchedAt) && !(Number.isFinite(cached?.fetchedAt) && cached.fetchedAt > cachedV2.fetchedAt);
     if (!snapshot && v2First && validateRoster(cachedV2.payload).ok) {
@@ -144,6 +145,8 @@ export function createController({ profile, onChange, store = defaultStore, api 
     } catch (e) {
       if (gen !== generation) return;
       error = e instanceof ApiError || e instanceof AdapterError ? e : new ApiError('network', 'Unexpected error while loading the roster.');
+      // S6: refused without a token means nothing roster-derived may stay on this device.
+      if (error.code === 'auth-required' && !store.get(TOKEN_KEY)) purgeRoster();
     } finally {
       if (gen === generation) { loading = false; emit(); }
     }
@@ -168,6 +171,15 @@ export function createController({ profile, onChange, store = defaultStore, api 
       store.setJSON(HISTORY_V2_KEY, { fetchedAt, sectors: adaptHistoryV2(data, fetchedAt) });
       if (snapshot?.contract === 'v2' && freshBase) { snapshot = withAllHistory(freshBase, fetchedAt); emit(); }
     } catch { /* device history remains */ }
+  }
+
+  /** Removes every roster-derived key and the in-memory roster (never theme, endpoint, profile). */
+  function purgeRoster() {
+    for (const key of [CACHE_KEY, HISTORY_KEY, CACHE_V2_KEY, HISTORY_V2_KEY]) store.remove(key);
+    contract = { active: null, fallback: null };
+    v2RetryAt = 0;
+    freshBase = null;
+    if (mode.kind === 'production') { snapshot = null; loading = false; }
   }
 
   return {
@@ -207,13 +219,13 @@ export function createController({ profile, onChange, store = defaultStore, api 
       v2RetryAt = 0;
       freshBase = null;
     },
-    forgetRosterData() {
-      store.remove(CACHE_KEY);
-      store.remove(HISTORY_KEY);
-      store.remove(CACHE_V2_KEY);
-      store.remove(HISTORY_V2_KEY);
-      contract = { active: null, fallback: null };
-      v2RetryAt = 0;
+    forgetRosterData() { generation += 1; purgeRoster(); },  // a stale in-flight load must not write it back
+    /** S6: removing the token purges all roster-derived data; history returns once the token does. */
+    removeToken() {
+      store.remove(TOKEN_KEY);
+      generation += 1;
+      purgeRoster();
+      if (mode.kind === 'production') loadProduction(); else emit();
     },
   };
 }

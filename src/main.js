@@ -10,7 +10,7 @@ import { render } from './lib/html.js';
 import { formatTime, countdown, addDays, localDateKey } from './lib/time.js';
 import { airport } from './data/airports.js';
 import { loadProfile } from './config/profile.js';
-import { createController } from './controller.js';
+import { createController, TOKEN_KEY } from './controller.js';
 import { mountShell } from './ui/shell.js';
 import { mountReviewDock, reviewMode } from './ui/review.js';
 import { today } from './ui/screens/today.js';
@@ -53,6 +53,11 @@ const controller = createController({
     // Other screens may refresh in place (Settings: the contract status line).
     else SCREENS[currentRoute]?.update?.(shell.main, ctx);
   },
+});
+
+// S6: the token was removed in another tab (or storage cleared): purge this tab's roster too.
+window.addEventListener('storage', (event) => {
+  if ((event.key === null || event.key === `fc.v2.${TOKEN_KEY}`) && !store.get(TOKEN_KEY)) controller.removeToken();
 });
 
 const review = mountReviewDock(

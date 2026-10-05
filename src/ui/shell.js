@@ -64,7 +64,7 @@ export function mountShell() {
         const minutes = Math.max(0, Math.round((view.now - view.snapshot.source.fetchedAt) / 60000));
         text = view.error ? 'Roster offline · showing cached' : minutes < 1 ? 'Roster updated just now' : `Roster updated ${minutes} min ago`;
         kind = view.error ? 'stale' : 'live';
-      } else if (view.error) { text = 'Roster unavailable'; kind = 'error'; }
+      } else if (view.error) { text = view.error.code === 'auth-required' ? 'Access token required' : 'Roster unavailable'; kind = 'error'; }
       statusLine.dataset.kind = kind;
       statusLine.querySelector('[data-source-text]').textContent = text;
     },
