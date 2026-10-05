@@ -247,7 +247,7 @@ Layover tone comes from `airports.js` (deterministic; coastal/tropical → ocean
 3. Phase 4: **CORS spike first (go/no-go)**, profile, sample source, `airports.js`, `time.js` (T1–T9), adapter, roster, state, horizon, Today (6 states). Validation inputs: redacted fixture, B3 answer.
 4. Phase 5: Calendar.
 5. Phase 6: Flights + Destination Intelligence (scope approved 2026-10-04; see "Phase 6 decisions"). Map, Weather screen, Statistics and Controls follow in later phases.
-6. Phase 7: Roster Data Contract V2 (implemented; backend installed privately as Version 23 on 2026-10-04, Step H GO on 2026-10-05, Version 24 adds the PDX/SYX zones; not yet enabled in the app). Parity, manual regression and the PR to `main` follow (V2 private until the BH gate).
+6. Phase 7: Roster Data Contract V2 (implemented; backend installed privately as Version 23 on 2026-10-04, Step H GO on 2026-10-05, Version 24 adds the PDX/SYX zones; enabled privately in the owner's browser and the live v2-vs-v5 comparison GO on 2026-10-05, see `PARITY-V2-V5.md`). Manual regression and the PR to `main` follow (V2 private until the BH gate).
 7. BH track: separately approved (`BACKEND-HARDENING.md`).
 
 ## G. Rollback
