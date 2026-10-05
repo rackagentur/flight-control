@@ -127,7 +127,8 @@ export const settings = {
               </div>
               <form class="source-form" data-token-form novalidate>
                 <label class="visually-hidden" for="token-input">Contract v2 access token</label>
-                <input class="field-input" id="token-input" name="token" type="password" autocomplete="off" spellcheck="false"
+                <input class="field-input" id="token-input" name="token" type="password" autocomplete="one-time-code" spellcheck="false"
+                  data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"
                   placeholder="${hasToken ? 'Token saved · paste a new one to replace it' : 'Access token'}">
                 <div class="source-actions">
                   <button type="submit" class="btn btn-quiet" ${connected ? '' : 'disabled'}>Save and test</button>

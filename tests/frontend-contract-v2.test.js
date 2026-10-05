@@ -322,6 +322,15 @@ test('Settings update is a no-op without its status line; main.js routes changes
   assert.doesNotMatch(main.match(/LIVE_ROUTES = new Set\(\[[^\]]*\]\)/)[0], /settings/, 'Settings is never fully re-rendered on data changes (forms keep their input)');
 });
 
+test('regression: the v2 token field stays masked but is excluded from password managers and autofill', () => {
+  const html = String(settingsScreen.render({ view: () => ({ contract: { active: null }, profile: PROFILE }), review: () => false }));
+  const input = html.match(/<input[^>]*id="token-input"[^>]*>/)?.[0];
+  assert.ok(input, 'token input rendered');
+  assert.match(input, /type="password"/, 'still masked on screen');
+  assert.match(input, /autocomplete="one-time-code"/, 'browser password managers do not offer to save it');
+  for (const attr of ['data-1p-ignore', 'data-lpignore="true"', 'data-bwignore', 'data-form-type="other"']) assert.ok(input.includes(attr), `extension opt-out ${attr}`);
+});
+
 test('backward compatibility: the v5 path is unchanged (no day states, absence evidence)', async () => {
   const h = harness({ token: null, post: async () => { throw new Error('unused'); } });
   await h.c.load({ force: true });
