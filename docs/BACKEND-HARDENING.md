@@ -53,7 +53,7 @@ A first-run assertion "every rostered day has a day code" failed. It was a wrong
 
 Non-blocking observations:
 
-1. A few history sectors use airports missing from the airport table, so their zones are `null` (reported, not guessed). Extend the table before the v2-vs-v5 comparison.
+1. Four history sectors used two airports missing from the airport table (PDX, SYX), so their zones were `null` (reported, not guessed). **Closed in the repository:** both added (`America/Los_Angeles`, `Asia/Shanghai`; cross-checked against two airport datasets) and `AirportsV2.gs` regenerated; the live history then maps every airport. Version 23 still serves the old table until a later, separately approved deployment; the frontend table already has both.
 2. All stays carry a roster hotel, but none has a VERIFIED location yet (fail-closed: no matching Sheet row for the stay), so no map pins.
 3. Repository status lines still said "not installed / not deployed" (fixed with this record).
 4. The no-token and wrong-token checks count toward the failed-token limit (2 of 20 per 10 minutes); harmless, but repeat runs should stay well below the limit.

@@ -169,6 +169,6 @@ What the richer contract closes once enabled (`docs/CONTRACT-V2.md`), and what s
 | No history | Up to 13 months of my own flights from the synced calendar |
 | Fixed-offset times | IANA zones and local times with offsets |
 
-Observed on the live data (Step H, 2026-10-05): some history sectors use airports missing from the generated table, so their zones are `null` (reported, never guessed; extend `src/data/airports.js` and regenerate `AirportsV2.gs`). No stay has a VERIFIED hotel location yet, so roster hotels show without a map pin until matching Sheet rows are verified.
+Observed on the live data (Step H, 2026-10-05): four history sectors used airports missing from the generated table (PDX, SYX), so their zones were `null` (reported, never guessed); both are now in `src/data/airports.js` and the regenerated `AirportsV2.gs` (live once a later version is deployed). No stay has a VERIFIED hotel location yet, so roster hotels show without a map pin until matching Sheet rows are verified.
 
 Still unknowable: whether the airline published the whole next month (days after the last rostered day are `unpublished`), rotation/pairing ids (not in the feed), the airport of a standby hotel without a preceding arrival, and changes made after the feed's last refresh (the synced copy can lag the feed by up to a day).
