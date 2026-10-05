@@ -82,7 +82,7 @@ History responses are cached for 6 h per range, so the check used a range not re
 Owner-approved, deployed manually by the owner one step at a time.
 
 - **Change:** a single committed GET router (`backend/apps-script/RouterV2.gs`) is now the project's only `doGet`. It serves the read-only `getStats` contract unchanged and answers every other GET with a small JSON refusal; the web app no longer serves a page. The previous web-app entry function was renamed to a private name and the legacy wrapper file was removed. Each file edit was checked byte-for-byte against the intended source. An older, unused deployment of the project was archived; the web app now has a single active deployment. Trigger handlers are unchanged.
-- **Verification (read-only):** every former GET entry is refused with JSON and returns immediately (execution log: sub-second runs, no scheduled-work side effects, no email); `getStats` unchanged (16/16 fields); contract v2 auth, roster zones (21/21 vs. baseline), history (41/41 IANA zones) and the full Step H suite unchanged; the app works on contract v2 with its settings status refreshing.
+- **Verification (read-only):** every former GET entry is refused with JSON and returns immediately (execution log: sub-second runs, no scheduled-work side effects, no email); `getStats` unchanged (16/16 fields); contract v2 auth, roster zones (21/21 vs. baseline), history (41/41 IANA zones) and the full Step H suite unchanged; the app works on contract v2 with its settings status refreshing; the first scheduled trigger run on the edited project code completed normally.
 - **Rollback:** Manage deployments → the deployment → Edit → Version 24 (same URL).
 
 ## Deployment log
