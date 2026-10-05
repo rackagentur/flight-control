@@ -1,6 +1,6 @@
 # fc.roster v2 backend (Apps Script sources)
 
-Status: **installed (private).** The four files below are installed unchanged in the existing Apps Script project and served by the existing *untitled* ("Unbenannt") deployment as **Version 23** ("fc.roster v2"); the /exec URL is unchanged. Script Property `FC_V2_TOKEN` is set (the token lives only in a private local file and Script Properties). The five original project files, the triggers and `PLACES_API_KEY` are unchanged, and v5 `getStats` remains operational as the fallback. **Rollback target: Version 22.** Step H (auth and contract verification) passed on 2026-10-05; see `docs/BACKEND-HARDENING.md`. The app does not use v2 until the token is entered in Settings (not done yet).
+Status: **installed (private).** The four files below are installed unchanged in the existing Apps Script project and served by the existing *untitled* ("Unbenannt") deployment, now **Version 24** (Version 23 "fc.roster v2" plus the regenerated `AirportsV2.gs` with PDX and SYX); the /exec URL is unchanged. Script Property `FC_V2_TOKEN` is set (the token lives only in a private local file and Script Properties). The five original project files, the triggers and `PLACES_API_KEY` are unchanged, and v5 `getStats` remains operational as the fallback. **Rollback target: Version 23**; Version 22 is the pre-v2 baseline. Step H (auth and contract verification) passed on 2026-10-05 and was repeated on Version 24; see `docs/BACKEND-HARDENING.md`. The app does not use v2 until the token is entered in Settings (not done yet).
 
 | File | Role |
 |---|---|
@@ -17,7 +17,7 @@ Rules the files follow:
 - Nothing is written: no calendar, Sheet, trigger or property writes (the hotel Sheet is opened read-only, never via `getHotelSheet()`).
 - No top-level side effects (Apps Script runs every file's top-level code on every execution, including the existing triggers).
 
-## Install (done: Version 23; kept as the procedure for a reinstall)
+## Install (done: Version 23, updated to Version 24; kept as the procedure for a reinstall)
 
 Pre-checks (read-only): the project still matches the recorded baseline (five files with unchanged
 hashes, deployment "untitled" on version 22, triggers unchanged, Script Properties = PLACES_API_KEY only).
@@ -39,7 +39,7 @@ hashes, deployment "untitled" on version 22, triggers unchanged, Script Properti
 
 ## Rollback
 
-- Deployment: Manage deployments → untitled → Edit → Version 22 → Deploy (instant; same URL).
+- Deployment: Manage deployments → untitled → Edit → Version 23 (v2 without the PDX/SYX zones) or Version 22 (pre-v2 baseline) → Deploy (instant; same URL).
 - Kill switch: delete Script Property `FC_V2_TOKEN` (every v2 call is refused; the app falls back to v5).
 - Code: delete the four files (triggers run the current code, so this is the rollback for them).
 - App: Settings → Roster contract v2 → Remove token (the app then uses v5 only).

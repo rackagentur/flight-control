@@ -154,7 +154,7 @@ What the Flights screen can genuinely show from `getStats`, and what stays a doc
 3. `layoverHotel` per outstation stay: `{airport, from, to, name, address, mapsUrl, phone?, verified}`. Only reviewed records; never the Places API key, raw roster text or unreviewed candidates.
 4. Report/briefing time per duty (already listed above).
 
-## Roster contract v2 (Phase 7, installed privately as Version 23, not yet enabled in the app)
+## Roster contract v2 (Phase 7, installed privately, currently Version 24, not yet enabled in the app)
 
 What the richer contract closes once enabled (`docs/CONTRACT-V2.md`), and what stays open:
 
@@ -169,6 +169,6 @@ What the richer contract closes once enabled (`docs/CONTRACT-V2.md`), and what s
 | No history | Up to 13 months of my own flights from the synced calendar |
 | Fixed-offset times | IANA zones and local times with offsets |
 
-Observed on the live data (Step H, 2026-10-05): four history sectors used airports missing from the generated table (PDX, SYX), so their zones were `null` (reported, never guessed); both are now in `src/data/airports.js` and the regenerated `AirportsV2.gs` (live once a later version is deployed). No stay has a VERIFIED hotel location yet, so roster hotels show without a map pin until matching Sheet rows are verified.
+Observed on the live data (Step H, 2026-10-05): four history sectors used airports missing from the generated table (PDX, SYX), so their zones were `null` (reported, never guessed); both are now in `src/data/airports.js` and the regenerated `AirportsV2.gs` (live since Version 24; the live history now maps every airport). No stay has a VERIFIED hotel location yet, so roster hotels show without a map pin until matching Sheet rows are verified.
 
 Still unknowable: whether the airline published the whole next month (days after the last rostered day are `unpublished`), rotation/pairing ids (not in the feed), the airport of a standby hotel without a preceding arrival, and changes made after the feed's last refresh (the synced copy can lag the feed by up to a day).

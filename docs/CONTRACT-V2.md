@@ -1,6 +1,6 @@
 # fc.roster v2: the Flight Control roster contract
 
-Status: **installed privately** on the existing web-app deployment as Version 23 ("fc.roster v2"; rollback Version 22) and verified against the live endpoint (Step H, 2026-10-05; `docs/BACKEND-HARDENING.md`). Not yet enabled in the app. The v5 `getStats` contract is unchanged and remains the fallback.
+Status: **installed privately** on the existing web-app deployment as Version 24 (rollback Version 23; pre-v2 baseline Version 22) and verified against the live endpoint (Step H, 2026-10-05; repeated on Version 24; `docs/BACKEND-HARDENING.md`). Not yet enabled in the app. The v5 `getStats` contract is unchanged and remains the fallback.
 
 ## Rule of truth
 
@@ -132,4 +132,4 @@ Field rules:
 
 ## Backend files (`backend/apps-script/`)
 
-`CondorAdapterV2.gs` (airline codes and description whitelist), `RosterModelV2.gs` (airline-independent builder), `RosterApiV2.gs` (`doPost`, token, reads), `AirportsV2.gs` (generated: `node scripts/gen-airports-gs.mjs`). They reference project constants (calendar/sheet ids, sync tag) by name only and contain no ids, URLs or secrets. Installed as Version 23; install, rollback and kill switch in `backend/apps-script/README.md`.
+`CondorAdapterV2.gs` (airline codes and description whitelist), `RosterModelV2.gs` (airline-independent builder), `RosterApiV2.gs` (`doPost`, token, reads), `AirportsV2.gs` (generated: `node scripts/gen-airports-gs.mjs`). They reference project constants (calendar/sheet ids, sync tag) by name only and contain no ids, URLs or secrets. Installed (currently Version 24); install, rollback and kill switch in `backend/apps-script/README.md`.
