@@ -204,15 +204,21 @@ test('privacy: crew lines, employee numbers, booking codes and notes never reach
 
 // --- API: auth, contract, bounds -------------------------------------------------------
 
-test('auth: not configured, wrong or missing token are refused; repeated failures are throttled', () => {
+test('auth: not configured, wrong or missing token are refused; repeated failures are throttled, never the correct token', () => {
   const { env } = fakeEnv(gs, { now: NOW, token: null });
   assert.equal(post(env, { action: 'capabilities' }).error, 'not-configured');
   const f = fakeEnv(gs, { now: NOW });
   assert.equal(plain(gs.fcv2HandlePost_(JSON.stringify({ contract: 'fc.roster', version: 2, action: 'capabilities', token: 'nope' }), f.env)).error, 'unauthorized');
   assert.equal(plain(gs.fcv2HandlePost_(JSON.stringify({ contract: 'fc.roster', version: 2, action: 'capabilities' }), f.env)).error, 'unauthorized');
   for (let i = 0; i < 25; i += 1) gs.fcv2HandlePost_(JSON.stringify({ token: 'x' }), f.env);
-  assert.equal(post(f.env, { action: 'capabilities' }).error, 'rate-limited');
-  assert.equal(f.calls.airline.length + f.calls.synced.length, 0, 'nothing is read without a valid token');
+  assert.equal(f.env.failures.get(), 20, 'failures are counted up to the limit, then no longer');
+  const wrong = (action) => plain(gs.fcv2HandlePost_(JSON.stringify({ contract: 'fc.roster', version: 2, action, token: 'nope' }), f.env));
+  assert.equal(wrong('capabilities').error, 'rate-limited');
+  assert.equal(wrong('stats').error, 'rate-limited');
+  assert.equal(f.calls.airline.length + f.calls.synced.length + f.calls.stats, 0, 'nothing is read without a valid token');
+  // BH-2: failures by someone else never lock the owner out.
+  assert.equal(post(f.env, { action: 'capabilities' }).ok, true, 'the correct token is accepted over the limit');
+  assert.equal(post(f.env, { action: 'stats' }).success, true);
   assert.equal(gs.fcv2SafeEqual_('abc', 'abc'), true);
   assert.equal(gs.fcv2SafeEqual_('abc', 'abd'), false);
   assert.equal(gs.fcv2SafeEqual_('abc', 'abcd'), false);
@@ -235,7 +241,24 @@ test('capabilities: feature-detection answer', () => {
   assert.equal(c.ok, true);
   assert.equal(c.contract, 'fc.roster');
   assert.equal(c.version, 2);
-  assert.deepEqual(c.actions, ['capabilities', 'roster', 'history']);
+  assert.deepEqual(c.actions, ['capabilities', 'roster', 'history', 'stats']);
+});
+
+test('stats (BH-2): the v5 getStats payload, unchanged, only with the token', () => {
+  const f = fakeEnv(gs, { now: NOW });
+  assert.deepEqual(post(f.env, { action: 'stats' }), { success: true, upcoming: [], marker: 'v5-payload' });
+  assert.equal(f.calls.stats, 1);
+  const refused = [
+    gs.fcv2HandlePost_(JSON.stringify({ contract: 'fc.roster', version: 2, action: 'stats' }), f.env),
+    gs.fcv2HandlePost_(JSON.stringify({ contract: 'fc.roster', version: 2, action: 'stats', token: TOKEN + 'x' }), f.env),
+    gs.fcv2HandlePost_(JSON.stringify({ contract: 'fc.roster', version: 3, action: 'stats', token: TOKEN }), f.env),
+    gs.fcv2HandlePost_(JSON.stringify({ contract: 'fc.roster', version: 2, action: 'stats', token: TOKEN }), fakeEnv(gs, { now: NOW, token: null }).env),
+  ].map((r) => plain(r).error);
+  assert.deepEqual(refused, ['unauthorized', 'unauthorized', 'unsupported-contract', 'not-configured']);
+  assert.equal(f.calls.stats, 1, 'getFlightStats is never called without the token');
+  const broken = fakeEnv(gs, { now: NOW });
+  broken.env.stats = () => { throw new Error('internal detail'); };
+  assert.deepEqual(post(broken.env, { action: 'stats' }), { ok: false, error: 'stats-unavailable' });
 });
 
 test('history: bounded (start date, 13 months, past only, 2000 sectors) and cached', () => {

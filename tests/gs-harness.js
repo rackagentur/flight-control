@@ -67,7 +67,7 @@ export function sheetLookup(rows) {
 export function fakeEnv(gs, { token = 'test-token-0123456789abcdef', now, feed = [], synced = [], rows = [] } = {}) {
   const cache = new Map();
   let failures = 0;
-  const calls = { airline: [], synced: [] };
+  const calls = { airline: [], synced: [], stats: 0 };
   const config = gs.FCV2_CONDOR_CONFIG_;
   const inRange = (list, from, to) => list.filter((e) => e.end > from && e.start < to);
   return {
@@ -77,6 +77,7 @@ export function fakeEnv(gs, { token = 'test-token-0123456789abcdef', now, feed =
       config,
       token: () => token,
       now: () => now,
+      stats: () => { calls.stats += 1; return { success: true, upcoming: [], marker: 'v5-payload' }; },
       failures: { get: () => failures, add: () => { failures += 1; } },
       startOfDay: (key) => gs.fcv2StartOfDay_(key, config.baseTimeZone),
       airlineEvents: (from, to) => { calls.airline.push([from, to]); return inRange(feed, from, to); },

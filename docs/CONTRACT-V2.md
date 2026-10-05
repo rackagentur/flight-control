@@ -42,7 +42,7 @@ The feed keeps only a few days of past events and extends to the end of the next
 - `POST` to the existing web-app URL, `Content-Type: text/plain` (a CORS simple request: no preflight).
 - Body: `{"contract":"fc.roster","version":2,"action":"…","token":"…", …}`. The token is never in the URL.
 - Always HTTP 200; failures are `{"ok":false,"error":"<code>"}`: `bad-request`, `not-configured`, `unauthorized`, `rate-limited`, `unsupported-contract`, `unknown-action`, `bad-range`, `range-too-long`, `before-history-start`, `history-is-past-only`.
-- Auth: Script Property `FC_V2_TOKEN` (constant-time comparison). Without the property every call is refused. More than 20 failed tokens in 10 minutes → `rate-limited`.
+- Auth: Script Property `FC_V2_TOKEN` (constant-time comparison). Without the property every call is refused. The correct token is always accepted; after 20 failed tokens within 10 minutes further failures get `rate-limited` (they are no longer counted, so the window ends 10 minutes after the 20th failure).
 
 ## Actions
 
@@ -50,6 +50,7 @@ The feed keeps only a few days of past events and extends to the end of the next
 |---|---|---|
 | `capabilities` | — | `{ok, contract, version, actions, limits, source}` (feature detection) |
 | `roster` | optional `from`, `to` (`YYYY-MM-DD`) | Default: previous, current and next month. ≤ 100 days. Days before today from the **synced copy**, from today from the **airline feed** (decision D-SRC) |
+| `stats` | — | The unchanged v5 `getStats` payload (`{success: true, …}`), for token holders (backend hardening BH-2). The app's v5 fallback reads it this way when a token is saved; the unauthenticated `GET ?action=getStats` is served only while Script Property `FC_V5_GET` is `open` (migration window) and otherwise answers `{success:false, error:"auth-required"}` |
 | `history` | optional `from`, `to` | My own flown sectors from the synced copy (sync-tagged events only). ≤ 13 months, ≥ configured start date, past only, ≤ 2,000 sectors (most recent kept, `truncated: true`). Cached 6 h |
 
 ## `roster` response (synthetic example, shortened)

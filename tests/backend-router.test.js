@@ -17,10 +17,11 @@ const GUARDED = ['syncWorkToJointCalendar', 'standbyHourlySync', 'generateMonthl
   'cleanupSyncedEvents', 'forceRefreshAllDescriptions', 'setupRecommendedTriggers', 'setupMonthlyTrigger', 'getAppHtml'];
 
 /** RouterV2.gs alone in a sandbox with recording fakes for the Apps Script services. */
-function router() {
+function router({ v5Get = 'open' } = {}) {
   const calls = [];
   const sandbox = {
     calls,
+    PropertiesService: { getScriptProperties: () => ({ getProperty: (k) => { calls.push(`property:${k}`); return k === 'FC_V5_GET' ? v5Get : null; } }) },
     ContentService: {
       MimeType: { JSON: 'application/json' },
       createTextOutput(text) { const out = { text, mime: null, setMimeType(m) { out.mime = m; return out; } }; calls.push('ContentService'); return out; },
@@ -36,12 +37,22 @@ function router() {
 
 const get = (sb, parameter) => { const out = sb.doGet(parameter === undefined ? undefined : { parameter }); return { out, body: JSON.parse(out.text) }; };
 
-test('getStats is served unchanged as JSON', () => {
-  const sb = router();
+test('getStats is served unchanged as JSON while FC_V5_GET is "open" (migration window)', () => {
+  const sb = router({ v5Get: 'open' });
   const { out, body } = get(sb, { action: 'getStats' });
   assert.equal(out.mime, 'application/json');
   assert.deepEqual(body, { success: true, upcoming: [], marker: 'v5-payload' });
-  assert.deepEqual(sb.calls.filter((c) => c !== 'ContentService'), ['getFlightStats']);
+  assert.deepEqual(sb.calls.filter((c) => c !== 'ContentService'), ['property:FC_V5_GET', 'getFlightStats']);
+});
+
+test('BH-2: without FC_V5_GET = "open", getStats by GET answers auth-required and reads nothing', () => {
+  for (const v5Get of [null, '', 'closed', 'OPEN', 'open ', 'true', '1']) {
+    const sb = router({ v5Get });
+    const { out, body } = get(sb, { action: 'getStats' });
+    assert.equal(out.mime, 'application/json');
+    assert.deepEqual(body, { success: false, error: 'auth-required', message: 'Authentication required.' }, String(v5Get));
+    assert.ok(!sb.calls.includes('getFlightStats'), `no roster read for FC_V5_GET=${JSON.stringify(v5Get)}`);
+  }
 });
 
 test('no action, the retired actions and the legacy ?function= wrapper are refused without side effects', () => {
@@ -54,6 +65,8 @@ test('no action, the retired actions and the legacy ?function= wrapper are refus
     assert.equal(out.mime, 'application/json', JSON.stringify(parameter));
     assert.deepEqual(body, { success: false, message: 'Not available.' }, JSON.stringify(parameter));
     assert.deepEqual(sb.calls, ['ContentService'], `nothing but the JSON answer for ${JSON.stringify(parameter)}`);
+    const closed = router({ v5Get: null });
+    assert.deepEqual(get(closed, parameter).body, { success: false, message: 'Not available.' });
   }
 });
 
@@ -70,8 +83,11 @@ test('never an HtmlService page (google.script.run stays unreachable), never JSO
 });
 
 test('the pure handler is shared by Node and Apps Script', () => {
-  assert.equal(gs.fcv2HandleGet_({ action: 'getStats' }, { stats: () => 'S' }), 'S');
-  assert.deepEqual(plain(gs.fcv2HandleGet_({ action: 'sync' }, { stats: () => 'S' })), plain(gs.FCV2_GET_REFUSED_));
+  const open = { stats: () => 'S', v5GetOpen: () => true };
+  const shut = { stats: () => 'S', v5GetOpen: () => false };
+  assert.equal(gs.fcv2HandleGet_({ action: 'getStats' }, open), 'S');
+  assert.equal(plain(gs.fcv2HandleGet_({ action: 'getStats' }, shut)).error, 'auth-required');
+  assert.deepEqual(plain(gs.fcv2HandleGet_({ action: 'sync' }, open)), plain(gs.FCV2_GET_REFUSED_));
   assert.ok(Object.isFrozen(gs.FCV2_GET_REFUSED_));
 });
 

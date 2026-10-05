@@ -18,7 +18,7 @@ import { buildFlights } from '../src/model/flights.js';
 import { calendar, resetCalendarUi } from '../src/ui/screens/calendar.js';
 import { flights as flightsScreen } from '../src/ui/screens/flights.js';
 import { today as todayScreen } from '../src/ui/screens/today.js';
-import { settings as settingsScreen, contractLine } from '../src/ui/screens/settings.js';
+import { settings as settingsScreen, contractLine, testEndpoint } from '../src/ui/screens/settings.js';
 import { readFileSync } from 'node:fs';
 import { clock } from '../src/ui/duty.js';
 import { PROFILE, loadFixture } from './helpers.js';
@@ -329,6 +329,47 @@ test('regression: the v2 token field stays masked but is excluded from password 
   assert.match(input, /type="password"/, 'still masked on screen');
   assert.match(input, /autocomplete="one-time-code"/, 'browser password managers do not offer to save it');
   for (const attr of ['data-1p-ignore', 'data-lpignore="true"', 'data-bwignore', 'data-form-type="other"']) assert.ok(input.includes(attr), `extension opt-out ${attr}`);
+});
+
+// --- BH-2: the v5 fallback reads through the token ---------------------------------------
+
+test('BH-2: when v2 fails, the v5 payload comes from the authenticated POST (no GET)', async () => {
+  const v5 = loadFixture();
+  const h = harness({ post: async (body) => (body.action === 'stats' ? { data: v5, meta: {} } : { data: { ...backend(body), sectors: 'nope' } }) });
+  await h.c.load({ force: true });
+  const v = h.view();
+  assert.equal(v.contract.active, 'v5');
+  assert.deepEqual(h.calls.post, ['roster', 'stats']);
+  assert.equal(h.calls.stats, 0, 'GET getStats not used when the token works');
+  assert.ok(v.snapshot.sectors.length > 0);
+});
+
+test('BH-2: GET closed and no token: the app reports that the access token is required', async () => {
+  const h = harness({ token: null, post: async () => { throw new Error('no POST without a token'); }, stats: async () => { throw new ApiError('auth-required', 'This roster backend requires the access token (Settings → Roster contract v2).'); } });
+  await h.c.load({ force: true });
+  assert.equal(h.view().error?.code, 'auth-required');
+  assert.match(h.view().error.message, /access token/);
+});
+
+test('BH-2: Settings saves a URL whose backend requires the token, and tests with the token when saved', async () => {
+  const real = globalThis.fetch;
+  const seen = [];
+  const reply = (obj) => ({ ok: true, status: 200, headers: { get: () => 'application/json' }, text: async () => JSON.stringify(obj) });
+  try {
+    globalThis.fetch = async (url, init) => { seen.push(init?.method ?? 'GET'); return init?.method === 'POST' ? reply(loadFixture()) : reply({ success: false, error: 'auth-required', message: 'Authentication required.' }); };
+    assert.deepEqual(await testEndpoint(ENDPOINT, null), { ok: true, needsToken: true }, 'reachable, token needed: the URL can be saved');
+    const withToken = await testEndpoint(ENDPOINT, TOKEN);
+    assert.equal(withToken.ok, true);
+    assert.equal(withToken.via, 'post');
+    assert.deepEqual(seen, ['GET', 'POST']);
+    globalThis.fetch = async (url, init) => (init?.method === 'POST' ? reply({ ok: false, error: 'unauthorized' }) : reply({ success: false, error: 'auth-required' }));
+    const refused = await testEndpoint(ENDPOINT, 'wrong-token');
+    assert.equal(refused.ok, false);
+    assert.equal(refused.code, 'auth-required');
+    assert.match(refused.message, /not accepted/);
+  } finally {
+    globalThis.fetch = real;
+  }
 });
 
 test('backward compatibility: the v5 path is unchanged (no day states, absence evidence)', async () => {

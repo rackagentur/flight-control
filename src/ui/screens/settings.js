@@ -5,7 +5,7 @@ import { html as h, render } from '../../lib/html.js';
 import { pageHeader, listRow, themeControl } from '../components.js';
 import { store } from '../../store.js';
 import { applyTheme } from '../../theme.js';
-import { validateEndpoint, fetchStats, contractGaps, postContract } from '../../api/appscript.js';
+import { validateEndpoint, fetchStatsSecure, contractGaps, postContract } from '../../api/appscript.js';
 import { ENDPOINT_KEY, TOKEN_KEY, fallbackReason } from '../../controller.js';
 import { request as v2Request } from '../../sources/contract-v2.js';
 
@@ -17,10 +17,16 @@ const ERROR_HELP = {
   'invalid-json': 'The response was not valid JSON.',
   'backend-error': 'The backend reported an error.',
   'invalid-endpoint': 'This does not look like an Apps Script web-app URL ending in /exec.',
+  'auth-required': 'The backend only serves the roster with the access token. Add or replace it under Roster contract v2.',
 };
 
 function resultView(result) {
   if (result.pending) return h`<p class="t-caption">Testing the connection…</p>`;
+  if (result.needsToken) {
+    return h`
+      <p class="source-verdict is-ok">Connected · access token required</p>
+      <p class="t-caption">The backend answered and only serves the roster with the access token. Add it under Roster contract v2 below.</p>`;
+  }
   if (!result.ok) {
     return h`
       <p class="source-verdict is-error">Connection failed · ${result.code}</p>
@@ -31,21 +37,24 @@ function resultView(result) {
     <p class="source-verdict is-ok">Connected · roster readable from this page</p>
     <ul class="source-checks" role="list">
       <li>Cross-origin read (CORS): allowed</li>
-      <li>Response: JSON, success, ${result.ms} ms, ${(result.bytes / 1024).toFixed(1)} KB</li>
+      <li>Response: JSON, success, ${result.ms} ms, ${(result.bytes / 1024).toFixed(1)} KB${result.via === 'post' ? ', read with the access token' : ''}</li>
       <li>Contract: ${result.gaps.length ? `missing ${result.gaps.join(', ')}` : 'all expected v5 fields present'}</li>
       <li>Roster: ${result.flights} upcoming flights, ${result.blocks} free-day blocks</li>
     </ul>`;
 }
 
-async function testEndpoint(endpoint) {
+/** Reads the roster as the app would (with the saved token, if any). Exported for tests. */
+export async function testEndpoint(endpoint, token = store.get(TOKEN_KEY)) {
   try {
-    const { data, meta } = await fetchStats(endpoint);
+    const { data, meta, via } = await fetchStatsSecure(endpoint, token);
     return {
-      ok: true, ms: meta.ms, bytes: meta.bytes, gaps: contractGaps(data),
+      ok: true, via, ms: meta.ms, bytes: meta.bytes, gaps: contractGaps(data),
       flights: Array.isArray(data.upcoming) ? data.upcoming.length : 0,
       blocks: Array.isArray(data.daysOff) ? data.daysOff.length : 0,
     };
   } catch (error) {
+    // Reachable, but the roster needs the token: the URL is right, so it can be saved.
+    if (error.code === 'auth-required' && !token) return { ok: true, needsToken: true };
     return { ok: false, code: error.code ?? 'network', message: error.message };
   }
 }
@@ -203,7 +212,7 @@ export const settings = {
         ctx.controller.forgetRosterData();
         if (!ctx.review()) ctx.controller.setMode({ kind: 'production' });
         root.querySelector('[data-endpoint-state]').textContent = 'Connected';
-        for (const b of root.querySelectorAll('[data-endpoint-test], [data-endpoint-remove]')) b.disabled = false;
+        for (const b of root.querySelectorAll('[data-endpoint-test], [data-endpoint-remove], [data-token-form] button[type="submit"]')) b.disabled = false;
         input.placeholder = 'Connected · paste a new URL to replace it';
       }
       show(result);

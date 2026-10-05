@@ -8,7 +8,7 @@ export const DEFAULT_TIMEOUT_MS = 25000;
 
 export class ApiError extends Error {
   /**
-   * @param {'not-configured'|'invalid-endpoint'|'network'|'timeout'|'http'|'html-response'|'invalid-json'|'backend-error'} code
+   * @param {'not-configured'|'invalid-endpoint'|'network'|'timeout'|'http'|'html-response'|'invalid-json'|'backend-error'|'auth-required'} code
    */
   constructor(code, message, detail = null) {
     super(message);
@@ -66,6 +66,10 @@ export async function fetchStats(endpoint, { timeoutMs = DEFAULT_TIMEOUT_MS, fet
   }
   let data;
   try { data = JSON.parse(text); } catch { throw new ApiError('invalid-json', 'The roster backend returned unreadable data.', meta); }
+  if (data?.success !== true && data?.error === 'auth-required') {
+    // BH-2: the backend no longer serves the roster to anyone holding the URL.
+    throw new ApiError('auth-required', 'This roster backend requires the access token (Settings → Roster contract v2).', meta);
+  }
   if (data?.success !== true) {
     throw new ApiError('backend-error', typeof data?.message === 'string' ? data.message : 'The roster backend reported an error.', meta);
   }
@@ -137,4 +141,38 @@ export async function postContract(endpoint, body, { timeoutMs = DEFAULT_TIMEOUT
   // A deployment without doPost answers with an HTML error page.
   if (/^\s*</.test(text)) throw new ApiError('html-response', 'The roster backend does not offer the v2 contract.', meta);
   try { return { data: JSON.parse(text), meta }; } catch { throw new ApiError('invalid-json', 'The roster backend returned unreadable data.', meta); }
+}
+
+/**
+ * BH-2: the v5 getStats payload, read with the access token when one is saved. The token
+ * travels only in a POST body (fc.roster v2 action `stats`); the unauthenticated GET is the
+ * fallback for a backend that does not offer `stats` yet, or while its migration switch is
+ * open, and is refused ("auth-required") once the backend requires the token.
+ * Resolves to { data, meta, via: 'post'|'get' } or throws ApiError.
+ * @param {string} endpoint
+ * @param {string|null} token
+ * @param {{fetchStats: typeof fetchStats, postContract: typeof postContract}} [api]
+ */
+export async function fetchStatsSecure(endpoint, token, api = { fetchStats, postContract }) {
+  let refused = null;
+  if (token) {
+    try {
+      const { data, meta } = await api.postContract(endpoint, { contract: 'fc.roster', version: 2, action: 'stats', token });
+      if (data?.success === true) return { data, meta, via: 'post' };
+      refused = typeof data?.error === 'string' ? data.error : 'invalid-response';
+    } catch (error) {
+      refused = error?.code ?? 'network';
+    }
+  }
+  try {
+    const { data, meta } = await api.fetchStats(endpoint);
+    return { data, meta, via: 'get' };
+  } catch (error) {
+    if (error?.code === 'auth-required' && refused && refused !== 'unknown-action') {
+      // The token path failed for a reason the user can act on: say that, not just "token needed".
+      const reason = { unauthorized: 'the access token was not accepted', 'rate-limited': 'too many failed token attempts; try again later', 'not-configured': 'the backend has no access token configured' }[refused] ?? `the authenticated request failed (${refused})`;
+      throw new ApiError('auth-required', `This roster backend requires the access token, and ${reason}.`, error.detail);
+    }
+    throw error;
+  }
 }

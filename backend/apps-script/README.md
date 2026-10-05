@@ -8,7 +8,7 @@ Status: **installed (private).** The four files below are installed unchanged in
 | `RosterModelV2.gs` | Airline-independent contract builder (pure; unit-tested in Node) |
 | `RosterApiV2.gs` | `doPost` entry point, token check, read-only Calendar/Sheet access |
 | `AirportsV2.gs` | Generated airport → IANA zone table (`node scripts/gen-airports-gs.mjs`) |
-| `RouterV2.gs` | Backend hardening BH-1 (deployed in Version 25): the project's only `doGet`. Serves the read-only v5 `getStats` unchanged and refuses every other GET with JSON; never serves a page |
+| `RouterV2.gs` | Backend hardening (BH-1 deployed in Version 25; BH-2 prepared): the project's only `doGet`. Refuses every GET with JSON and never serves a page. `getStats` by GET only while Script Property `FC_V5_GET` = `open` (BH-2 migration window); otherwise `auth-required`, and token holders use `doPost` `stats` |
 
 Rules the files follow:
 
@@ -42,5 +42,6 @@ hashes, deployment "untitled" on version 22, triggers unchanged, Script Properti
 
 - Deployment: Manage deployments → untitled → Edit → Version 23 (v2 without the PDX/SYX zones) or Version 22 (pre-v2 baseline) → Deploy (instant; same URL).
 - Kill switch: delete Script Property `FC_V2_TOKEN` (every v2 call is refused; the app falls back to v5).
+- BH-2 GET switch: Script Property `FC_V5_GET` = `open` serves the unauthenticated `getStats` again (instant, no redeploy); deleting it requires the token for every roster read.
 - Code: delete the four files (triggers run the current code, so this is the rollback for them).
 - App: Settings → Roster contract v2 → Remove token (the app then uses v5 only).

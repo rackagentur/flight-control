@@ -8,7 +8,7 @@
 // The synthetic v5 fixture is test data only and is never shown in the app.
 
 import { store as defaultStore } from './store.js';
-import { fetchStats, postContract, ApiError } from './api/appscript.js';
+import { fetchStats, postContract, fetchStatsSecure, ApiError } from './api/appscript.js';
 import { adaptV5, AdapterError } from './sources/fc-appscript-v5.js';
 import { adaptV2, adaptHistoryV2 } from './sources/fc-appscript-v2.js';
 import { request as v2Request, validateRoster, validateHistory } from './sources/contract-v2.js';
@@ -130,7 +130,9 @@ export function createController({ profile, onChange, store = defaultStore, api 
           if (['html-response', 'contract-mismatch', 'unsupported-contract', 'not-configured', 'rate-limited'].includes(e?.code ?? e?.message)) v2RetryAt = now() + V2_RETRY_MS;
         }
       }
-      const { data } = await api.fetchStats(endpoint);
+      // BH-2: with a token, the v5 payload is read through the authenticated POST first
+      // (not during the v2 cool-down, so a backend without doPost is not asked twice).
+      const { data } = await fetchStatsSecure(endpoint, token && now() >= v2RetryAt ? token : null, api);
       if (gen !== generation) return;
       const fetchedAt = now();
       const fresh = adaptV5(data, { profile, fetchedAt, kind: 'live' });
