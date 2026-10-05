@@ -50,6 +50,8 @@ const controller = createController({
     applyEnvironment(env.state, env.tone);
     shell.setStatus(view);
     if (LIVE_ROUTES.has(currentRoute)) show(currentRoute, { quiet: true, param: currentParam });
+    // Other screens may refresh in place (Settings: the contract status line).
+    else SCREENS[currentRoute]?.update?.(shell.main, ctx);
   },
 });
 

@@ -68,6 +68,11 @@ function contractStatus(view) {
   return c.fallback ? `In use: v5 (fallback: ${c.fallback})` : 'In use: v5';
 }
 
+/** The contract status line; shared by render and update so both always agree. */
+export function contractLine(view, hasToken) {
+  return `${contractStatus(view)}${hasToken ? ' · token saved' : ''}`;
+}
+
 export const settings = {
   title: 'Settings',
 
@@ -117,7 +122,7 @@ export const settings = {
                 <div class="setting-copy">
                   <span class="list-label">Roster contract v2 (preview)</span>
                   <span class="t-caption">Richer roster data (explicit off days, report times, roster hotels, history) from a backend that offers it. Needs the access token configured on the backend. Stored only in this browser; without it, or if v2 is unavailable, the v5 contract is used automatically.</span>
-                  <span class="t-caption" data-contract-state>${contractStatus(ctx.view())}${hasToken ? ' · token saved' : ''}</span>
+                  <span class="t-caption" data-contract-state>${contractLine(ctx.view(), hasToken)}</span>
                 </div>
               </div>
               <form class="source-form" data-token-form novalidate>
@@ -165,6 +170,17 @@ export const settings = {
           </section>
         </div>
       </div>`;
+  },
+
+  /**
+   * Data changed while Settings is open (e.g. a roster load finished). Only the status
+   * line is refreshed: a full re-render would discard what is being typed into the forms.
+   */
+  update(root, ctx) {
+    const line = root.querySelector('[data-contract-state]');
+    if (!line) return;
+    const text = contractLine(ctx.view(), Boolean(store.get(TOKEN_KEY)));
+    if (line.textContent !== text) line.textContent = text;
   },
 
   mount(root, ctx) {

@@ -18,6 +18,8 @@ import { buildFlights } from '../src/model/flights.js';
 import { calendar, resetCalendarUi } from '../src/ui/screens/calendar.js';
 import { flights as flightsScreen } from '../src/ui/screens/flights.js';
 import { today as todayScreen } from '../src/ui/screens/today.js';
+import { settings as settingsScreen, contractLine } from '../src/ui/screens/settings.js';
+import { readFileSync } from 'node:fs';
 import { clock } from '../src/ui/duty.js';
 import { PROFILE, loadFixture } from './helpers.js';
 
@@ -268,6 +270,56 @@ test('no token: v2 is never attempted; structural failures are not retried for a
   await h.c.load({ force: true });
   assert.equal(h.calls.post.length, 1, 'cool-down after "no v2 here"');
   assert.equal(h.calls.stats, 2);
+});
+
+// --- Settings: the contract status line follows roster loads ---------------------------
+
+/** A stand-in for the mounted Settings DOM: only the status line and a form field. */
+function settingsRoot(initial) {
+  const line = { textContent: initial };
+  const input = { value: 'half-typed text' };
+  return { line, input, querySelector: (sel) => (sel === '[data-contract-state]' ? line : sel === '#token-input' ? input : null) };
+}
+
+test('contractLine: every contract state, with and without a saved token', () => {
+  assert.equal(contractLine({ contract: { active: null, fallback: null } }, false), 'Not loaded yet');
+  assert.equal(contractLine({ contract: { active: 'v2', fallback: null } }, true), 'In use: contract v2 · token saved');
+  assert.equal(contractLine({ contract: { active: 'v5', fallback: null } }, false), 'In use: v5');
+  assert.equal(contractLine({ contract: { active: 'v5', fallback: 'the token was refused' } }, true), 'In use: v5 (fallback: the token was refused) · token saved');
+});
+
+test('regression: the Settings status line updates when a roster load completes (no stale "Not loaded yet")', async () => {
+  const root = settingsRoot('');
+  let ctx = null;
+  // Wired like main.js: every controller change reaches the open Settings screen.
+  const store = createStore(memoryStorage());
+  store.set(ENDPOINT_KEY, ENDPOINT);
+  store.set(TOKEN_KEY, TOKEN);
+  const api = { postContract: async (endpoint, body) => ({ data: backend(body), meta: {} }), fetchStats: async () => ({ data: loadFixture(), meta: {} }) };
+  const c = createController({ profile: PROFILE, onChange: () => settingsScreen.update(root, ctx), store, api, clock: () => NOW });
+  ctx = { view: () => c.view() };
+  // Opened before the roster arrived: rendered as "Not loaded yet".
+  const rendered = String(settingsScreen.render({ view: () => c.view(), review: () => false }));
+  assert.match(rendered, /data-contract-state>Not loaded yet/);
+  root.line.textContent = 'Not loaded yet';
+  await c.load({ force: true });
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(c.view().contract.active, 'v2');
+  assert.match(root.line.textContent, /^In use: contract v2/);
+  assert.equal(root.input.value, 'half-typed text', 'refreshing the line never touches the forms');
+
+  // Fallback is reflected the same way.
+  const c5 = createController({ profile: PROFILE, onChange: () => settingsScreen.update(root, ctx), store, api: { ...api, postContract: async () => ({ data: { ok: false, error: 'unauthorized' }, meta: {} }) }, clock: () => NOW });
+  ctx = { view: () => c5.view() };
+  await c5.load({ force: true });
+  assert.match(root.line.textContent, /^In use: v5 \(fallback: /);
+});
+
+test('Settings update is a no-op without its status line; main.js routes changes to it', () => {
+  assert.doesNotThrow(() => settingsScreen.update({ querySelector: () => null }, { view: () => ({ contract: { active: 'v2' } }) }));
+  const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+  assert.match(main, /else SCREENS\[currentRoute\]\?\.update\?\.\(shell\.main, ctx\)/, 'non-live screens get update()');
+  assert.doesNotMatch(main.match(/LIVE_ROUTES = new Set\(\[[^\]]*\]\)/)[0], /settings/, 'Settings is never fully re-rendered on data changes (forms keep their input)');
 });
 
 test('backward compatibility: the v5 path is unchanged (no day states, absence evidence)', async () => {
