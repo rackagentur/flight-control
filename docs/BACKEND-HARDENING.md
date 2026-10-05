@@ -1,6 +1,6 @@
 # Backend hardening (separate workstream)
 
-**Status: NOT STARTED. Each step requires explicit approval.**
+**Status: BH-1 deployed (Version 25, 2026-10-05); BH-2 next. Each step requires explicit approval.**
 **Gate:** V2 may be developed and previewed against the existing backend, but it must **not** become the live/public version until BH-1 and BH-2 are deployed and verified.
 
 The live Apps Script deployment is **not modified** during frontend development (Phases 2–7).
@@ -77,9 +77,18 @@ Owner-approved, deployed manually by the owner (no automation).
 
 History responses are cached for 6 h per range, so the check used a range not requested before; the default range shows the new zones once its cache entry expires.
 
+## BH-1: entry-point surface (Version 25, 2026-10-05)
+
+Owner-approved, deployed manually by the owner one step at a time.
+
+- **Change:** a single committed GET router (`backend/apps-script/RouterV2.gs`) is now the project's only `doGet`. It serves the read-only `getStats` contract unchanged and answers every other GET with a small JSON refusal; the web app no longer serves a page. The previous web-app entry function was renamed to a private name and the legacy wrapper file was removed. Each file edit was checked byte-for-byte against the intended source. An older, unused deployment of the project was archived; the web app now has a single active deployment. Trigger handlers are unchanged.
+- **Verification (read-only):** every former GET entry is refused with JSON and returns immediately (execution log: sub-second runs, no scheduled-work side effects, no email); `getStats` unchanged (16/16 fields); contract v2 auth, roster zones (21/21 vs. baseline), history (41/41 IANA zones) and the full Step H suite unchanged; the app works on contract v2 with its settings status refreshing.
+- **Rollback:** Manage deployments → the deployment → Edit → Version 24 (same URL).
+
 ## Deployment log
 
 | Date | Step | Version | Verified by | Rollback version |
 |---|---|---|---|---|
 | 2026-10-04 | Phase 7: fc.roster v2 installed on the existing deployment ("fc.roster v2") | 23 | Owner (files, triggers, v5); Step H on 2026-10-05 | 22 |
 | 2026-10-05 | `AirportsV2.gs` with PDX/SYX zones ("fc.roster v2 + PDX/SYX zones") | 24 | Owner (byte-identical file) + read-only checks above | 23 (pre-v2: 22) |
+| 2026-10-05 | BH-1: single GET router ("BH-1: GET router (getStats only)"); unused older deployment archived | 25 | Owner (byte-identical edits) + read-only checks above | 24 |
