@@ -194,19 +194,25 @@ function sectorRow(s, day) {
 }
 
 /**
- * The roster hotel for a day inside a source-stated stay, never inferred from the city:
- *  1. a stated layover window with a hotel that covers the day (its own window, else any other);
- *  2. an "Away from base" (inferred) layover whose arrival matches a roster stay's start at the
- *     same airport, the same rule the Flights destination uses (model/flights.js).
+ * The roster hotel for a day inside a source-stated stay, never inferred from the city.
+ * The day's location is its stated layover window's airport, else its inferred layover's
+ * airport (none: no hotel). The hotel is the one named on a snapshot stay at that same
+ * airport whose interval overlaps the day; an open stay (no end) covers only its arrival
+ * day, and with several matches the most recent arrival wins. Layover windows take their
+ * hotel from these stays (sources/fc-appscript-v2.js), so the stays alone are enough; a
+ * snapshot without stays (v5) has no hotel.
  */
 export function stayHotel(day, snapshot) {
-  const named = (h) => (h && typeof h.name === 'string' && h.name ? h : null);
-  const stated = (w) => w?.kind === 'layover' && named(w.hotel);
-  const w = stated(day.window) ? day.window : (snapshot?.windows ?? []).find((x) => stated(x) && x.start < day.end && x.end > day.start);
-  if (w) return w.hotel;
-  const l = day.layover;
-  const stay = l && (snapshot?.stays ?? []).find((h) => named(h.hotel) && h.airport === l.airport && Math.abs(h.from - l.from) < 60000);
-  return stay ? stay.hotel : null;
+  const airport = day.window?.kind === 'layover' ? day.window.label : day.layover?.airport;
+  if (!airport) return null;
+  let best = null;
+  for (const h of snapshot?.stays ?? []) {
+    if (h.airport !== airport || !(h.hotel && typeof h.hotel.name === 'string' && h.hotel.name)) continue;
+    const end = h.to ?? h.from + 1;
+    if (!(h.from < day.end && end > day.start)) continue;
+    if (!best || h.from > best.from) best = h;
+  }
+  return best ? best.hotel : null;
 }
 
 /** "Hotel · from roster" section: name, address, phone, and a map link only for a verified location (as in destination.js). */

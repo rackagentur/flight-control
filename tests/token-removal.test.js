@@ -9,6 +9,7 @@ import { ApiError } from '../src/api/appscript.js';
 import { today as todayScreen } from '../src/ui/screens/today.js';
 import { calendar } from '../src/ui/screens/calendar.js';
 import { flights as flightsScreen } from '../src/ui/screens/flights.js';
+import { contractLine } from '../src/ui/screens/settings.js';
 import { PROFILE, loadFixture, at } from './helpers.js';
 
 const NOW = at(loadFixture()._now);
@@ -194,4 +195,21 @@ test('S6: with no endpoint configured, Calendar and Flights still say "No roster
     assert.match(page, /Connect it in Settings\./, `${name} text`);
     assert.doesNotMatch(page, /Access token required/, `${name} no token wording`);
   }
+});
+
+test('S6: Settings says the access token is required when none is stored and the backend refused; other contract lines are unchanged', async () => {
+  const store = seeded();
+  const h = harness(store, { stats: refuse });
+  await h.c.load({ force: true });
+  h.c.removeToken();
+  await tick();
+  const v = h.c.view();
+  assert.equal(v.snapshot, null);
+  assert.equal(v.error.code, 'auth-required');
+  assert.match(contractLine(v, Boolean(store.get(TOKEN_KEY))), /^Access token required · the roster is only served with the token$/);
+  // With a token saved, or with a roster on screen, or with another error, the existing wording stays.
+  assert.equal(contractLine(v, true), 'Not loaded yet · token saved');
+  assert.equal(contractLine({ ...v, snapshot: {} }, false), 'Not loaded yet');
+  assert.equal(contractLine({ ...v, error: { code: 'network' } }, false), 'Not loaded yet');
+  assert.equal(contractLine({ ...v, error: null }, false), 'Not loaded yet');
 });

@@ -79,6 +79,8 @@ function contractStatus(view) {
 
 /** The contract status line; shared by render and update so both always agree. */
 export function contractLine(view, hasToken) {
+  // No token stored and the backend refused the read: say so here too (the shell status line is hidden on narrow screens).
+  if (!hasToken && !view.snapshot && view.error?.code === 'auth-required') return 'Access token required · the roster is only served with the token';
   return `${contractStatus(view)}${hasToken ? ' · token saved' : ''}`;
 }
 
