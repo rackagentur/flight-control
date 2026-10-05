@@ -8,6 +8,7 @@ Status: **installed (private).** The four files below are installed unchanged in
 | `RosterModelV2.gs` | Airline-independent contract builder (pure; unit-tested in Node) |
 | `RosterApiV2.gs` | `doPost` entry point, token check, read-only Calendar/Sheet access |
 | `AirportsV2.gs` | Generated airport → IANA zone table (`node scripts/gen-airports-gs.mjs`) |
+| `RouterV2.gs` | Backend hardening BH-1 (prepared, not yet deployed): the project's only `doGet`. Serves the read-only v5 `getStats` unchanged and refuses every other GET with JSON; never serves a page |
 
 Rules the files follow:
 

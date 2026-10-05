@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { createHash } from 'node:crypto';
 
-export const GS_FILES = ['CondorAdapterV2.gs', 'RosterModelV2.gs', 'AirportsV2.gs', 'RosterApiV2.gs'];
+export const GS_FILES = ['CondorAdapterV2.gs', 'RosterModelV2.gs', 'AirportsV2.gs', 'RosterApiV2.gs', 'RouterV2.gs'];
 const dir = new URL('../backend/apps-script/', import.meta.url);
 
 function part(ms, tz, opts) {
@@ -38,7 +38,7 @@ export function loadGs() {
   const sandbox = { Utilities, console };
   vm.createContext(sandbox);
   const code = GS_FILES.map((f) => readFileSync(new URL(f, dir), 'utf8')).join('\n;\n');
-  vm.runInContext(`${code}\n;globalThis.__gs = { FCV2_CONDOR_CONFIG_, FCV2_AIRPORT_TZ_, fcv2ClassifyEvent_, fcv2ParseDescription_, fcv2BuildRoster_, fcv2BuildHistory_, fcv2HandlePost_, fcv2SafeEqual_, fcv2StartOfDay_, fcv2LocalIso_, fcv2Range_, FCV2_HISTORY_MAX_SECTORS_ };`, sandbox);
+  vm.runInContext(`${code}\n;globalThis.__gs = { FCV2_CONDOR_CONFIG_, FCV2_AIRPORT_TZ_, fcv2ClassifyEvent_, fcv2ParseDescription_, fcv2BuildRoster_, fcv2BuildHistory_, fcv2HandlePost_, fcv2SafeEqual_, fcv2StartOfDay_, fcv2LocalIso_, fcv2Range_, FCV2_HISTORY_MAX_SECTORS_, fcv2HandleGet_, FCV2_GET_REFUSED_ };`, sandbox);
   return sandbox.__gs;
 }
 
