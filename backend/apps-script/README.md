@@ -1,6 +1,6 @@
 # fc.roster v2 backend (Apps Script sources)
 
-Status: **installed (private).** The four files below are installed unchanged in the existing Apps Script project and served by the existing *untitled* ("Unbenannt") deployment, now **Version 25** (Version 24 = v2 with the PDX/SYX zones, plus the BH-1 router `RouterV2.gs`); the /exec URL is unchanged. Script Property `FC_V2_TOKEN` is set (the token lives only in a private local file and Script Properties). The five original project files, the triggers and `PLACES_API_KEY` are unchanged, and v5 `getStats` remains operational as the fallback. **Rollback target: Version 24**; Version 22 is the pre-v2 baseline. Step H (auth and contract verification) passed on 2026-10-05 and was repeated on Version 24; see `docs/BACKEND-HARDENING.md`. The app does not use v2 until the token is entered in Settings (not done yet).
+Status: **installed (private).** The four files below are installed unchanged in the existing Apps Script project and served by the existing *untitled* ("Unbenannt") deployment, now **Version 26** (v2 with the PDX/SYX zones, the BH-1 router `RouterV2.gs`, and BH-2 token-protected roster reads); the /exec URL is unchanged. Script Property `FC_V2_TOKEN` is set (the token lives only in a private local file and Script Properties). The five original project files, the triggers and `PLACES_API_KEY` are unchanged, and v5 `getStats` remains operational as the fallback. **Rollback target: Version 25** (then 24); Version 22 is the pre-v2 baseline. Step H (auth and contract verification) passed on 2026-10-05 and was repeated on Version 24; see `docs/BACKEND-HARDENING.md`. The app does not use v2 until the token is entered in Settings (not done yet).
 
 | File | Role |
 |---|---|
@@ -8,7 +8,7 @@ Status: **installed (private).** The four files below are installed unchanged in
 | `RosterModelV2.gs` | Airline-independent contract builder (pure; unit-tested in Node) |
 | `RosterApiV2.gs` | `doPost` entry point, token check, read-only Calendar/Sheet access |
 | `AirportsV2.gs` | Generated airport → IANA zone table (`node scripts/gen-airports-gs.mjs`) |
-| `RouterV2.gs` | Backend hardening (BH-1 deployed in Version 25; BH-2 prepared): the project's only `doGet`. Refuses every GET with JSON and never serves a page. `getStats` by GET only while Script Property `FC_V5_GET` = `open` (BH-2 migration window); otherwise `auth-required`, and token holders use `doPost` `stats` |
+| `RouterV2.gs` | Backend hardening (BH-1 in Version 25, BH-2 in Version 26): the project's only `doGet`. Refuses every GET with JSON and never serves a page. `getStats` by GET only while Script Property `FC_V5_GET` = `open` (BH-2 migration window); otherwise `auth-required`, and token holders use `doPost` `stats` |
 
 Rules the files follow:
 

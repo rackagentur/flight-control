@@ -1,6 +1,6 @@
 # fc.roster v2: the Flight Control roster contract
 
-Status: **installed privately** on the existing web-app deployment as Version 24 (rollback Version 23; pre-v2 baseline Version 22) and verified against the live endpoint (Step H, 2026-10-05; repeated on Version 24; `docs/BACKEND-HARDENING.md`). Not yet enabled in the app. The v5 `getStats` contract is unchanged and remains the fallback.
+Status: **installed privately** on the existing web-app deployment, currently Version 26 (rollback Version 25; pre-v2 baseline Version 22), verified against the live endpoint (Step H, 2026-10-05, repeated on each version; `docs/BACKEND-HARDENING.md`) and enabled in the owner's app. The v5 `getStats` payload is unchanged and remains the fallback; since BH-2 it is read with the token (`stats`).
 
 ## Rule of truth
 
