@@ -1,6 +1,6 @@
 # fc.roster v2: the Flight Control roster contract
 
-Status: **implemented locally and tested (Phase 7, steps 1–2). Not deployed.** The v5 `getStats` contract is unchanged and remains the fallback.
+Status: **installed privately** on the existing web-app deployment as Version 23 ("fc.roster v2"; rollback Version 22) and verified against the live endpoint (Step H, 2026-10-05; `docs/BACKEND-HARDENING.md`). Not yet enabled in the app. The v5 `getStats` contract is unchanged and remains the fallback.
 
 ## Rule of truth
 
@@ -107,6 +107,7 @@ Field rules:
 - **Stays**: a hotel block is source evidence that a stay exists. On a flight: the stay is at that flight's destination (`airportProvenance: source`) and ends at the next listed departure from there (`derived`), or `to: null` (`endProvenance: unknown`). On a standby/reserve: the airport is derived from the previous arrival, or `null`. Stays never create sectors or rotations.
 - **Hotel location** only from a VERIFIED Sheet row whose name and airport match **and** whose recorded stays include this stay's source event; REVIEW/UNRESOLVED rows and candidate fields are never used.
 - **Coverage** states: `rostered` (any event), `empty` (inside coverage, nothing rostered; UNKNOWN, never OFF), `unpublished` (feed segment after the last rostered day). Days outside `from`–`to` are not returned.
+- **Day `codes[]`** lists only the explicit rest-family day codes on that date (`off` with subtype off/free/leave/ort). It is not a list of everything rostered: a day with a flight, check-in, pickup, standby, reserve or unknown-code event but no rest code is `rostered` with `codes: []`. So `rostered` does not imply a non-empty `codes[]`, and an empty `codes[]` on a rostered day never means OFF; the day's events (by local date in the base zone) carry its content.
 - **Rotations** are not stated by the feed (`capabilities.rotations: false`); the frontend derives them.
 - **Unknown codes** are kept by the frontend too (`unknownEvents`): a day with only an unknown code is UNKNOWN with evidence `unknown-code` and shows the code itself (never "Duty" or OFF); unknown codes on otherwise classified days are listed in the day detail.
 - **Rest family precedence**: an explicitly coded rest day (OFF, free, leave, ORT) is a source fact and outranks an inferred layover. Generic off windows without a subtype keep the earlier rule (an inferred layover wins).
@@ -131,4 +132,4 @@ Field rules:
 
 ## Backend files (`backend/apps-script/`)
 
-`CondorAdapterV2.gs` (airline codes and description whitelist), `RosterModelV2.gs` (airline-independent builder), `RosterApiV2.gs` (`doPost`, token, reads), `AirportsV2.gs` (generated: `node scripts/gen-airports-gs.mjs`). They reference project constants (calendar/sheet ids, sync tag) by name only and contain no ids, URLs or secrets. Installation is a later, separately approved step (see `backend/apps-script/README.md`).
+`CondorAdapterV2.gs` (airline codes and description whitelist), `RosterModelV2.gs` (airline-independent builder), `RosterApiV2.gs` (`doPost`, token, reads), `AirportsV2.gs` (generated: `node scripts/gen-airports-gs.mjs`). They reference project constants (calendar/sheet ids, sync tag) by name only and contain no ids, URLs or secrets. Installed as Version 23; install, rollback and kill switch in `backend/apps-script/README.md`.

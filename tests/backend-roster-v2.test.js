@@ -48,6 +48,19 @@ test('ORT is never inferred: only the exact code counts; empty days carry no cod
   assert.ok(r.coverage.days.filter((d) => d.codes.some((c) => c.subtype === 'ort')).every((d) => d.state === 'rostered'));
 });
 
+test('a rostered day needs no rest code: duty-only days are rostered with codes []', () => {
+  const r = roster();
+  const tz = r.source.baseTimeZone;
+  const datesOf = (e) => { const s = new Set([localDate(e.start, tz)]); for (let t = e.start; t < e.end; t += 3600000) s.add(localDate(t, tz)); return s; };
+  const restDays = new Set(r.events.filter((e) => e.kind === 'off').flatMap((e) => [...datesOf(e)]));
+  const dutyDays = new Set(r.events.filter((e) => e.kind !== 'off').flatMap((e) => [...datesOf(e)]));
+  const dutyOnly = r.coverage.days.filter((d) => dutyDays.has(d.date) && !restDays.has(d.date));
+  assert.ok(dutyOnly.length >= 3, 'the fixture has flight/standby/reserve days without a rest code');
+  assert.ok(dutyOnly.every((d) => d.state === 'rostered' && d.codes.length === 0));
+  // codes[] is exactly the explicit rest-family events of the day, never derived from duties.
+  assert.ok(r.coverage.days.every((d) => (d.codes.length > 0) === restDays.has(d.date)));
+});
+
 test('unknown source codes are preserved with their original code and title', () => {
   const r = roster();
   const u = r.events.find((e) => e.kind === 'unknown');

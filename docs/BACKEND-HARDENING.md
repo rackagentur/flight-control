@@ -27,8 +27,39 @@ Detailed findings are tracked privately and are not published until fixed.
 - BH-0 baseline recorded privately (file hashes, deployments, triggers, scopes, Script Property names). Not published.
 - The fc.roster v2 sources (`backend/apps-script/`) are implemented and tested locally; **nothing was installed or deployed**. The v2 endpoint is token-protected from its first deployment; it does not fix the v5 GET surface, which remains the BH-1/BH-2 gate.
 
+## Phase 7 install and Step H (2026-10-05)
+
+Installed (owner-approved): the four v2 files added unchanged to the existing project; Script Property `FC_V2_TOKEN` set; the existing *untitled* ("Unbenannt") deployment moved to **Version 23** ("fc.roster v2"), same /exec URL. Version 23 checked to contain all nine files, byte-identical to the intended sources; the five original files, the triggers (a normal `standbyHourlySync` run observed) and `PLACES_API_KEY` unchanged; v5 `getStats` HTTP 200 with five upcoming flights. Still open: BH-1/BH-2 (the v5 GET surface).
+
+**Step H: auth and contract verification against Version 23: GO.** Read-only; only aggregates were recorded (no roster content, endpoint or token).
+
+| Check | Result |
+|---|---|
+| No token / wrong token | `unauthorized` (HTTP 200); token never echoed |
+| Correct token, `capabilities` | `fc.roster` v2; actions capabilities/roster/history; limits 100 days / 13 months / 2,000 sectors; base zone `Europe/Berlin` |
+| Version 3 / wrong contract name / unknown action | `unsupported-contract` / `unsupported-contract` / `unknown-action` |
+| Bounds | roster > 100 days → `range-too-long`; future history → `history-is-past-only` |
+| `roster` (default window) | Passes the frontend `validateRoster`. 91 days (74 rostered, 14 empty, 3 unpublished); synced copy before today, airline feed from today; 96 events, 21 sectors, 19 duties, 3 windows, 12 stays, 1 warning (`unknown-code`) |
+| ORT / rest family | ORT always `off/ort` with `protected: true` and the only protected code; OFF, free, leave, standby and reserve kept distinct |
+| UNKNOWN ≠ OFF | Empty/unpublished days carry no codes; rest codes only from explicit off events; day states consistent with events; unknown codes kept as `unknown` |
+| Provenance | Valid on every item; backend never emits `inferred`; report/pickup times `source`, association `derived`; zones `derived` |
+| Time zones | Every sector local time and offset matches an independent IANA recomputation (0 mismatches, 0 null zones, sectors on both sides of a DST change) |
+| Aircraft | Present on every sector, `source` only, well-formed |
+| Privacy | Opaque ids only; no calendar ids, descriptions or e-mail addresses |
+| `history` (default) | Passes `validateHistory`; 2025-10-01 → yesterday, not truncated, past only, synced copy, `source` |
+| v5 fallback | `getStats` HTTP 200, `success`, 16/16 contract fields, five upcoming flights (≈ 17 s; within the 25 s client timeout) |
+
+A first-run assertion "every rostered day has a day code" failed. It was a wrong test expectation, not a defect: `codes[]` lists only rest-family codes (clarified in `CONTRACT-V2.md`); the implementation is unchanged. The corrected check (every rostered day has an event on that date, and every day code has an explicit off event) passed.
+
+Non-blocking observations:
+
+1. A few history sectors use airports missing from the airport table, so their zones are `null` (reported, not guessed). Extend the table before the v2-vs-v5 comparison.
+2. All stays carry a roster hotel, but none has a VERIFIED location yet (fail-closed: no matching Sheet row for the stay), so no map pins.
+3. Repository status lines still said "not installed / not deployed" (fixed with this record).
+4. The no-token and wrong-token checks count toward the failed-token limit (2 of 20 per 10 minutes); harmless, but repeat runs should stay well below the limit.
+
 ## Deployment log
 
 | Date | Step | Version | Verified by | Rollback version |
 |---|---|---|---|---|
-| — | — | — | — | — |
+| 2026-10-05 | Phase 7: fc.roster v2 installed on the existing deployment ("fc.roster v2") | 23 | Owner (files, triggers, v5) + Step H | 22 |
