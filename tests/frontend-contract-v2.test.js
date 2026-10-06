@@ -83,7 +83,9 @@ test('ORT: explicit protected free day through the whole stack, distinct from OF
   assert.match(html, /cal-code tok-off tok-ort" aria-hidden="true">ORT</);
   assert.match(html, /cal-code tok-off" aria-hidden="true">OFF</);
   assert.match(html, /cal-code tok-off tok-leave" aria-hidden="true">LEAVE</);
-  assert.match(html, /cal-code tok-off" aria-hidden="true">FREE</);
+  // A single dash is the unassigned day (Strichtag, cell STR), never a FREE capsule.
+  assert.match(html, /cal-code tok-unassigned" aria-hidden="true">STR</);
+  assert.doesNotMatch(html, />FREE</);
   assert.match(html, /cannot be taken away or reassigned/);
 });
 

@@ -23,11 +23,16 @@ The airline feed is a calendar of timed events (no all-day events). Day codes ar
 | `C/I` | check-in (report time) | `checkin` → duty.report |
 | `P/U` | pickup (outstations) | `pickup` → duty.pickup |
 | `SB<n>` / `RE<n>` | standby / reserve window | `standby` / `reserve` |
+| `SB90S`, `SB90_I`, `SBH30`, `SBAUS`, `SB90KO` | further standby types (Condor MTV Fibel (Verdi) p.17, column "Symbol Dienstplan"); exact symbols only | `standby` (window, hotel block handled like `SB90`) |
 | `OFF` | off day | `off` / subtype `off` |
-| `-` | free day ("Freier Tag") | `off` / subtype `free` |
+| `-` | **Strichtag** (a single dash): a day with no duty assigned. Evidence: owner statement and a read-only trace of the live feed (2026-10-06): `-` occurs 30 times as a 24 h day event and no title contains `--`; Condor MTV Fibel p.10 (Strichtage count as free days there and are convertible to duty; neither rule is implemented). **Supersedes** the 2026-10-04 inventory claim "`-` = free day (Freier Tag)", which has no supporting record. Recognised, but **not** a day off and not a free day; distinct from `OFF`, `U` and `ORT` | `unassigned` (airline-neutral; no subtype, `protected: false`) |
 | `U` | leave | `off` / subtype `leave` |
 | `ORT` | **protected free day**: assigned by the company, cannot be taken away or reassigned | `off` / subtype `ort`, `protected: true` |
 | anything else | unknown | `unknown`, original code and title kept |
+
+Recognition is by **exact symbol** (the table in `src/airlines/condor/roster-codes.js`); there is no permissive fallback. The agreement's own standby names (`SBY`, `SBYHOT`, `SBYKO`, `SBY_I`, `SB30-AUS`, `SBYAP`, `RES10`, `RES10_I`) are not roster representations (Fibel p.17) and stay `unknown`, as do `XYZ`, `--` (never observed in the feed), `---`, `- -`, `–` and lower-case variants. Core code and the contract never contain the roster symbol or the airline word: the canonical concept is `unassigned`, and the wording (Condor "Strichtag", generic "Unassigned day") comes from the airline pack.
+
+Observed in the live feed but still unrecognised (2026-10-06): `U1`, `SBX`, `HS5`, `EM`, `RE10S`, `DH/<flight>` and flight titles of other carriers (for example `LH…`). They stay `unknown` (meaning not established) and are not interpreted.
 
 Descriptions may contain a hotel block ("Hotel" + name, address lines, phone), an aircraft line (`REGISTRATION (TYP)`), and a crew list with colleagues' names and employee numbers plus a booking code. **Only the hotel block and the aircraft line are read; nothing else from a description is ever returned.**
 
@@ -62,7 +67,7 @@ The feed keeps only a few days of past events and extends to the end of the next
               "segments": [ { "from": "2026-09-01", "to": "2026-10-03", "basis": "synced-copy" },
                             { "from": "2026-10-04", "to": "2026-11-30", "basis": "airline-feed" } ] },
   "capabilities": { "sectors": true, "reportTime": true, "pickups": true, "standby": true, "reserve": true,
-                    "explicitOff": true, "protectedOff": true, "leave": true, "stays": "hotel-block",
+                    "explicitOff": true, "protectedOff": true, "leave": true, "unassigned": true, "stays": "hotel-block",
                     "hotels": true, "aircraft": true, "rotations": false, "history": true },
   "coverage": { "from": "2026-09-01", "to": "2026-11-30", "lastRosteredDate": "2026-10-26",
     "days": [
@@ -108,10 +113,11 @@ Field rules:
 - **Stays**: a hotel block is source evidence that a stay exists. On a flight: the stay is at that flight's destination (`airportProvenance: source`) and ends at the next listed departure from there (`derived`), or `to: null` (`endProvenance: unknown`). On a standby/reserve: the airport is derived from the previous arrival, or `null`. Stays never create sectors or rotations.
 - **Hotel location** only from a VERIFIED Sheet row whose name and airport match **and** whose recorded stays include this stay's source event; REVIEW/UNRESOLVED rows and candidate fields are never used.
 - **Coverage** states: `rostered` (any event), `empty` (inside coverage, nothing rostered; UNKNOWN, never OFF), `unpublished` (feed segment after the last rostered day). Days outside `from`–`to` are not returned.
-- **Day `codes[]`** lists only the explicit rest-family day codes on that date (`off` with subtype off/free/leave/ort). It is not a list of everything rostered: a day with a flight, check-in, pickup, standby, reserve or unknown-code event but no rest code is `rostered` with `codes: []`. So `rostered` does not imply a non-empty `codes[]`, and an empty `codes[]` on a rostered day never means OFF; the day's events (by local date in the base zone) carry its content.
+- **Day `codes[]`** lists only the explicit day codes on that date: the rest family (`off` with subtype off/free/leave/ort) and unassigned days (`kind: "unassigned"`, `subtype: null`, `protected: false`). It is not a list of everything rostered: a day with a flight, check-in, pickup, standby, reserve or unknown-code event but no rest or unassigned code is `rostered` with `codes: []`. So `rostered` does not imply a non-empty `codes[]`, and an empty `codes[]` on a rostered day never means OFF; the day's events (by local date in the base zone) carry its content.
+- **Event kind `unassigned`** (Phase 2): a day the roster lists with no duty assigned. It is its own concept, never `off`: it is emitted as an event and a day code, **never** as a backend `windows[]` entry (windows stay standby/reserve), and `capabilities.unassigned: true` announces it. The contract validator accepts any event kind string, so older clients keep working (an unrecognised kind is simply not used by them). The frontend maps it to a window of kind `unassigned` (status `unassigned`, confirmed, source). Month summaries count it separately from off days; the state engine never reports a begin/end event for it. The contract carries no rule about whether the airline may later assign the day, and none is implemented.
 - **Rotations** are not stated by the feed (`capabilities.rotations: false`); the frontend derives them.
 - **Unknown codes** are kept by the frontend too (`unknownEvents`): a day with only an unknown code is UNKNOWN with evidence `unknown-code` and shows the code itself (never "Duty" or OFF); unknown codes on otherwise classified days are listed in the day detail.
-- **Rest family precedence**: an explicitly coded rest day (OFF, free, leave, ORT) is a source fact and outranks an inferred layover. Generic off windows without a subtype keep the earlier rule (an inferred layover wins).
+- **Rest family precedence**: an explicitly coded rest day (OFF, free, leave, ORT) or unassigned day is a source fact and outranks an inferred layover. Generic off windows without a subtype keep the earlier rule (an inferred layover wins).
 
 ## `history` response (synthetic example)
 
@@ -128,9 +134,9 @@ Field rules:
 
 - **Feature detection and fallback** (`src/controller.js`): with a v2 token saved in Settings, the `roster` action is called first and validated (`src/sources/contract-v2.js`). Any failure (no `doPost` → HTML page, refused token, wrong version, invalid payload, network, timeout) falls back to v5 `getStats` in the same refresh; structural failures are not retried for an hour. Settings shows which contract is in use and why.
 - **Adapter** (`src/sources/fc-appscript-v2.js`) maps v2 onto the same `RosterSnapshot`: explicit rest-family windows (`off` with `subtype` off/free/leave/ort and `protected`), standby/reserve windows, report and pickup on the first sector of a duty, aircraft, stays (with hotels), and `dayStates` for coverage evidence. Only stays whose airport is a source fact and whose end is known become confirmed layover windows.
-- **UI**: ORT is shown as a ringed "ORT" capsule in the rest family (Calendar, key, day detail, Today); leave as a striped "LEAVE" capsule; roster hotels as a record ("Hotel · from roster") with phone and, when verified, a map link; aircraft in the flight detail.
+- **UI**: an unassigned day is shown with the airline's wording (Condor compact code "STR" with the full name "Strichtag", generic "UNAS" / "Unassigned day") as a neutral outlined, hatched capsule in Calendar, key, day detail, Today and the 7-day strip, deliberately unlike the OFF family; ORT is shown as a ringed "ORT" capsule in the rest family (Calendar, key, day detail, Today); leave as a striped "LEAVE" capsule; roster hotels as a record ("Hotel · from roster") with phone and, when verified, a map link; aircraft in the flight detail.
 - **History**: server history is cached for a day and merged with device memory; labelled "Flight history" / "From your roster history", never as complete career history.
 
 ## Backend files (`backend/apps-script/`)
 
-`CondorAdapterV2.gs` (airline codes and description whitelist), `RosterModelV2.gs` (airline-independent builder), `RosterApiV2.gs` (`doPost`, token, reads), `AirportsV2.gs` (generated: `node scripts/gen-airports-gs.mjs`). They reference project constants (calendar/sheet ids, sync tag) by name only and contain no ids, URLs or secrets. Installed (currently Version 24); install, rollback and kill switch in `backend/apps-script/README.md`.
+`CondorAdapterV2.gs` (flight-title format and description whitelist), `RosterModelV2.gs` (airline-independent builder), `RosterApiV2.gs` (`doPost`, token, reads), `AirportsV2.gs` (generated: `node scripts/gen-airports-gs.mjs`), `CondorCodesV2.gs` (generated: `node scripts/gen-condor-codes-gs.mjs`; the source inventory table above is mirrored in `src/airlines/condor/roster-codes.js`, the one authoritative copy, and the adapter classifies titles from it). They reference project constants (calendar/sheet ids, sync tag) by name only and contain no ids, URLs or secrets. Installed (currently Version 24); install, rollback and kill switch in `backend/apps-script/README.md`.

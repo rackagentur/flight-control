@@ -5,7 +5,8 @@
 // Conventions: instants are epoch milliseconds; dates are 'YYYY-MM-DD' in profile.homeTz.
 
 /**
- * @typedef {'off'|'flight'|'standby'|'reserve'|'layover'|'training'|'positioning'|'unknown'} DutyStatus
+ * @typedef {'off'|'unassigned'|'flight'|'standby'|'reserve'|'layover'|'training'|'positioning'|'unknown'} DutyStatus
+ *   unassigned: the roster lists the day with no duty assigned; it is not a day off.
  * @typedef {'confirmed'|'inferred'|'unknown'} Confidence
  *   confirmed: stated by the roster source; inferred: derived from strong evidence; unknown: not provable.
  * @typedef {'source'|'history'|'derived'|'none'} Provenance
@@ -47,10 +48,10 @@
  */
 
 /**
- * @typedef {Object} Window   a standby/reserve/off window stated by the source
- * @property {'standby'|'reserve'|'off'|'layover'} kind
- * @property {'off'|'free'|'leave'|'ort'} [subtype]  rest family (v2): ORT = protected free day
- * @property {boolean} [protected]  ORT: assigned by the company, not reassignable
+ * @typedef {Object} Window   a standby/reserve/off/unassigned window stated by the source
+ * @property {'standby'|'reserve'|'off'|'layover'|'unassigned'} kind  'unassigned': a day with no duty assigned (never an off window)
+ * @property {'off'|'free'|'leave'|'ort'} [subtype]  rest family (v2): 'ort' = protected free day
+ * @property {boolean} [protected]  protected free day: assigned by the company, not reassignable
  * @property {object|null} [hotel]  roster hotel for a stated layover (v2)
  * @property {number} start
  * @property {number} end

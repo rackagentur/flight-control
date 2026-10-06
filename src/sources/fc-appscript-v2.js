@@ -102,6 +102,11 @@ export function adaptV2(p, { profile, fetchedAt, kind = 'live' }) {
     windows.push({ kind: w.kind, start: w.start, end: w.end, label: typeof w.code === 'string' ? w.code : null, provenance: 'source' });
   }
   for (const e of p.events) {
+    // A day the roster lists with no duty assigned: its own concept, never an off window.
+    if (e.kind === 'unassigned') {
+      windows.push({ kind: 'unassigned', start: e.start, end: e.end, label: typeof e.code === 'string' ? e.code : null, provenance: 'source' });
+      continue;
+    }
     if (e.kind !== 'off') continue;
     windows.push({
       kind: 'off', subtype: ['off', 'free', 'leave', 'ort'].includes(e.subtype) ? e.subtype : 'off',

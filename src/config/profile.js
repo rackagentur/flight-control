@@ -19,10 +19,11 @@ export const DEFAULT_PROFILE = Object.freeze({
   alarmShortcutName: 'AddAlarm',
   hotelListUrl: '',
   kmPerBlockHour: 850,
-  airlineAdapter: 'condor',
+  airlineId: 'condor',          // airline pack (src/airlines); unknown ids fall back to generic
 });
 
 const IATA = /^[A-Z]{3}$/;
+const AIRLINE_ID = /^[a-z0-9-]{1,32}$/;
 
 /** Merges stored values over defaults, discarding anything invalid. */
 export function normalizeProfile(input = {}) {
@@ -44,6 +45,9 @@ export function normalizeProfile(input = {}) {
   if (typeof input.referenceTzRow === 'boolean') p.referenceTzRow = input.referenceTzRow;
   if (typeof input.alarmShortcutName === 'string' && input.alarmShortcutName.trim()) p.alarmShortcutName = input.alarmShortcutName.trim().slice(0, 60);
   if (typeof input.hotelListUrl === 'string' && /^https:\/\//.test(input.hotelListUrl)) p.hotelListUrl = input.hotelListUrl;
+  // Stored profiles from before the registry carry `airlineAdapter`; migrate it.
+  const airlineId = input.airlineId ?? input.airlineAdapter;
+  if (typeof airlineId === 'string' && AIRLINE_ID.test(airlineId)) p.airlineId = airlineId;
   if (Number.isFinite(input.kmPerBlockHour) && input.kmPerBlockHour > 0) p.kmPerBlockHour = input.kmPerBlockHour;
   return Object.freeze(p);
 }

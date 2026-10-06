@@ -120,8 +120,8 @@ export function buildRotations(duties, profile, windows = []) {
   };
 }
 
-/** When windows overlap a day: standby/reserve first, then a stated layover, then off. */
-export const WINDOW_RANK = { standby: 0, reserve: 1, layover: 2, off: 3 };
+/** When windows overlap a day: standby/reserve first, then a stated layover, then an unassigned day, then off. */
+export const WINDOW_RANK = { standby: 0, reserve: 1, layover: 2, unassigned: 3, off: 4 };
 
 /** Plain-language meaning of each UNKNOWN evidence code (shared by Today and Calendar). */
 export const EVIDENCE = {
@@ -135,19 +135,12 @@ export const EVIDENCE = {
   'unknown-code': 'The roster lists a code Flight Control does not recognise. It is shown as it is, not as a duty or a day off.',
 };
 
-/** Free-family day subtypes stated by the source (v2). ORT is a protected free day. */
-export const OFF_SUBTYPE = {
-  off: { short: 'OFF', name: 'Off day' },
-  free: { short: 'FREE', name: 'Free day' },
-  leave: { short: 'LEAVE', name: 'Leave' },
-  ort: { short: 'ORT', name: 'Protected free day' },
-};
-
 /**
  * Day-by-day view in the home time zone, for any date range. The single classifier used by
  * Today (7-day strip) and Calendar (month grid). Strongest evidence first:
  *   flight            a duty (wake-up/pickup → last arrival) overlaps the day (confirmed)
- *   standby/reserve/off/layover  a source-stated window covers the day (confirmed)
+ *   standby/reserve/unassigned/off/layover  a source-stated window covers the day (confirmed);
+ *                     unassigned = the roster lists the day with no duty assigned (never off)
  *   layover           inside a derived layover (inferred, provenance derived)
  *   unknown           with an evidence code (see EVIDENCE); never styled or labelled as OFF
  * Each day also carries its rotation membership for continuity drawing.
@@ -198,8 +191,9 @@ export function buildDays(snapshot, { duties, rotations }, profile, now, { from 
       const fromHistory = dayDuties.every((d) => d.provenance === 'history');
       Object.assign(day, { status: 'flight', confidence: 'confirmed', provenance: fromHistory ? 'history' : 'source', label: (away ?? pool.at(-1)).destination });
     } else if (window && !(window.kind === 'off' && layover && !window.subtype)) {
-      // An explicitly coded rest day (v2: OFF/free/leave/ORT) is a source fact and outranks an
-      // inferred layover; a generic off window during an inferred layover keeps the layover.
+      // An explicitly coded rest day (v2: off/free/leave/protected) is a source fact and outranks an
+      // inferred layover; a generic off window during an inferred layover keeps the layover. A day
+      // the roster lists as unassigned is equally a source fact and never carries an off subtype.
       Object.assign(day, { status: window.kind, confidence: 'confirmed', provenance: 'source', label: window.label ?? null });
       if (window.kind === 'off' && window.subtype) Object.assign(day, { offSubtype: window.subtype, protected: window.protected === true });
     } else if (layover) {

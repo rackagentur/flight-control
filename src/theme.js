@@ -69,7 +69,12 @@ export function watchSystemTheme() {
   };
 }
 
-/** Applies an operational environment to an element (default: the whole app). */
+/**
+ * Applies an operational environment to an element (default: the whole app).
+ * An 'unassigned' day (airline wording comes from its pack) has no state of its own and takes the 'unknown' atmosphere on purpose:
+ * that palette is the neutral graphite/stone one (no warm OFF colouring, no layover claim). The day is told apart
+ * from unknown by its label, kicker and calendar/week marks, not by the atmosphere.
+ */
 export function applyEnvironment(state, tone = null, element = root()) {
   element.dataset.state = STATES.includes(state) ? state : 'unknown';
   if (state === 'layover' && LAYOVER_TONES.includes(tone)) element.dataset.tone = tone;

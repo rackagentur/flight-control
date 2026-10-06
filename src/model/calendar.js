@@ -57,6 +57,7 @@ export function buildMonth(snapshot, roster, profile, now, monthKey) {
     standbyDays: count((d) => d.status === 'standby'),
     reserveDays: count((d) => d.status === 'reserve'),
     offDays: count((d) => d.status === 'off'),
+    unassignedDays: count((d) => d.status === 'unassigned'),
     sectors: new Set(inMonth.flatMap((d) => d.sectors.filter((s) => localDateKey(s.dep, profile.homeTz).slice(0, 7) === monthKey).map((s) => s.id))).size,
     rotations: new Set(inMonth.map((d) => d.rotationId).filter(Boolean)).size,
     unknownDuty: count((d) => d.status === 'unknown' && d.evidence === 'duty-unspecified'),

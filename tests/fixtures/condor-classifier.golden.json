@@ -1,0 +1,7128 @@
+{
+ "_synthetic": true,
+ "_note": "Baseline classifier outputs captured from commit 48d800a (before the Phase 1b table). All inputs are invented.",
+ "cases": [
+  {
+   "input": {
+    "sourceId": "golden-001",
+    "title": "C/I",
+    "start": 1000,
+    "end": 1500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-001",
+    "kind": "checkin",
+    "subtype": null,
+    "code": "C/I",
+    "title": "C/I",
+    "start": 1000,
+    "end": 1500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-002",
+    "title": "✈️✈️✈️ C/I",
+    "start": 2000,
+    "end": 2500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-002",
+    "kind": "checkin",
+    "subtype": null,
+    "code": "C/I",
+    "title": "C/I",
+    "start": 2000,
+    "end": 2500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-003",
+    "title": "P/U",
+    "start": 3000,
+    "end": 3500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-003",
+    "kind": "pickup",
+    "subtype": null,
+    "code": "P/U",
+    "title": "P/U",
+    "start": 3000,
+    "end": 3500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-004",
+    "title": "✈️✈️✈️ P/U",
+    "start": 4000,
+    "end": 4500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-004",
+    "kind": "pickup",
+    "subtype": null,
+    "code": "P/U",
+    "title": "P/U",
+    "start": 4000,
+    "end": 4500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-005",
+    "title": "SB",
+    "start": 5000,
+    "end": 5500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-005",
+    "kind": "standby",
+    "subtype": null,
+    "code": "SB",
+    "title": "SB",
+    "start": 5000,
+    "end": 5500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-006",
+    "title": "✈️✈️✈️ SB",
+    "start": 6000,
+    "end": 6500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-006",
+    "kind": "standby",
+    "subtype": null,
+    "code": "SB",
+    "title": "SB",
+    "start": 6000,
+    "end": 6500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-007",
+    "title": "SB0",
+    "start": 7000,
+    "end": 7500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-007",
+    "kind": "standby",
+    "subtype": null,
+    "code": "SB0",
+    "title": "SB0",
+    "start": 7000,
+    "end": 7500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-008",
+    "title": "✈️✈️✈️ SB0",
+    "start": 8000,
+    "end": 8500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-008",
+    "kind": "standby",
+    "subtype": null,
+    "code": "SB0",
+    "title": "SB0",
+    "start": 8000,
+    "end": 8500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-009",
+    "title": "SB1",
+    "start": 9000,
+    "end": 9500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-009",
+    "kind": "standby",
+    "subtype": null,
+    "code": "SB1",
+    "title": "SB1",
+    "start": 9000,
+    "end": 9500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-010",
+    "title": "✈️✈️✈️ SB1",
+    "start": 10000,
+    "end": 10500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-010",
+    "kind": "standby",
+    "subtype": null,
+    "code": "SB1",
+    "title": "SB1",
+    "start": 10000,
+    "end": 10500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-011",
+    "title": "SB30",
+    "start": 11000,
+    "end": 11500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-011",
+    "kind": "standby",
+    "subtype": null,
+    "code": "SB30",
+    "title": "SB30",
+    "start": 11000,
+    "end": 11500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-012",
+    "title": "✈️✈️✈️ SB30",
+    "start": 12000,
+    "end": 12500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-012",
+    "kind": "standby",
+    "subtype": null,
+    "code": "SB30",
+    "title": "SB30",
+    "start": 12000,
+    "end": 12500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-013",
+    "title": "SB90",
+    "start": 13000,
+    "end": 13500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-013",
+    "kind": "standby",
+    "subtype": null,
+    "code": "SB90",
+    "title": "SB90",
+    "start": 13000,
+    "end": 13500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-014",
+    "title": "✈️✈️✈️ SB90",
+    "start": 14000,
+    "end": 14500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-014",
+    "kind": "standby",
+    "subtype": null,
+    "code": "SB90",
+    "title": "SB90",
+    "start": 14000,
+    "end": 14500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-015",
+    "title": "SB999",
+    "start": 15000,
+    "end": 15500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-015",
+    "kind": "standby",
+    "subtype": null,
+    "code": "SB999",
+    "title": "SB999",
+    "start": 15000,
+    "end": 15500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-016",
+    "title": "✈️✈️✈️ SB999",
+    "start": 16000,
+    "end": 16500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-016",
+    "kind": "standby",
+    "subtype": null,
+    "code": "SB999",
+    "title": "SB999",
+    "start": 16000,
+    "end": 16500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-017",
+    "title": "RE",
+    "start": 17000,
+    "end": 17500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-017",
+    "kind": "reserve",
+    "subtype": null,
+    "code": "RE",
+    "title": "RE",
+    "start": 17000,
+    "end": 17500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-018",
+    "title": "✈️✈️✈️ RE",
+    "start": 18000,
+    "end": 18500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-018",
+    "kind": "reserve",
+    "subtype": null,
+    "code": "RE",
+    "title": "RE",
+    "start": 18000,
+    "end": 18500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-019",
+    "title": "RE0",
+    "start": 19000,
+    "end": 19500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-019",
+    "kind": "reserve",
+    "subtype": null,
+    "code": "RE0",
+    "title": "RE0",
+    "start": 19000,
+    "end": 19500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-020",
+    "title": "✈️✈️✈️ RE0",
+    "start": 20000,
+    "end": 20500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-020",
+    "kind": "reserve",
+    "subtype": null,
+    "code": "RE0",
+    "title": "RE0",
+    "start": 20000,
+    "end": 20500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-021",
+    "title": "RE10",
+    "start": 21000,
+    "end": 21500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-021",
+    "kind": "reserve",
+    "subtype": null,
+    "code": "RE10",
+    "title": "RE10",
+    "start": 21000,
+    "end": 21500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-022",
+    "title": "✈️✈️✈️ RE10",
+    "start": 22000,
+    "end": 22500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-022",
+    "kind": "reserve",
+    "subtype": null,
+    "code": "RE10",
+    "title": "RE10",
+    "start": 22000,
+    "end": 22500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-023",
+    "title": "RE12",
+    "start": 23000,
+    "end": 23500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-023",
+    "kind": "reserve",
+    "subtype": null,
+    "code": "RE12",
+    "title": "RE12",
+    "start": 23000,
+    "end": 23500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-024",
+    "title": "✈️✈️✈️ RE12",
+    "start": 24000,
+    "end": 24500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-024",
+    "kind": "reserve",
+    "subtype": null,
+    "code": "RE12",
+    "title": "RE12",
+    "start": 24000,
+    "end": 24500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-025",
+    "title": "RE999",
+    "start": 25000,
+    "end": 25500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-025",
+    "kind": "reserve",
+    "subtype": null,
+    "code": "RE999",
+    "title": "RE999",
+    "start": 25000,
+    "end": 25500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-026",
+    "title": "✈️✈️✈️ RE999",
+    "start": 26000,
+    "end": 26500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-026",
+    "kind": "reserve",
+    "subtype": null,
+    "code": "RE999",
+    "title": "RE999",
+    "start": 26000,
+    "end": 26500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-027",
+    "title": "OFF",
+    "start": 27000,
+    "end": 27500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-027",
+    "kind": "off",
+    "subtype": "off",
+    "code": "OFF",
+    "title": "OFF",
+    "start": 27000,
+    "end": 27500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-028",
+    "title": "✈️✈️✈️ OFF",
+    "start": 28000,
+    "end": 28500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-028",
+    "kind": "off",
+    "subtype": "off",
+    "code": "OFF",
+    "title": "OFF",
+    "start": 28000,
+    "end": 28500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-029",
+    "title": "-",
+    "start": 29000,
+    "end": 29500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-029",
+    "kind": "off",
+    "subtype": "free",
+    "code": "-",
+    "title": "-",
+    "start": 29000,
+    "end": 29500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-030",
+    "title": "✈️✈️✈️ -",
+    "start": 30000,
+    "end": 30500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-030",
+    "kind": "off",
+    "subtype": "free",
+    "code": "-",
+    "title": "-",
+    "start": 30000,
+    "end": 30500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-031",
+    "title": "U",
+    "start": 31000,
+    "end": 31500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-031",
+    "kind": "off",
+    "subtype": "leave",
+    "code": "U",
+    "title": "U",
+    "start": 31000,
+    "end": 31500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-032",
+    "title": "✈️✈️✈️ U",
+    "start": 32000,
+    "end": 32500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-032",
+    "kind": "off",
+    "subtype": "leave",
+    "code": "U",
+    "title": "U",
+    "start": 32000,
+    "end": 32500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-033",
+    "title": "ORT",
+    "start": 33000,
+    "end": 33500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-033",
+    "kind": "off",
+    "subtype": "ort",
+    "code": "ORT",
+    "title": "ORT",
+    "start": 33000,
+    "end": 33500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": true
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-034",
+    "title": "✈️✈️✈️ ORT",
+    "start": 34000,
+    "end": 34500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-034",
+    "kind": "off",
+    "subtype": "ort",
+    "code": "ORT",
+    "title": "ORT",
+    "start": 34000,
+    "end": 34500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": true
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-035",
+    "title": "--",
+    "start": 35000,
+    "end": 35500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-035",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "--",
+    "title": "--",
+    "start": 35000,
+    "end": 35500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-036",
+    "title": "✈️✈️✈️ --",
+    "start": 36000,
+    "end": 36500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-036",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "--",
+    "title": "--",
+    "start": 36000,
+    "end": 36500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-037",
+    "title": "SB90S",
+    "start": 37000,
+    "end": 37500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-037",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SB90S",
+    "title": "SB90S",
+    "start": 37000,
+    "end": 37500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-038",
+    "title": "✈️✈️✈️ SB90S",
+    "start": 38000,
+    "end": 38500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-038",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SB90S",
+    "title": "SB90S",
+    "start": 38000,
+    "end": 38500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-039",
+    "title": "SB90_I",
+    "start": 39000,
+    "end": 39500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-039",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SB90_I",
+    "title": "SB90_I",
+    "start": 39000,
+    "end": 39500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-040",
+    "title": "✈️✈️✈️ SB90_I",
+    "start": 40000,
+    "end": 40500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-040",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SB90_I",
+    "title": "SB90_I",
+    "start": 40000,
+    "end": 40500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-041",
+    "title": "SBH30",
+    "start": 41000,
+    "end": 41500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-041",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SBH30",
+    "title": "SBH30",
+    "start": 41000,
+    "end": 41500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-042",
+    "title": "✈️✈️✈️ SBH30",
+    "start": 42000,
+    "end": 42500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-042",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SBH30",
+    "title": "SBH30",
+    "start": 42000,
+    "end": 42500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-043",
+    "title": "SBAUS",
+    "start": 43000,
+    "end": 43500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-043",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SBAUS",
+    "title": "SBAUS",
+    "start": 43000,
+    "end": 43500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-044",
+    "title": "✈️✈️✈️ SBAUS",
+    "start": 44000,
+    "end": 44500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-044",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SBAUS",
+    "title": "SBAUS",
+    "start": 44000,
+    "end": 44500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-045",
+    "title": "SB90KO",
+    "start": 45000,
+    "end": 45500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-045",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SB90KO",
+    "title": "SB90KO",
+    "start": 45000,
+    "end": 45500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-046",
+    "title": "✈️✈️✈️ SB90KO",
+    "start": 46000,
+    "end": 46500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-046",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SB90KO",
+    "title": "SB90KO",
+    "start": 46000,
+    "end": 46500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-047",
+    "title": "SBY",
+    "start": 47000,
+    "end": 47500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-047",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SBY",
+    "title": "SBY",
+    "start": 47000,
+    "end": 47500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-048",
+    "title": "✈️✈️✈️ SBY",
+    "start": 48000,
+    "end": 48500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-048",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SBY",
+    "title": "SBY",
+    "start": 48000,
+    "end": 48500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-049",
+    "title": "SBYHOT",
+    "start": 49000,
+    "end": 49500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-049",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SBYHOT",
+    "title": "SBYHOT",
+    "start": 49000,
+    "end": 49500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-050",
+    "title": "✈️✈️✈️ SBYHOT",
+    "start": 50000,
+    "end": 50500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-050",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SBYHOT",
+    "title": "SBYHOT",
+    "start": 50000,
+    "end": 50500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-051",
+    "title": "SBYKO",
+    "start": 51000,
+    "end": 51500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-051",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SBYKO",
+    "title": "SBYKO",
+    "start": 51000,
+    "end": 51500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-052",
+    "title": "✈️✈️✈️ SBYKO",
+    "start": 52000,
+    "end": 52500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-052",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SBYKO",
+    "title": "SBYKO",
+    "start": 52000,
+    "end": 52500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-053",
+    "title": "SB30-AUS",
+    "start": 53000,
+    "end": 53500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-053",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SB30-AUS",
+    "title": "SB30-AUS",
+    "start": 53000,
+    "end": 53500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-054",
+    "title": "✈️✈️✈️ SB30-AUS",
+    "start": 54000,
+    "end": 54500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-054",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SB30-AUS",
+    "title": "SB30-AUS",
+    "start": 54000,
+    "end": 54500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-055",
+    "title": "SBYAP",
+    "start": 55000,
+    "end": 55500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-055",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SBYAP",
+    "title": "SBYAP",
+    "start": 55000,
+    "end": 55500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-056",
+    "title": "✈️✈️✈️ SBYAP",
+    "start": 56000,
+    "end": 56500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-056",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SBYAP",
+    "title": "SBYAP",
+    "start": 56000,
+    "end": 56500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-057",
+    "title": "RES10",
+    "start": 57000,
+    "end": 57500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-057",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "RES10",
+    "title": "RES10",
+    "start": 57000,
+    "end": 57500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-058",
+    "title": "✈️✈️✈️ RES10",
+    "start": 58000,
+    "end": 58500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-058",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "RES10",
+    "title": "RES10",
+    "start": 58000,
+    "end": 58500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-059",
+    "title": "RES10_I",
+    "start": 59000,
+    "end": 59500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-059",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "RES10_I",
+    "title": "RES10_I",
+    "start": 59000,
+    "end": 59500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-060",
+    "title": "✈️✈️✈️ RES10_I",
+    "start": 60000,
+    "end": 60500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-060",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "RES10_I",
+    "title": "RES10_I",
+    "start": 60000,
+    "end": 60500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-061",
+    "title": "SB1000",
+    "start": 61000,
+    "end": 61500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-061",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SB1000",
+    "title": "SB1000",
+    "start": 61000,
+    "end": 61500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-062",
+    "title": "✈️✈️✈️ SB1000",
+    "start": 62000,
+    "end": 62500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-062",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SB1000",
+    "title": "SB1000",
+    "start": 62000,
+    "end": 62500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-063",
+    "title": "sb90",
+    "start": 63000,
+    "end": 63500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-063",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "sb90",
+    "title": "sb90",
+    "start": 63000,
+    "end": 63500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-064",
+    "title": "✈️✈️✈️ sb90",
+    "start": 64000,
+    "end": 64500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-064",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "sb90",
+    "title": "sb90",
+    "start": 64000,
+    "end": 64500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-065",
+    "title": "re10",
+    "start": 65000,
+    "end": 65500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-065",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "re10",
+    "title": "re10",
+    "start": 65000,
+    "end": 65500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-066",
+    "title": "✈️✈️✈️ re10",
+    "start": 66000,
+    "end": 66500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-066",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "re10",
+    "title": "re10",
+    "start": 66000,
+    "end": 66500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-067",
+    "title": " SB90 ",
+    "start": 67000,
+    "end": 67500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-067",
+    "kind": "standby",
+    "subtype": null,
+    "code": "SB90",
+    "title": "SB90",
+    "start": 67000,
+    "end": 67500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-068",
+    "title": "✈️✈️✈️  SB90 ",
+    "start": 68000,
+    "end": 68500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-068",
+    "kind": "standby",
+    "subtype": null,
+    "code": "SB90",
+    "title": "SB90",
+    "start": 68000,
+    "end": 68500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-069",
+    "title": "SB 90",
+    "start": 69000,
+    "end": 69500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-069",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SB 90",
+    "title": "SB 90",
+    "start": 69000,
+    "end": 69500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-070",
+    "title": "✈️✈️✈️ SB 90",
+    "start": 70000,
+    "end": 70500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-070",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SB 90",
+    "title": "SB 90",
+    "start": 70000,
+    "end": 70500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-071",
+    "title": "SB90\n",
+    "start": 71000,
+    "end": 71500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-071",
+    "kind": "standby",
+    "subtype": null,
+    "code": "SB90",
+    "title": "SB90",
+    "start": 71000,
+    "end": 71500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-072",
+    "title": "✈️✈️✈️ SB90\n",
+    "start": 72000,
+    "end": 72500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-072",
+    "kind": "standby",
+    "subtype": null,
+    "code": "SB90",
+    "title": "SB90",
+    "start": 72000,
+    "end": 72500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-073",
+    "title": "OFF ",
+    "start": 73000,
+    "end": 73500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-073",
+    "kind": "off",
+    "subtype": "off",
+    "code": "OFF",
+    "title": "OFF",
+    "start": 73000,
+    "end": 73500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-074",
+    "title": "✈️✈️✈️ OFF ",
+    "start": 74000,
+    "end": 74500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-074",
+    "kind": "off",
+    "subtype": "off",
+    "code": "OFF",
+    "title": "OFF",
+    "start": 74000,
+    "end": 74500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-075",
+    "title": " OFF",
+    "start": 75000,
+    "end": 75500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-075",
+    "kind": "off",
+    "subtype": "off",
+    "code": "OFF",
+    "title": "OFF",
+    "start": 75000,
+    "end": 75500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-076",
+    "title": "✈️✈️✈️  OFF",
+    "start": 76000,
+    "end": 76500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-076",
+    "kind": "off",
+    "subtype": "off",
+    "code": "OFF",
+    "title": "OFF",
+    "start": 76000,
+    "end": 76500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-077",
+    "title": "off",
+    "start": 77000,
+    "end": 77500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-077",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "off",
+    "title": "off",
+    "start": 77000,
+    "end": 77500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-078",
+    "title": "✈️✈️✈️ off",
+    "start": 78000,
+    "end": 78500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-078",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "off",
+    "title": "off",
+    "start": 78000,
+    "end": 78500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-079",
+    "title": "Off",
+    "start": 79000,
+    "end": 79500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-079",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "Off",
+    "title": "Off",
+    "start": 79000,
+    "end": 79500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-080",
+    "title": "✈️✈️✈️ Off",
+    "start": 80000,
+    "end": 80500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-080",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "Off",
+    "title": "Off",
+    "start": 80000,
+    "end": 80500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-081",
+    "title": "---",
+    "start": 81000,
+    "end": 81500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-081",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "---",
+    "title": "---",
+    "start": 81000,
+    "end": 81500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-082",
+    "title": "✈️✈️✈️ ---",
+    "start": 82000,
+    "end": 82500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-082",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "---",
+    "title": "---",
+    "start": 82000,
+    "end": 82500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-083",
+    "title": "–",
+    "start": 83000,
+    "end": 83500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-083",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "–",
+    "title": "–",
+    "start": 83000,
+    "end": 83500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-084",
+    "title": "✈️✈️✈️ –",
+    "start": 84000,
+    "end": 84500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-084",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "–",
+    "title": "–",
+    "start": 84000,
+    "end": 84500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-085",
+    "title": "—",
+    "start": 85000,
+    "end": 85500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-085",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "—",
+    "title": "—",
+    "start": 85000,
+    "end": 85500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-086",
+    "title": "✈️✈️✈️ —",
+    "start": 86000,
+    "end": 86500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-086",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "—",
+    "title": "—",
+    "start": 86000,
+    "end": 86500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-087",
+    "title": "u",
+    "start": 87000,
+    "end": 87500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-087",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "u",
+    "title": "u",
+    "start": 87000,
+    "end": 87500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-088",
+    "title": "✈️✈️✈️ u",
+    "start": 88000,
+    "end": 88500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-088",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "u",
+    "title": "u",
+    "start": 88000,
+    "end": 88500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-089",
+    "title": "ORTS",
+    "start": 89000,
+    "end": 89500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-089",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "ORTS",
+    "title": "ORTS",
+    "start": 89000,
+    "end": 89500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-090",
+    "title": "✈️✈️✈️ ORTS",
+    "start": 90000,
+    "end": 90500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-090",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "ORTS",
+    "title": "ORTS",
+    "start": 90000,
+    "end": 90500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-091",
+    "title": "ORTX",
+    "start": 91000,
+    "end": 91500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-091",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "ORTX",
+    "title": "ORTX",
+    "start": 91000,
+    "end": 91500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-092",
+    "title": "✈️✈️✈️ ORTX",
+    "start": 92000,
+    "end": 92500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-092",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "ORTX",
+    "title": "ORTX",
+    "start": 92000,
+    "end": 92500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-093",
+    "title": "ORT.",
+    "start": 93000,
+    "end": 93500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-093",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "ORT.",
+    "title": "ORT.",
+    "start": 93000,
+    "end": 93500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-094",
+    "title": "✈️✈️✈️ ORT.",
+    "start": 94000,
+    "end": 94500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-094",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "ORT.",
+    "title": "ORT.",
+    "start": 94000,
+    "end": 94500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-095",
+    "title": "c/i",
+    "start": 95000,
+    "end": 95500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-095",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "c/i",
+    "title": "c/i",
+    "start": 95000,
+    "end": 95500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-096",
+    "title": "✈️✈️✈️ c/i",
+    "start": 96000,
+    "end": 96500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-096",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "c/i",
+    "title": "c/i",
+    "start": 96000,
+    "end": 96500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-097",
+    "title": "C/I2",
+    "start": 97000,
+    "end": 97500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-097",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "C/I2",
+    "title": "C/I2",
+    "start": 97000,
+    "end": 97500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-098",
+    "title": "✈️✈️✈️ C/I2",
+    "start": 98000,
+    "end": 98500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-098",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "C/I2",
+    "title": "C/I2",
+    "start": 98000,
+    "end": 98500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-099",
+    "title": "C/ I",
+    "start": 99000,
+    "end": 99500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-099",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "C/ I",
+    "title": "C/ I",
+    "start": 99000,
+    "end": 99500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-100",
+    "title": "✈️✈️✈️ C/ I",
+    "start": 100000,
+    "end": 100500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-100",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "C/ I",
+    "title": "C/ I",
+    "start": 100000,
+    "end": 100500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-101",
+    "title": "p/u",
+    "start": 101000,
+    "end": 101500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-101",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "p/u",
+    "title": "p/u",
+    "start": 101000,
+    "end": 101500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-102",
+    "title": "✈️✈️✈️ p/u",
+    "start": 102000,
+    "end": 102500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-102",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "p/u",
+    "title": "p/u",
+    "start": 102000,
+    "end": 102500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-103",
+    "title": "P/U1",
+    "start": 103000,
+    "end": 103500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-103",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "P/U1",
+    "title": "P/U1",
+    "start": 103000,
+    "end": 103500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-104",
+    "title": "✈️✈️✈️ P/U1",
+    "start": 104000,
+    "end": 104500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-104",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "P/U1",
+    "title": "P/U1",
+    "start": 104000,
+    "end": 104500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-105",
+    "title": "U1",
+    "start": 105000,
+    "end": 105500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-105",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "U1",
+    "title": "U1",
+    "start": 105000,
+    "end": 105500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-106",
+    "title": "✈️✈️✈️ U1",
+    "start": 106000,
+    "end": 106500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-106",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "U1",
+    "title": "U1",
+    "start": 106000,
+    "end": 106500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-107",
+    "title": "UU",
+    "start": 107000,
+    "end": 107500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-107",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "UU",
+    "title": "UU",
+    "start": 107000,
+    "end": 107500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-108",
+    "title": "✈️✈️✈️ UU",
+    "start": 108000,
+    "end": 108500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-108",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "UU",
+    "title": "UU",
+    "start": 108000,
+    "end": 108500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-109",
+    "title": "__proto__",
+    "start": 109000,
+    "end": 109500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-109",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "__proto__",
+    "title": "__proto__",
+    "start": 109000,
+    "end": 109500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-110",
+    "title": "✈️✈️✈️ __proto__",
+    "start": 110000,
+    "end": 110500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-110",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "__proto__",
+    "title": "__proto__",
+    "start": 110000,
+    "end": 110500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-111",
+    "title": "toString",
+    "start": 111000,
+    "end": 111500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-111",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "toString",
+    "title": "toString",
+    "start": 111000,
+    "end": 111500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-112",
+    "title": "✈️✈️✈️ toString",
+    "start": 112000,
+    "end": 112500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-112",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "toString",
+    "title": "toString",
+    "start": 112000,
+    "end": 112500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-113",
+    "title": "constructor",
+    "start": 113000,
+    "end": 113500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-113",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "constructor",
+    "title": "constructor",
+    "start": 113000,
+    "end": 113500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-114",
+    "title": "✈️✈️✈️ constructor",
+    "start": 114000,
+    "end": 114500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-114",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "constructor",
+    "title": "constructor",
+    "start": 114000,
+    "end": 114500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-115",
+    "title": "hasOwnProperty",
+    "start": 115000,
+    "end": 115500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-115",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "hasOwnProperty",
+    "title": "hasOwnProperty",
+    "start": 115000,
+    "end": 115500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-116",
+    "title": "✈️✈️✈️ hasOwnProperty",
+    "start": 116000,
+    "end": 116500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-116",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "hasOwnProperty",
+    "title": "hasOwnProperty",
+    "start": 116000,
+    "end": 116500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-117",
+    "title": "valueOf",
+    "start": 117000,
+    "end": 117500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-117",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "valueOf",
+    "title": "valueOf",
+    "start": 117000,
+    "end": 117500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-118",
+    "title": "✈️✈️✈️ valueOf",
+    "start": 118000,
+    "end": 118500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-118",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "valueOf",
+    "title": "valueOf",
+    "start": 118000,
+    "end": 118500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-119",
+    "title": "isPrototypeOf",
+    "start": 119000,
+    "end": 119500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-119",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "isPrototypeOf",
+    "title": "isPrototypeOf",
+    "start": 119000,
+    "end": 119500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-120",
+    "title": "✈️✈️✈️ isPrototypeOf",
+    "start": 120000,
+    "end": 120500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-120",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "isPrototypeOf",
+    "title": "isPrototypeOf",
+    "start": 120000,
+    "end": 120500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-121",
+    "title": "",
+    "start": 121000,
+    "end": 121500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-121",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "",
+    "title": "",
+    "start": 121000,
+    "end": 121500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-122",
+    "title": "✈️✈️✈️ ",
+    "start": 122000,
+    "end": 122500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-122",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "",
+    "title": "",
+    "start": 122000,
+    "end": 122500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-123",
+    "title": " ",
+    "start": 123000,
+    "end": 123500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-123",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "",
+    "title": "",
+    "start": 123000,
+    "end": 123500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-124",
+    "title": "✈️✈️✈️  ",
+    "start": 124000,
+    "end": 124500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-124",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "",
+    "title": "",
+    "start": 124000,
+    "end": 124500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-125",
+    "title": "XYZ7",
+    "start": 125000,
+    "end": 125500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-125",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "XYZ7",
+    "title": "XYZ7",
+    "start": 125000,
+    "end": 125500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-126",
+    "title": "✈️✈️✈️ XYZ7",
+    "start": 126000,
+    "end": 126500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-126",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "XYZ7",
+    "title": "XYZ7",
+    "start": 126000,
+    "end": 126500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-127",
+    "title": "X",
+    "start": 127000,
+    "end": 127500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-127",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "X",
+    "title": "X",
+    "start": 127000,
+    "end": 127500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-128",
+    "title": "✈️✈️✈️ X",
+    "start": 128000,
+    "end": 128500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-128",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "X",
+    "title": "X",
+    "start": 128000,
+    "end": 128500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-129",
+    "title": "SB-90",
+    "start": 129000,
+    "end": 129500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-129",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SB-90",
+    "title": "SB-90",
+    "start": 129000,
+    "end": 129500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-130",
+    "title": "✈️✈️✈️ SB-90",
+    "start": 130000,
+    "end": 130500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-130",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SB-90",
+    "title": "SB-90",
+    "start": 130000,
+    "end": 130500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-131",
+    "title": "SB9X",
+    "start": 131000,
+    "end": 131500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-131",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SB9X",
+    "title": "SB9X",
+    "start": 131000,
+    "end": 131500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-132",
+    "title": "✈️✈️✈️ SB9X",
+    "start": 132000,
+    "end": 132500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-132",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SB9X",
+    "title": "SB9X",
+    "start": 132000,
+    "end": 132500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-133",
+    "title": "RE1X",
+    "start": 133000,
+    "end": 133500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-133",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "RE1X",
+    "title": "RE1X",
+    "start": 133000,
+    "end": 133500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-134",
+    "title": "✈️✈️✈️ RE1X",
+    "start": 134000,
+    "end": 134500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-134",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "RE1X",
+    "title": "RE1X",
+    "start": 134000,
+    "end": 134500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-135",
+    "title": "SB12345",
+    "start": 135000,
+    "end": 135500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-135",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SB12345",
+    "title": "SB12345",
+    "start": 135000,
+    "end": 135500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-136",
+    "title": "✈️✈️✈️ SB12345",
+    "start": 136000,
+    "end": 136500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-136",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SB12345",
+    "title": "SB12345",
+    "start": 136000,
+    "end": 136500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-137",
+    "title": "DE1234 FRA-PMI",
+    "start": 137000,
+    "end": 137500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-137",
+    "kind": "flight",
+    "subtype": null,
+    "code": "DE",
+    "title": "DE1234 FRA-PMI",
+    "start": 137000,
+    "end": 137500,
+    "location": "FRA",
+    "flight": {
+     "number": "DE1234",
+     "origin": "FRA",
+     "destination": "PMI"
+    },
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-138",
+    "title": "✈️✈️✈️ DE1234 FRA-PMI",
+    "start": 138000,
+    "end": 138500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-138",
+    "kind": "flight",
+    "subtype": null,
+    "code": "DE",
+    "title": "DE1234 FRA-PMI",
+    "start": 138000,
+    "end": 138500,
+    "location": "FRA",
+    "flight": {
+     "number": "DE1234",
+     "origin": "FRA",
+     "destination": "PMI"
+    },
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-139",
+    "title": "DE12 FRA-JFK extra",
+    "start": 139000,
+    "end": 139500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-139",
+    "kind": "flight",
+    "subtype": null,
+    "code": "DE",
+    "title": "DE12 FRA-JFK extra",
+    "start": 139000,
+    "end": 139500,
+    "location": "FRA",
+    "flight": {
+     "number": "DE12",
+     "origin": "FRA",
+     "destination": "JFK"
+    },
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-140",
+    "title": "✈️✈️✈️ DE12 FRA-JFK extra",
+    "start": 140000,
+    "end": 140500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-140",
+    "kind": "flight",
+    "subtype": null,
+    "code": "DE",
+    "title": "DE12 FRA-JFK extra",
+    "start": 140000,
+    "end": 140500,
+    "location": "FRA",
+    "flight": {
+     "number": "DE12",
+     "origin": "FRA",
+     "destination": "JFK"
+    },
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-141",
+    "title": "DE1 FRA-PMI",
+    "start": 141000,
+    "end": 141500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-141",
+    "kind": "flight",
+    "subtype": null,
+    "code": "DE",
+    "title": "DE1 FRA-PMI",
+    "start": 141000,
+    "end": 141500,
+    "location": "FRA",
+    "flight": {
+     "number": "DE1",
+     "origin": "FRA",
+     "destination": "PMI"
+    },
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-142",
+    "title": "✈️✈️✈️ DE1 FRA-PMI",
+    "start": 142000,
+    "end": 142500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-142",
+    "kind": "flight",
+    "subtype": null,
+    "code": "DE",
+    "title": "DE1 FRA-PMI",
+    "start": 142000,
+    "end": 142500,
+    "location": "FRA",
+    "flight": {
+     "number": "DE1",
+     "origin": "FRA",
+     "destination": "PMI"
+    },
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-143",
+    "title": "DE12345 FRA-PMI",
+    "start": 143000,
+    "end": 143500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-143",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "DE12345 FRA-PMI",
+    "title": "DE12345 FRA-PMI",
+    "start": 143000,
+    "end": 143500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-144",
+    "title": "✈️✈️✈️ DE12345 FRA-PMI",
+    "start": 144000,
+    "end": 144500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-144",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "DE12345 FRA-PMI",
+    "title": "DE12345 FRA-PMI",
+    "start": 144000,
+    "end": 144500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-145",
+    "title": "DE1 fra-pmi",
+    "start": 145000,
+    "end": 145500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-145",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "DE1 fra-pmi",
+    "title": "DE1 fra-pmi",
+    "start": 145000,
+    "end": 145500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-146",
+    "title": "✈️✈️✈️ DE1 fra-pmi",
+    "start": 146000,
+    "end": 146500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-146",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "DE1 fra-pmi",
+    "title": "DE1 fra-pmi",
+    "start": 146000,
+    "end": 146500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-147",
+    "title": "LH400 FRA-JFK",
+    "start": 147000,
+    "end": 147500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-147",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "LH400 FRA-JFK",
+    "title": "LH400 FRA-JFK",
+    "start": 147000,
+    "end": 147500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-148",
+    "title": "✈️✈️✈️ LH400 FRA-JFK",
+    "start": 148000,
+    "end": 148500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-148",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "LH400 FRA-JFK",
+    "title": "LH400 FRA-JFK",
+    "start": 148000,
+    "end": 148500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-149",
+    "title": "XX123 FRA-PMI",
+    "start": 149000,
+    "end": 149500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-149",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "XX123 FRA-PMI",
+    "title": "XX123 FRA-PMI",
+    "start": 149000,
+    "end": 149500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-150",
+    "title": "✈️✈️✈️ XX123 FRA-PMI",
+    "start": 150000,
+    "end": 150500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-150",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "XX123 FRA-PMI",
+    "title": "XX123 FRA-PMI",
+    "start": 150000,
+    "end": 150500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-151",
+    "title": "D3123 FRA-PMI",
+    "start": 151000,
+    "end": 151500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-151",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "D3123 FRA-PMI",
+    "title": "D3123 FRA-PMI",
+    "start": 151000,
+    "end": 151500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-152",
+    "title": "✈️✈️✈️ D3123 FRA-PMI",
+    "start": 152000,
+    "end": 152500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-152",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "D3123 FRA-PMI",
+    "title": "D3123 FRA-PMI",
+    "start": 152000,
+    "end": 152500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-153",
+    "title": "DE1234 FRA-PMI-FRA",
+    "start": 153000,
+    "end": 153500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-153",
+    "kind": "flight",
+    "subtype": null,
+    "code": "DE",
+    "title": "DE1234 FRA-PMI-FRA",
+    "start": 153000,
+    "end": 153500,
+    "location": "FRA",
+    "flight": {
+     "number": "DE1234",
+     "origin": "FRA",
+     "destination": "PMI"
+    },
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-154",
+    "title": "✈️✈️✈️ DE1234 FRA-PMI-FRA",
+    "start": 154000,
+    "end": 154500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-154",
+    "kind": "flight",
+    "subtype": null,
+    "code": "DE",
+    "title": "DE1234 FRA-PMI-FRA",
+    "start": 154000,
+    "end": 154500,
+    "location": "FRA",
+    "flight": {
+     "number": "DE1234",
+     "origin": "FRA",
+     "destination": "PMI"
+    },
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-155",
+    "title": "DE1234  FRA-PMI",
+    "start": 155000,
+    "end": 155500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-155",
+    "kind": "flight",
+    "subtype": null,
+    "code": "DE",
+    "title": "DE1234  FRA-PMI",
+    "start": 155000,
+    "end": 155500,
+    "location": "FRA",
+    "flight": {
+     "number": "DE1234",
+     "origin": "FRA",
+     "destination": "PMI"
+    },
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-156",
+    "title": "✈️✈️✈️ DE1234  FRA-PMI",
+    "start": 156000,
+    "end": 156500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-156",
+    "kind": "flight",
+    "subtype": null,
+    "code": "DE",
+    "title": "DE1234  FRA-PMI",
+    "start": 156000,
+    "end": 156500,
+    "location": "FRA",
+    "flight": {
+     "number": "DE1234",
+     "origin": "FRA",
+     "destination": "PMI"
+    },
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-157",
+    "title": "DE1234 FRAPMI",
+    "start": 157000,
+    "end": 157500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-157",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "DE1234 FRAPMI",
+    "title": "DE1234 FRAPMI",
+    "start": 157000,
+    "end": 157500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-158",
+    "title": "✈️✈️✈️ DE1234 FRAPMI",
+    "start": 158000,
+    "end": 158500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-158",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "DE1234 FRAPMI",
+    "title": "DE1234 FRAPMI",
+    "start": 158000,
+    "end": 158500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-159",
+    "title": "DE FRA-PMI",
+    "start": 159000,
+    "end": 159500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-159",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "DE FRA-PMI",
+    "title": "DE FRA-PMI",
+    "start": 159000,
+    "end": 159500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-160",
+    "title": "✈️✈️✈️ DE FRA-PMI",
+    "start": 160000,
+    "end": 160500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-160",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "DE FRA-PMI",
+    "title": "DE FRA-PMI",
+    "start": 160000,
+    "end": 160500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-161",
+    "title": "DE9101 FRA-YYZ ✈",
+    "start": 161000,
+    "end": 161500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-161",
+    "kind": "flight",
+    "subtype": null,
+    "code": "DE",
+    "title": "DE9101 FRA-YYZ ✈",
+    "start": 161000,
+    "end": 161500,
+    "location": "FRA",
+    "flight": {
+     "number": "DE9101",
+     "origin": "FRA",
+     "destination": "YYZ"
+    },
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-162",
+    "title": "✈️✈️✈️ DE9101 FRA-YYZ ✈",
+    "start": 162000,
+    "end": 162500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-162",
+    "kind": "flight",
+    "subtype": null,
+    "code": "DE",
+    "title": "DE9101 FRA-YYZ ✈",
+    "start": 162000,
+    "end": 162500,
+    "location": "FRA",
+    "flight": {
+     "number": "DE9101",
+     "origin": "FRA",
+     "destination": "YYZ"
+    },
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-163",
+    "title": "DE1234 FRA-PMIX",
+    "start": 163000,
+    "end": 163500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-163",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "DE1234 FRA-PMIX",
+    "title": "DE1234 FRA-PMIX",
+    "start": 163000,
+    "end": 163500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-164",
+    "title": "✈️✈️✈️ DE1234 FRA-PMIX",
+    "start": 164000,
+    "end": 164500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-164",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "DE1234 FRA-PMIX",
+    "title": "DE1234 FRA-PMIX",
+    "start": 164000,
+    "end": 164500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-165",
+    "title": "de1234 FRA-PMI",
+    "start": 165000,
+    "end": 165500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-165",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "de1234 FRA-PMI",
+    "title": "de1234 FRA-PMI",
+    "start": 165000,
+    "end": 165500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-166",
+    "title": "✈️✈️✈️ de1234 FRA-PMI",
+    "start": 166000,
+    "end": 166500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-166",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "de1234 FRA-PMI",
+    "title": "de1234 FRA-PMI",
+    "start": 166000,
+    "end": 166500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-167",
+    "title": "DE1234",
+    "start": 167000,
+    "end": 167500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-167",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "DE1234",
+    "title": "DE1234",
+    "start": 167000,
+    "end": 167500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-168",
+    "title": "✈️✈️✈️ DE1234",
+    "start": 168000,
+    "end": 168500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-168",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "DE1234",
+    "title": "DE1234",
+    "start": 168000,
+    "end": 168500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-169",
+    "title": "EW123 CGN-PMI",
+    "start": 169000,
+    "end": 169500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-169",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "EW123 CGN-PMI",
+    "title": "EW123 CGN-PMI",
+    "start": 169000,
+    "end": 169500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-170",
+    "title": "✈️✈️✈️ EW123 CGN-PMI",
+    "start": 170000,
+    "end": 170500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-170",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "EW123 CGN-PMI",
+    "title": "EW123 CGN-PMI",
+    "start": 170000,
+    "end": 170500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-171",
+    "title": "DE0 FRA-PMI",
+    "start": 171000,
+    "end": 171500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-171",
+    "kind": "flight",
+    "subtype": null,
+    "code": "DE",
+    "title": "DE0 FRA-PMI",
+    "start": 171000,
+    "end": 171500,
+    "location": "FRA",
+    "flight": {
+     "number": "DE0",
+     "origin": "FRA",
+     "destination": "PMI"
+    },
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-172",
+    "title": "✈️✈️✈️ DE0 FRA-PMI",
+    "start": 172000,
+    "end": 172500,
+    "location": "FRA",
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-172",
+    "kind": "flight",
+    "subtype": null,
+    "code": "DE",
+    "title": "DE0 FRA-PMI",
+    "start": 172000,
+    "end": 172500,
+    "location": "FRA",
+    "flight": {
+     "number": "DE0",
+     "origin": "FRA",
+     "destination": "PMI"
+    },
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-173",
+    "title": "C/I",
+    "start": 173000,
+    "end": 173500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-173",
+    "kind": "checkin",
+    "subtype": null,
+    "code": "C/I",
+    "title": "C/I",
+    "start": 173000,
+    "end": 173500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-174",
+    "title": "C/I",
+    "start": 174000,
+    "end": 174500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-174",
+    "kind": "checkin",
+    "subtype": null,
+    "code": "C/I",
+    "title": "C/I",
+    "start": 174000,
+    "end": 174500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-175",
+    "title": "C/I",
+    "start": 175000,
+    "end": 175500,
+    "location": "FRA",
+    "description": "Hotel\nSample Plain Hotel\n1 Sample Road",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-175",
+    "kind": "checkin",
+    "subtype": null,
+    "code": "C/I",
+    "title": "C/I",
+    "start": 175000,
+    "end": 175500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-176",
+    "title": "C/I",
+    "start": 176000,
+    "end": 176500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\nDABCD (32N)\n",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-176",
+    "kind": "checkin",
+    "subtype": null,
+    "code": "C/I",
+    "title": "C/I",
+    "start": 176000,
+    "end": 176500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-177",
+    "title": "✈️✈️✈️ C/I",
+    "start": 177000,
+    "end": 177500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-177",
+    "kind": "checkin",
+    "subtype": null,
+    "code": "C/I",
+    "title": "C/I",
+    "start": 177000,
+    "end": 177500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-178",
+    "title": "P/U",
+    "start": 178000,
+    "end": 178500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-178",
+    "kind": "pickup",
+    "subtype": null,
+    "code": "P/U",
+    "title": "P/U",
+    "start": 178000,
+    "end": 178500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-179",
+    "title": "P/U",
+    "start": 179000,
+    "end": 179500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-179",
+    "kind": "pickup",
+    "subtype": null,
+    "code": "P/U",
+    "title": "P/U",
+    "start": 179000,
+    "end": 179500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-180",
+    "title": "P/U",
+    "start": 180000,
+    "end": 180500,
+    "location": "FRA",
+    "description": "Hotel\nSample Plain Hotel\n1 Sample Road",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-180",
+    "kind": "pickup",
+    "subtype": null,
+    "code": "P/U",
+    "title": "P/U",
+    "start": 180000,
+    "end": 180500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-181",
+    "title": "P/U",
+    "start": 181000,
+    "end": 181500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\nDABCD (32N)\n",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-181",
+    "kind": "pickup",
+    "subtype": null,
+    "code": "P/U",
+    "title": "P/U",
+    "start": 181000,
+    "end": 181500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-182",
+    "title": "✈️✈️✈️ P/U",
+    "start": 182000,
+    "end": 182500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-182",
+    "kind": "pickup",
+    "subtype": null,
+    "code": "P/U",
+    "title": "P/U",
+    "start": 182000,
+    "end": 182500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-183",
+    "title": "SB",
+    "start": 183000,
+    "end": 183500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-183",
+    "kind": "standby",
+    "subtype": null,
+    "code": "SB",
+    "title": "SB",
+    "start": 183000,
+    "end": 183500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": {
+     "name": "Sample Riverside Hotel",
+     "address": "99 Sample Street, Sample City",
+     "phone": "+49 30 0000000"
+    },
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-184",
+    "title": "SB",
+    "start": 184000,
+    "end": 184500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-184",
+    "kind": "standby",
+    "subtype": null,
+    "code": "SB",
+    "title": "SB",
+    "start": 184000,
+    "end": 184500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": {
+     "name": "Sample Riverside Hotel",
+     "address": "99 Sample Street, Sample City",
+     "phone": "+49 30 0000000"
+    },
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-185",
+    "title": "SB",
+    "start": 185000,
+    "end": 185500,
+    "location": "FRA",
+    "description": "Hotel\nSample Plain Hotel\n1 Sample Road",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-185",
+    "kind": "standby",
+    "subtype": null,
+    "code": "SB",
+    "title": "SB",
+    "start": 185000,
+    "end": 185500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": {
+     "name": "Sample Plain Hotel",
+     "address": null,
+     "phone": null
+    },
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-186",
+    "title": "SB",
+    "start": 186000,
+    "end": 186500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\nDABCD (32N)\n",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-186",
+    "kind": "standby",
+    "subtype": null,
+    "code": "SB",
+    "title": "SB",
+    "start": 186000,
+    "end": 186500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-187",
+    "title": "✈️✈️✈️ SB",
+    "start": 187000,
+    "end": 187500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-187",
+    "kind": "standby",
+    "subtype": null,
+    "code": "SB",
+    "title": "SB",
+    "start": 187000,
+    "end": 187500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": {
+     "name": "Sample Riverside Hotel",
+     "address": "99 Sample Street, Sample City",
+     "phone": "+49 30 0000000"
+    },
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-188",
+    "title": "SB90",
+    "start": 188000,
+    "end": 188500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-188",
+    "kind": "standby",
+    "subtype": null,
+    "code": "SB90",
+    "title": "SB90",
+    "start": 188000,
+    "end": 188500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": {
+     "name": "Sample Riverside Hotel",
+     "address": "99 Sample Street, Sample City",
+     "phone": "+49 30 0000000"
+    },
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-189",
+    "title": "SB90",
+    "start": 189000,
+    "end": 189500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-189",
+    "kind": "standby",
+    "subtype": null,
+    "code": "SB90",
+    "title": "SB90",
+    "start": 189000,
+    "end": 189500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": {
+     "name": "Sample Riverside Hotel",
+     "address": "99 Sample Street, Sample City",
+     "phone": "+49 30 0000000"
+    },
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-190",
+    "title": "SB90",
+    "start": 190000,
+    "end": 190500,
+    "location": "FRA",
+    "description": "Hotel\nSample Plain Hotel\n1 Sample Road",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-190",
+    "kind": "standby",
+    "subtype": null,
+    "code": "SB90",
+    "title": "SB90",
+    "start": 190000,
+    "end": 190500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": {
+     "name": "Sample Plain Hotel",
+     "address": null,
+     "phone": null
+    },
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-191",
+    "title": "SB90",
+    "start": 191000,
+    "end": 191500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\nDABCD (32N)\n",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-191",
+    "kind": "standby",
+    "subtype": null,
+    "code": "SB90",
+    "title": "SB90",
+    "start": 191000,
+    "end": 191500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-192",
+    "title": "✈️✈️✈️ SB90",
+    "start": 192000,
+    "end": 192500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-192",
+    "kind": "standby",
+    "subtype": null,
+    "code": "SB90",
+    "title": "SB90",
+    "start": 192000,
+    "end": 192500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": {
+     "name": "Sample Riverside Hotel",
+     "address": "99 Sample Street, Sample City",
+     "phone": "+49 30 0000000"
+    },
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-193",
+    "title": "RE",
+    "start": 193000,
+    "end": 193500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-193",
+    "kind": "reserve",
+    "subtype": null,
+    "code": "RE",
+    "title": "RE",
+    "start": 193000,
+    "end": 193500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": {
+     "name": "Sample Riverside Hotel",
+     "address": "99 Sample Street, Sample City",
+     "phone": "+49 30 0000000"
+    },
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-194",
+    "title": "RE",
+    "start": 194000,
+    "end": 194500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-194",
+    "kind": "reserve",
+    "subtype": null,
+    "code": "RE",
+    "title": "RE",
+    "start": 194000,
+    "end": 194500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": {
+     "name": "Sample Riverside Hotel",
+     "address": "99 Sample Street, Sample City",
+     "phone": "+49 30 0000000"
+    },
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-195",
+    "title": "RE",
+    "start": 195000,
+    "end": 195500,
+    "location": "FRA",
+    "description": "Hotel\nSample Plain Hotel\n1 Sample Road",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-195",
+    "kind": "reserve",
+    "subtype": null,
+    "code": "RE",
+    "title": "RE",
+    "start": 195000,
+    "end": 195500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": {
+     "name": "Sample Plain Hotel",
+     "address": null,
+     "phone": null
+    },
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-196",
+    "title": "RE",
+    "start": 196000,
+    "end": 196500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\nDABCD (32N)\n",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-196",
+    "kind": "reserve",
+    "subtype": null,
+    "code": "RE",
+    "title": "RE",
+    "start": 196000,
+    "end": 196500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-197",
+    "title": "✈️✈️✈️ RE",
+    "start": 197000,
+    "end": 197500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-197",
+    "kind": "reserve",
+    "subtype": null,
+    "code": "RE",
+    "title": "RE",
+    "start": 197000,
+    "end": 197500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": {
+     "name": "Sample Riverside Hotel",
+     "address": "99 Sample Street, Sample City",
+     "phone": "+49 30 0000000"
+    },
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-198",
+    "title": "RE10",
+    "start": 198000,
+    "end": 198500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-198",
+    "kind": "reserve",
+    "subtype": null,
+    "code": "RE10",
+    "title": "RE10",
+    "start": 198000,
+    "end": 198500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": {
+     "name": "Sample Riverside Hotel",
+     "address": "99 Sample Street, Sample City",
+     "phone": "+49 30 0000000"
+    },
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-199",
+    "title": "RE10",
+    "start": 199000,
+    "end": 199500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-199",
+    "kind": "reserve",
+    "subtype": null,
+    "code": "RE10",
+    "title": "RE10",
+    "start": 199000,
+    "end": 199500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": {
+     "name": "Sample Riverside Hotel",
+     "address": "99 Sample Street, Sample City",
+     "phone": "+49 30 0000000"
+    },
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-200",
+    "title": "RE10",
+    "start": 200000,
+    "end": 200500,
+    "location": "FRA",
+    "description": "Hotel\nSample Plain Hotel\n1 Sample Road",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-200",
+    "kind": "reserve",
+    "subtype": null,
+    "code": "RE10",
+    "title": "RE10",
+    "start": 200000,
+    "end": 200500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": {
+     "name": "Sample Plain Hotel",
+     "address": null,
+     "phone": null
+    },
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-201",
+    "title": "RE10",
+    "start": 201000,
+    "end": 201500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\nDABCD (32N)\n",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-201",
+    "kind": "reserve",
+    "subtype": null,
+    "code": "RE10",
+    "title": "RE10",
+    "start": 201000,
+    "end": 201500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-202",
+    "title": "✈️✈️✈️ RE10",
+    "start": 202000,
+    "end": 202500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-202",
+    "kind": "reserve",
+    "subtype": null,
+    "code": "RE10",
+    "title": "RE10",
+    "start": 202000,
+    "end": 202500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": {
+     "name": "Sample Riverside Hotel",
+     "address": "99 Sample Street, Sample City",
+     "phone": "+49 30 0000000"
+    },
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-203",
+    "title": "OFF",
+    "start": 203000,
+    "end": 203500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-203",
+    "kind": "off",
+    "subtype": "off",
+    "code": "OFF",
+    "title": "OFF",
+    "start": 203000,
+    "end": 203500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-204",
+    "title": "OFF",
+    "start": 204000,
+    "end": 204500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-204",
+    "kind": "off",
+    "subtype": "off",
+    "code": "OFF",
+    "title": "OFF",
+    "start": 204000,
+    "end": 204500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-205",
+    "title": "OFF",
+    "start": 205000,
+    "end": 205500,
+    "location": "FRA",
+    "description": "Hotel\nSample Plain Hotel\n1 Sample Road",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-205",
+    "kind": "off",
+    "subtype": "off",
+    "code": "OFF",
+    "title": "OFF",
+    "start": 205000,
+    "end": 205500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-206",
+    "title": "OFF",
+    "start": 206000,
+    "end": 206500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\nDABCD (32N)\n",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-206",
+    "kind": "off",
+    "subtype": "off",
+    "code": "OFF",
+    "title": "OFF",
+    "start": 206000,
+    "end": 206500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-207",
+    "title": "✈️✈️✈️ OFF",
+    "start": 207000,
+    "end": 207500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-207",
+    "kind": "off",
+    "subtype": "off",
+    "code": "OFF",
+    "title": "OFF",
+    "start": 207000,
+    "end": 207500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-208",
+    "title": "-",
+    "start": 208000,
+    "end": 208500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-208",
+    "kind": "off",
+    "subtype": "free",
+    "code": "-",
+    "title": "-",
+    "start": 208000,
+    "end": 208500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-209",
+    "title": "-",
+    "start": 209000,
+    "end": 209500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-209",
+    "kind": "off",
+    "subtype": "free",
+    "code": "-",
+    "title": "-",
+    "start": 209000,
+    "end": 209500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-210",
+    "title": "-",
+    "start": 210000,
+    "end": 210500,
+    "location": "FRA",
+    "description": "Hotel\nSample Plain Hotel\n1 Sample Road",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-210",
+    "kind": "off",
+    "subtype": "free",
+    "code": "-",
+    "title": "-",
+    "start": 210000,
+    "end": 210500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-211",
+    "title": "-",
+    "start": 211000,
+    "end": 211500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\nDABCD (32N)\n",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-211",
+    "kind": "off",
+    "subtype": "free",
+    "code": "-",
+    "title": "-",
+    "start": 211000,
+    "end": 211500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-212",
+    "title": "✈️✈️✈️ -",
+    "start": 212000,
+    "end": 212500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-212",
+    "kind": "off",
+    "subtype": "free",
+    "code": "-",
+    "title": "-",
+    "start": 212000,
+    "end": 212500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-213",
+    "title": "U",
+    "start": 213000,
+    "end": 213500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-213",
+    "kind": "off",
+    "subtype": "leave",
+    "code": "U",
+    "title": "U",
+    "start": 213000,
+    "end": 213500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-214",
+    "title": "U",
+    "start": 214000,
+    "end": 214500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-214",
+    "kind": "off",
+    "subtype": "leave",
+    "code": "U",
+    "title": "U",
+    "start": 214000,
+    "end": 214500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-215",
+    "title": "U",
+    "start": 215000,
+    "end": 215500,
+    "location": "FRA",
+    "description": "Hotel\nSample Plain Hotel\n1 Sample Road",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-215",
+    "kind": "off",
+    "subtype": "leave",
+    "code": "U",
+    "title": "U",
+    "start": 215000,
+    "end": 215500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-216",
+    "title": "U",
+    "start": 216000,
+    "end": 216500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\nDABCD (32N)\n",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-216",
+    "kind": "off",
+    "subtype": "leave",
+    "code": "U",
+    "title": "U",
+    "start": 216000,
+    "end": 216500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-217",
+    "title": "✈️✈️✈️ U",
+    "start": 217000,
+    "end": 217500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-217",
+    "kind": "off",
+    "subtype": "leave",
+    "code": "U",
+    "title": "U",
+    "start": 217000,
+    "end": 217500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-218",
+    "title": "ORT",
+    "start": 218000,
+    "end": 218500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-218",
+    "kind": "off",
+    "subtype": "ort",
+    "code": "ORT",
+    "title": "ORT",
+    "start": 218000,
+    "end": 218500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": true
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-219",
+    "title": "ORT",
+    "start": 219000,
+    "end": 219500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-219",
+    "kind": "off",
+    "subtype": "ort",
+    "code": "ORT",
+    "title": "ORT",
+    "start": 219000,
+    "end": 219500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": true
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-220",
+    "title": "ORT",
+    "start": 220000,
+    "end": 220500,
+    "location": "FRA",
+    "description": "Hotel\nSample Plain Hotel\n1 Sample Road",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-220",
+    "kind": "off",
+    "subtype": "ort",
+    "code": "ORT",
+    "title": "ORT",
+    "start": 220000,
+    "end": 220500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": true
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-221",
+    "title": "ORT",
+    "start": 221000,
+    "end": 221500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\nDABCD (32N)\n",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-221",
+    "kind": "off",
+    "subtype": "ort",
+    "code": "ORT",
+    "title": "ORT",
+    "start": 221000,
+    "end": 221500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": true
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-222",
+    "title": "✈️✈️✈️ ORT",
+    "start": 222000,
+    "end": 222500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-222",
+    "kind": "off",
+    "subtype": "ort",
+    "code": "ORT",
+    "title": "ORT",
+    "start": 222000,
+    "end": 222500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": true
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-223",
+    "title": "--",
+    "start": 223000,
+    "end": 223500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-223",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "--",
+    "title": "--",
+    "start": 223000,
+    "end": 223500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-224",
+    "title": "--",
+    "start": 224000,
+    "end": 224500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-224",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "--",
+    "title": "--",
+    "start": 224000,
+    "end": 224500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-225",
+    "title": "--",
+    "start": 225000,
+    "end": 225500,
+    "location": "FRA",
+    "description": "Hotel\nSample Plain Hotel\n1 Sample Road",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-225",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "--",
+    "title": "--",
+    "start": 225000,
+    "end": 225500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-226",
+    "title": "--",
+    "start": 226000,
+    "end": 226500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\nDABCD (32N)\n",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-226",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "--",
+    "title": "--",
+    "start": 226000,
+    "end": 226500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-227",
+    "title": "✈️✈️✈️ --",
+    "start": 227000,
+    "end": 227500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-227",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "--",
+    "title": "--",
+    "start": 227000,
+    "end": 227500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-228",
+    "title": "SB90S",
+    "start": 228000,
+    "end": 228500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-228",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SB90S",
+    "title": "SB90S",
+    "start": 228000,
+    "end": 228500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-229",
+    "title": "SB90S",
+    "start": 229000,
+    "end": 229500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-229",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SB90S",
+    "title": "SB90S",
+    "start": 229000,
+    "end": 229500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-230",
+    "title": "SB90S",
+    "start": 230000,
+    "end": 230500,
+    "location": "FRA",
+    "description": "Hotel\nSample Plain Hotel\n1 Sample Road",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-230",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SB90S",
+    "title": "SB90S",
+    "start": 230000,
+    "end": 230500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-231",
+    "title": "SB90S",
+    "start": 231000,
+    "end": 231500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\nDABCD (32N)\n",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-231",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SB90S",
+    "title": "SB90S",
+    "start": 231000,
+    "end": 231500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-232",
+    "title": "✈️✈️✈️ SB90S",
+    "start": 232000,
+    "end": 232500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-232",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "SB90S",
+    "title": "SB90S",
+    "start": 232000,
+    "end": 232500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-233",
+    "title": "RES10",
+    "start": 233000,
+    "end": 233500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-233",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "RES10",
+    "title": "RES10",
+    "start": 233000,
+    "end": 233500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-234",
+    "title": "RES10",
+    "start": 234000,
+    "end": 234500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-234",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "RES10",
+    "title": "RES10",
+    "start": 234000,
+    "end": 234500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-235",
+    "title": "RES10",
+    "start": 235000,
+    "end": 235500,
+    "location": "FRA",
+    "description": "Hotel\nSample Plain Hotel\n1 Sample Road",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-235",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "RES10",
+    "title": "RES10",
+    "start": 235000,
+    "end": 235500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-236",
+    "title": "RES10",
+    "start": 236000,
+    "end": 236500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\nDABCD (32N)\n",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-236",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "RES10",
+    "title": "RES10",
+    "start": 236000,
+    "end": 236500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-237",
+    "title": "✈️✈️✈️ RES10",
+    "start": 237000,
+    "end": 237500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-237",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "RES10",
+    "title": "RES10",
+    "start": 237000,
+    "end": 237500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-238",
+    "title": "__proto__",
+    "start": 238000,
+    "end": 238500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-238",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "__proto__",
+    "title": "__proto__",
+    "start": 238000,
+    "end": 238500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-239",
+    "title": "__proto__",
+    "start": 239000,
+    "end": 239500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-239",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "__proto__",
+    "title": "__proto__",
+    "start": 239000,
+    "end": 239500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-240",
+    "title": "__proto__",
+    "start": 240000,
+    "end": 240500,
+    "location": "FRA",
+    "description": "Hotel\nSample Plain Hotel\n1 Sample Road",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-240",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "__proto__",
+    "title": "__proto__",
+    "start": 240000,
+    "end": 240500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-241",
+    "title": "__proto__",
+    "start": 241000,
+    "end": 241500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\nDABCD (32N)\n",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-241",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "__proto__",
+    "title": "__proto__",
+    "start": 241000,
+    "end": 241500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-242",
+    "title": "✈️✈️✈️ __proto__",
+    "start": 242000,
+    "end": 242500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-242",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "__proto__",
+    "title": "__proto__",
+    "start": 242000,
+    "end": 242500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-243",
+    "title": "XYZ7",
+    "start": 243000,
+    "end": 243500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-243",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "XYZ7",
+    "title": "XYZ7",
+    "start": 243000,
+    "end": 243500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-244",
+    "title": "XYZ7",
+    "start": 244000,
+    "end": 244500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-244",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "XYZ7",
+    "title": "XYZ7",
+    "start": 244000,
+    "end": 244500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-245",
+    "title": "XYZ7",
+    "start": 245000,
+    "end": 245500,
+    "location": "FRA",
+    "description": "Hotel\nSample Plain Hotel\n1 Sample Road",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-245",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "XYZ7",
+    "title": "XYZ7",
+    "start": 245000,
+    "end": 245500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-246",
+    "title": "XYZ7",
+    "start": 246000,
+    "end": 246500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\nDABCD (32N)\n",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-246",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "XYZ7",
+    "title": "XYZ7",
+    "start": 246000,
+    "end": 246500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-247",
+    "title": "✈️✈️✈️ XYZ7",
+    "start": 247000,
+    "end": 247500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-247",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "XYZ7",
+    "title": "XYZ7",
+    "start": 247000,
+    "end": 247500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-248",
+    "title": "DE1234 FRA-PMI",
+    "start": 248000,
+    "end": 248500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-248",
+    "kind": "flight",
+    "subtype": null,
+    "code": "DE",
+    "title": "DE1234 FRA-PMI",
+    "start": 248000,
+    "end": 248500,
+    "location": "FRA",
+    "flight": {
+     "number": "DE1234",
+     "origin": "FRA",
+     "destination": "PMI"
+    },
+    "aircraft": null,
+    "hotel": {
+     "name": "Sample Riverside Hotel",
+     "address": "99 Sample Street, Sample City",
+     "phone": "+49 30 0000000"
+    },
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-249",
+    "title": "DE1234 FRA-PMI",
+    "start": 249000,
+    "end": 249500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-249",
+    "kind": "flight",
+    "subtype": null,
+    "code": "DE",
+    "title": "DE1234 FRA-PMI",
+    "start": 249000,
+    "end": 249500,
+    "location": "FRA",
+    "flight": {
+     "number": "DE1234",
+     "origin": "FRA",
+     "destination": "PMI"
+    },
+    "aircraft": {
+     "registration": "DABCD",
+     "typeCode": "32N"
+    },
+    "hotel": {
+     "name": "Sample Riverside Hotel",
+     "address": "99 Sample Street, Sample City",
+     "phone": "+49 30 0000000"
+    },
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-250",
+    "title": "DE1234 FRA-PMI",
+    "start": 250000,
+    "end": 250500,
+    "location": "FRA",
+    "description": "Hotel\nSample Plain Hotel\n1 Sample Road",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-250",
+    "kind": "flight",
+    "subtype": null,
+    "code": "DE",
+    "title": "DE1234 FRA-PMI",
+    "start": 250000,
+    "end": 250500,
+    "location": "FRA",
+    "flight": {
+     "number": "DE1234",
+     "origin": "FRA",
+     "destination": "PMI"
+    },
+    "aircraft": null,
+    "hotel": {
+     "name": "Sample Plain Hotel",
+     "address": null,
+     "phone": null
+    },
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-251",
+    "title": "DE1234 FRA-PMI",
+    "start": 251000,
+    "end": 251500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\nDABCD (32N)\n",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-251",
+    "kind": "flight",
+    "subtype": null,
+    "code": "DE",
+    "title": "DE1234 FRA-PMI",
+    "start": 251000,
+    "end": 251500,
+    "location": "FRA",
+    "flight": {
+     "number": "DE1234",
+     "origin": "FRA",
+     "destination": "PMI"
+    },
+    "aircraft": {
+     "registration": "DABCD",
+     "typeCode": "32N"
+    },
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-252",
+    "title": "✈️✈️✈️ DE1234 FRA-PMI",
+    "start": 252000,
+    "end": 252500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-252",
+    "kind": "flight",
+    "subtype": null,
+    "code": "DE",
+    "title": "DE1234 FRA-PMI",
+    "start": 252000,
+    "end": 252500,
+    "location": "FRA",
+    "flight": {
+     "number": "DE1234",
+     "origin": "FRA",
+     "destination": "PMI"
+    },
+    "aircraft": {
+     "registration": "DABCD",
+     "typeCode": "32N"
+    },
+    "hotel": {
+     "name": "Sample Riverside Hotel",
+     "address": "99 Sample Street, Sample City",
+     "phone": "+49 30 0000000"
+    },
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-253",
+    "title": "LH400 FRA-JFK",
+    "start": 253000,
+    "end": 253500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-253",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "LH400 FRA-JFK",
+    "title": "LH400 FRA-JFK",
+    "start": 253000,
+    "end": 253500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-254",
+    "title": "LH400 FRA-JFK",
+    "start": 254000,
+    "end": 254500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-254",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "LH400 FRA-JFK",
+    "title": "LH400 FRA-JFK",
+    "start": 254000,
+    "end": 254500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-255",
+    "title": "LH400 FRA-JFK",
+    "start": 255000,
+    "end": 255500,
+    "location": "FRA",
+    "description": "Hotel\nSample Plain Hotel\n1 Sample Road",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-255",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "LH400 FRA-JFK",
+    "title": "LH400 FRA-JFK",
+    "start": 255000,
+    "end": 255500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-256",
+    "title": "LH400 FRA-JFK",
+    "start": 256000,
+    "end": 256500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\nDABCD (32N)\n",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-256",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "LH400 FRA-JFK",
+    "title": "LH400 FRA-JFK",
+    "start": 256000,
+    "end": 256500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-257",
+    "title": "✈️✈️✈️ LH400 FRA-JFK",
+    "start": 257000,
+    "end": 257500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-257",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "LH400 FRA-JFK",
+    "title": "LH400 FRA-JFK",
+    "start": 257000,
+    "end": 257500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-258",
+    "title": "DE12345 FRA-PMI",
+    "start": 258000,
+    "end": 258500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-258",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "DE12345 FRA-PMI",
+    "title": "DE12345 FRA-PMI",
+    "start": 258000,
+    "end": 258500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-259",
+    "title": "DE12345 FRA-PMI",
+    "start": 259000,
+    "end": 259500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-259",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "DE12345 FRA-PMI",
+    "title": "DE12345 FRA-PMI",
+    "start": 259000,
+    "end": 259500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-260",
+    "title": "DE12345 FRA-PMI",
+    "start": 260000,
+    "end": 260500,
+    "location": "FRA",
+    "description": "Hotel\nSample Plain Hotel\n1 Sample Road",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-260",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "DE12345 FRA-PMI",
+    "title": "DE12345 FRA-PMI",
+    "start": 260000,
+    "end": 260500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-261",
+    "title": "DE12345 FRA-PMI",
+    "start": 261000,
+    "end": 261500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\nDABCD (32N)\n",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-261",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "DE12345 FRA-PMI",
+    "title": "DE12345 FRA-PMI",
+    "start": 261000,
+    "end": 261500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-262",
+    "title": "✈️✈️✈️ DE12345 FRA-PMI",
+    "start": 262000,
+    "end": 262500,
+    "location": "FRA",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-262",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "DE12345 FRA-PMI",
+    "title": "DE12345 FRA-PMI",
+    "start": 262000,
+    "end": 262500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-263",
+    "title": "ORT",
+    "start": 263000,
+    "end": 263500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\n\nORTSTAG",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-263",
+    "kind": "off",
+    "subtype": "ort",
+    "code": "ORT",
+    "title": "ORT",
+    "start": 263000,
+    "end": 263500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": true
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-264",
+    "title": "XYZ",
+    "start": 264000,
+    "end": 264500,
+    "location": "FRA",
+    "description": "FRA SAMPLE AIRPORT FRA\n\nORTSTAG",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-264",
+    "kind": "unknown",
+    "subtype": null,
+    "code": "XYZ",
+    "title": "XYZ",
+    "start": 264000,
+    "end": 264500,
+    "location": "FRA",
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-265",
+    "title": "SB",
+    "start": 265000,
+    "end": 265500,
+    "location": "pmi",
+    "description": "FRA SAMPLE AIRPORT FRA\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-265",
+    "kind": "standby",
+    "subtype": null,
+    "code": "SB",
+    "title": "SB",
+    "start": 265000,
+    "end": 265500,
+    "location": null,
+    "flight": null,
+    "aircraft": null,
+    "hotel": {
+     "name": "Sample Riverside Hotel",
+     "address": "99 Sample Street, Sample City",
+     "phone": "+49 30 0000000"
+    },
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-266",
+    "title": "OFF",
+    "start": 266000,
+    "end": 266500,
+    "location": null,
+    "description": "",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-266",
+    "kind": "off",
+    "subtype": "off",
+    "code": "OFF",
+    "title": "OFF",
+    "start": 266000,
+    "end": 266500,
+    "location": null,
+    "flight": null,
+    "aircraft": null,
+    "hotel": null,
+    "basis": "airline-feed",
+    "protected": false
+   }
+  },
+  {
+   "input": {
+    "sourceId": "golden-267",
+    "title": "DE1234 FRA-PMI",
+    "start": 267000,
+    "end": 267500,
+    "location": " PMI ",
+    "description": "DABCD (32N)\n\nHotel\nSample Riverside Hotel\n99 Sample Street\nSample City\n+49 30 0000000",
+    "basis": "airline-feed"
+   },
+   "output": {
+    "sourceId": "golden-267",
+    "kind": "flight",
+    "subtype": null,
+    "code": "DE",
+    "title": "DE1234 FRA-PMI",
+    "start": 267000,
+    "end": 267500,
+    "location": "PMI",
+    "flight": {
+     "number": "DE1234",
+     "origin": "FRA",
+     "destination": "PMI"
+    },
+    "aircraft": {
+     "registration": "DABCD",
+     "typeCode": "32N"
+    },
+    "hotel": {
+     "name": "Sample Riverside Hotel",
+     "address": "99 Sample Street, Sample City",
+     "phone": "+49 30 0000000"
+    },
+    "basis": "airline-feed",
+    "protected": false
+   }
+  }
+ ]
+}

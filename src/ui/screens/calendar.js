@@ -9,12 +9,14 @@ import { pageHeader, previewBadge } from '../components.js';
 import { icon } from '../icons.js';
 import { buildMonth, addMonths, monthKeyOf } from '../../model/calendar.js';
 import { buildRotationHorizon } from '../../model/horizon.js';
-import { EVIDENCE, OFF_SUBTYPE } from '../../model/roster.js';
+import { EVIDENCE } from '../../model/roster.js';
+import { airlineOf } from '../../airlines/index.js';
 import { horizonView } from '../horizon.js';
 import { clock, city } from '../duty.js';
 import { airport } from '../../data/airports.js';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+// 'unassigned' has no entry here on purpose: its wording is the airline's (term.unassigned).
 const STATUS_NAME = { flight: 'Flight', layover: 'Layover', standby: 'Standby', reserve: 'Reserve', off: 'Off', unknown: 'Unknown' };
 const PROVENANCE = {
   source: 'From the roster source',
@@ -31,8 +33,9 @@ function noData(day) {
 }
 
 /** Short text shown in the cell. Text, not colour, carries the meaning. */
-function cellCode(day) {
-  if (day.status === 'off') return OFF_SUBTYPE[day.offSubtype]?.short ?? 'OFF';
+function cellCode(day, term) {
+  if (day.status === 'off') return term.offSubtype[day.offSubtype]?.short ?? 'OFF';
+  if (day.status === 'unassigned') return term.unassigned.cell;
   if (day.status === 'standby') return 'SB';
   if (day.status === 'reserve') return 'RE';
   if (day.label) return day.label;
@@ -49,10 +52,11 @@ function cellSub(day, tz) {
   return '';
 }
 
-function describe(day) {
-  const name = day.status === 'off' && OFF_SUBTYPE[day.offSubtype] ? `${OFF_SUBTYPE[day.offSubtype].name}${day.offSubtype === 'ort' ? ' (ORT, protected)' : ''}` : STATUS_NAME[day.status];
+function describe(day, term) {
+  const sub = day.status === 'off' ? term.offSubtype[day.offSubtype] : null;
+  const name = sub ? `${sub.name}${sub.detail ? ` (${sub.detail})` : ''}` : day.status === 'unassigned' ? term.unassigned.name : STATUS_NAME[day.status];
   const conf = day.status === 'unknown' ? '' : day.confidence === 'inferred' ? ', inferred' : ', confirmed';
-  const label = day.label && !(day.status === 'off' && day.offSubtype) ? ` ${day.label}` : '';
+  const label = day.label && !(day.status === 'off' && day.offSubtype) && day.status !== 'unassigned' ? ` ${day.label}` : '';
   const evidence = day.status === 'unknown' ? `: ${EVIDENCE[day.evidence] ?? 'no data'}` : day.evidence === 'duty-unspecified' ? ', duty also listed' : '';
   return `${name}${label}${conf}${evidence}`;
 }
@@ -69,6 +73,7 @@ function token(day) {
   if (day.status === 'standby') return 'tok-sb';
   if (day.status === 'reserve') return 'tok-re';
   if (day.status === 'off') return day.offSubtype === 'ort' ? 'tok-off tok-ort' : day.offSubtype === 'leave' ? 'tok-off tok-leave' : 'tok-off';
+  if (day.status === 'unassigned') return 'tok-unassigned';
   if (day.status === 'unknown' && day.evidence === 'duty-unspecified') return 'tok-duty';
   if (day.status === 'unknown' && !noData(day)) return 'tok-unknown';
   return '';
@@ -93,7 +98,7 @@ function aircraft(day) {
   return showsAircraft(day) ? html`<span class="cal-glyph pos-${day.rotationPos}" aria-hidden="true">${aircraftSvgs()}</span>` : '';
 }
 
-function dayCell(day, month, tz) {
+function dayCell(day, month, tz, term) {
   const selected = day.date === ui.selected;
   const band = day.rotationPos && (day.status === 'flight' || day.status === 'layover');
   const tok = token(day);
@@ -115,35 +120,37 @@ function dayCell(day, month, tz) {
     <button type="button" class="${classes}" role="gridcell" data-date="${day.date}"
       aria-selected="${selected ? 'true' : 'false'}" ${day.isToday ? html`aria-current="date"` : ''}
       tabindex="${day.date === focusDate(month) ? '0' : '-1'}"
-      aria-label="${day.isToday ? 'Today, ' : ''}${dateLabel}: ${noData(day) ? 'No data' : describe(day)}">
+      aria-label="${day.isToday ? 'Today, ' : ''}${dateLabel}: ${noData(day) ? 'No data' : describe(day, term)}">
       <span class="cal-num t-tabular" aria-hidden="true">${Number(day.date.slice(8))}</span>
       <span class="cal-track" aria-hidden="true">${band ? html`<span class="${bandClasses}"></span>${glyphs}` : html`<span class="cal-mark"></span>`}</span>
-      <span class="cal-code ${tok}" aria-hidden="true">${cellCode(day)}</span>
+      <span class="cal-code ${tok}" aria-hidden="true">${cellCode(day, term)}</span>
       <span class="cal-sub t-tabular" aria-hidden="true">${cellSub(day, tz)}</span>
     </button>`;
 }
 
-const KEY = [
+/** Legend rows: [css class, label, sample code]. Subtype wording comes from the airline profile. */
+const keyRows = (term) => [
   ['key-flight', 'Flight · one line per rotation'],
   ['key-layover', 'Layover · inferred (dotted)', 'YYZ'],
   ['key-layover-roster', 'Layover · from roster (double line)', 'YYZ'],
   ['key-sb', 'Standby', 'SB'],
   ['key-re', 'Reserve', 'RE'],
-  ['key-off', 'Off · stated by roster', 'OFF'],
-  ['key-ort', 'ORT · protected free day', 'ORT'],
-  ['key-leave', 'Leave', 'LEAVE'],
+  ['key-off', 'Off · stated by roster', term.offSubtype.off.short],
+  ['key-ort', term.protectedLegend, term.offSubtype.ort.short],
+  ['key-leave', 'Leave', term.offSubtype.leave.short],
+  ['key-unassigned', term.unassigned.legend, term.unassigned.cell],
   ['key-duty', 'Duty · type not given', 'Duty'],
   ['key-unknown', 'Unknown', '?'],
   ['key-nodata', 'No data'],
 ];
 
 /** Compact key behind a disclosure (opened by default on wide screens in mount()). */
-function keyView() {
+function keyView(term) {
   return html`
     <details class="cal-key" data-cal-key>
       <summary>Key</summary>
       <ul class="cal-key-list" role="list">
-        ${KEY.map(([cls, label, code]) => html`<li class="cal-key-item ${cls}"><span class="cal-key-sample" aria-hidden="true">${code ?? ''}${cls === 'key-flight' ? html`<span class="cal-key-plane">${aircraftSvgs()}</span>` : ''}</span>${label}</li>`)}
+        ${keyRows(term).map(([cls, label, code]) => html`<li class="cal-key-item ${cls}"><span class="cal-key-sample" aria-hidden="true">${code ?? ''}${cls === 'key-flight' ? html`<span class="cal-key-plane">${aircraftSvgs()}</span>` : ''}</span>${label}</li>`)}
       </ul>
     </details>`;
 }
@@ -170,11 +177,11 @@ function coverageChip(m) {
     </p>`;
 }
 
-function summaryView(m) {
+function summaryView(m, term) {
   const s = m.summary;
   const parts = [
     [s.flightDays, 'flight days'], [s.layoverDays, 'layover days'], [s.standbyDays, 'standby'], [s.reserveDays, 'reserve'],
-    [s.offDays, 'off'], [s.unknownDuty, 'duty, type not given'], [s.unknownFree, 'no duty reported'],
+    [s.offDays, 'off'], [s.unassignedDays, term.unassigned.summary], [s.unknownDuty, 'duty, type not given'], [s.unknownFree, 'no duty reported'],
     [s.unknownOther + s.noData, 'unknown / no data'],
   ].filter(([n]) => n > 0);
   return html`
@@ -254,6 +261,7 @@ export function hotelSection(day, snapshot, { review = false } = {}) {
 function detailView(day, view) {
   const { profile, now, roster, state } = view;
   const tz = profile.homeTz;
+  const term = airlineOf(profile).terminology;
   if (!day) {
     return html`<div class="cal-detail-empty"><p class="t-callout t-secondary">Select a day to see its duties.</p></div>`;
   }
@@ -265,7 +273,8 @@ function detailView(day, view) {
   const hz = rotation ? buildRotationHorizon(rotation, state, profile, now) : null;
   const title = noData(day) ? 'No data'
     : day.status === 'unknown' && day.evidence === 'duty-unspecified' ? 'Duty'
-    : day.status === 'off' && OFF_SUBTYPE[day.offSubtype] ? OFF_SUBTYPE[day.offSubtype].name
+    : day.status === 'off' && term.offSubtype[day.offSubtype] ? term.offSubtype[day.offSubtype].name
+    : day.status === 'unassigned' ? term.unassigned.name
     : `${STATUS_NAME[day.status]}${day.label && (day.status === 'flight' || day.status === 'layover') ? ` · ${day.status === 'flight' ? `to ${city(day.label)}` : city(day.label)}` : ''}`;
   return html`
     <article class="cal-detail-card" aria-labelledby="cal-detail-title">
@@ -297,13 +306,13 @@ function detailView(day, view) {
         </section>` : ''}
       ${day.offSubtype === 'ort' ? html`
         <section class="cal-detail-section">
-          <p class="t-eyebrow">ORT · from roster</p>
+          <p class="t-eyebrow">${term.protectedEyebrow}</p>
           <p class="t-callout">Assigned by the company as a free day; it cannot be taken away or reassigned.</p>
         </section>` : ''}
       ${day.window ? html`
         <section class="cal-detail-section">
-          <p class="t-eyebrow">${day.window.kind === 'off' && OFF_SUBTYPE[day.window.subtype] ? OFF_SUBTYPE[day.window.subtype].name : STATUS_NAME[day.window.kind] ?? day.window.kind} · from roster</p>
-          <p class="t-callout t-tabular">${windowText(day.window, day, tz)}${day.window.label && day.window.kind !== 'off' && day.window.kind !== 'layover' ? ` · ${day.window.label}` : ''}</p>
+          <p class="t-eyebrow">${day.window.kind === 'off' && term.offSubtype[day.window.subtype] ? term.offSubtype[day.window.subtype].name : day.window.kind === 'unassigned' ? term.unassigned.name : STATUS_NAME[day.window.kind] ?? day.window.kind} · from roster</p>
+          <p class="t-callout t-tabular">${windowText(day.window, day, tz)}${day.window.label && day.window.kind !== 'off' && day.window.kind !== 'layover' && day.window.kind !== 'unassigned' ? ` · ${day.window.label}` : ''}</p>
         </section>` : ''}
 
       ${day.layover && day.window?.kind !== 'layover' ? html`
@@ -346,6 +355,7 @@ export const calendar = {
           </div>
         </div>`;
     }
+    const term = airlineOf(view.profile).terminology;
     const m = buildMonth(view.snapshot, view.roster, view.profile, view.now, ui.month);
     const selectedDay = m.days.find((d) => d.date === ui.selected) ?? null;
     return html`
@@ -366,13 +376,13 @@ export const calendar = {
               <div class="cal-row cal-head" role="row">
                 ${WEEKDAYS.map((d) => html`<span class="cal-dow" role="columnheader">${d}</span>`)}
               </div>
-              ${m.weeks.map((week) => html`<div class="cal-row" role="row">${week.map((day) => dayCell(day, m, tz))}</div>`)}
+              ${m.weeks.map((week) => html`<div class="cal-row" role="row">${week.map((day) => dayCell(day, m, tz, term))}</div>`)}
             </div>
-            ${keyView()}
+            ${keyView(term)}
           </section>
           <aside class="cal-side" aria-label="Day detail">
             <div class="cal-detail" data-cal-detail>${detailView(selectedDay, view)}</div>
-            ${summaryView(m)}
+            ${summaryView(m, term)}
           </aside>
         </div>
       </div>`;

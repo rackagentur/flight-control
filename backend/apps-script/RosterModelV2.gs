@@ -198,8 +198,9 @@ function fcv2BuildRoster_(input, deps) {
     const list = byDate[d] || [];
     const inFeed = feed && d >= feed.from && d <= feed.to;
     const state = list.length ? 'rostered' : inFeed && (!lastRosteredDate || d > lastRosteredDate) ? 'unpublished' : 'empty';
-    const codes = list.filter(function (e) { return e.kind === 'off'; }).map(function (e) {
-      return { kind: 'off', subtype: e.subtype, code: e.code, protected: e.protected, eventId: fcv2Id_('e', e.sourceId, deps), provenance: 'source' };
+    // Explicit day codes: rest-family days and days listed with no duty assigned ('unassigned').
+    const codes = list.filter(function (e) { return e.kind === 'off' || e.kind === 'unassigned'; }).map(function (e) {
+      return { kind: e.kind, subtype: e.subtype, code: e.code, protected: e.protected, eventId: fcv2Id_('e', e.sourceId, deps), provenance: 'source' };
     });
     days.push({ date: d, state: state, codes: codes });
   }
@@ -213,7 +214,7 @@ function fcv2BuildRoster_(input, deps) {
     source: { adapter: input.config.adapter, baseTimeZone: tz, segments: input.segments },
     capabilities: {
       sectors: true, reportTime: true, pickups: true, standby: true, reserve: true,
-      explicitOff: true, protectedOff: true, leave: true, stays: 'hotel-block', hotels: true,
+      explicitOff: true, protectedOff: true, leave: true, unassigned: true, stays: 'hotel-block', hotels: true,
       aircraft: true, rotations: false, history: true,
     },
     coverage: { from: input.from, to: input.to, lastRosteredDate: lastRosteredDate, days: days },

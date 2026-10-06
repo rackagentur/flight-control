@@ -18,7 +18,7 @@ RosterSource adapter ─▶ RosterSnapshot (normalized) ─▶ state engine · D
 
 - **Backend (temporary):** the existing Google Apps Script web app (`?action=getStats|sync|dashboard|dashboardPrev`). Its contract is frozen during the redesign.
 - **Times:** always computed from timestamps with IANA time zones in the presentation layer.
-- **States:** OFF, FLIGHT, STANDBY, RESERVE, LAYOVER, UNKNOWN. Every state carries a confidence level, and the app never shows a state the data cannot support.
+- **States:** OFF, UNASSIGNED (a day the roster lists with no duty assigned; not a day off), FLIGHT, STANDBY, RESERVE, LAYOVER, UNKNOWN. Every state carries a confidence level, and the app never shows a state the data cannot support.
 - **Flights:** rotations drawn as journeys, per-sector detail inside its rotation, shared destination intelligence (local time, stay, weather, legitimate hotel actions). Weather comes from Open-Meteo, requested by the browser with the airport's coordinates only (no key, nothing personal; never in review mode).
 - **Seen on this device:** recently flown sectors are remembered locally (120 days, at most 300) because the v5 source has no flight history. They are labelled as such and never presented as a complete history.
 

@@ -12,7 +12,7 @@ import { horizonView } from '../horizon.js';
 import { clock, city, field, dutyFields, sectorList, routeTitle } from '../duty.js';
 import { weekView } from '../week.js';
 import { buildDestination } from '../../model/destination.js';
-import { OFF_SUBTYPE } from '../../model/roster.js';
+import { airlineOf } from '../../airlines/index.js';
 import { weatherText } from '../destination.js';
 
 const CONFIDENCE_LABEL = { confirmed: 'Confirmed', inferred: 'Inferred', unknown: 'Unknown' };
@@ -111,14 +111,29 @@ function statusPass(view) {
   }
 
   if (state.status === 'off') {
-    const kind = OFF_SUBTYPE[state.offSubtype];
+    const kind = airlineOf(profile).terminology.offSubtype[state.offSubtype];
     const ort = state.offSubtype === 'ort';
     return html`
       <section class="pass" aria-labelledby="status-title">
         <div class="pass-head">
-          ${kicker(ort ? 'Protected free day' : kind && state.offSubtype !== 'off' ? kind.name : 'Off today', state, review)}
-          <h2 class="pass-state t-display" id="status-title">${ort ? 'ORT' : state.offSubtype === 'leave' ? 'Leave' : 'Off'}</h2>
+          ${kicker(ort ? kind.name : kind && state.offSubtype !== 'off' ? kind.name : 'Off today', state, review)}
+          <h2 class="pass-state t-display" id="status-title">${ort ? kind.short : state.offSubtype === 'leave' ? 'Leave' : 'Off'}</h2>
           ${ort ? html`<p class="pass-lede">Assigned by the company; it cannot be taken away or reassigned.</p>` : ''}
+          ${duty ? html`<p class="pass-lede">Next duty ${routeTitle(duty)} · ${relativeDayLabel(now, duty.sectors[0].dep, tz)}</p>` : ''}
+        </div>
+        ${nextEventBlock(state, now, tz)}
+        ${duty ? html`<dl class="pass-fields">${dutyFields(duty, profile)}</dl>` : ''}
+        ${hz}
+      </section>`;
+  }
+
+  if (state.status === 'unassigned') {
+    const term = airlineOf(profile).terminology.unassigned;
+    return html`
+      <section class="pass" aria-labelledby="status-title">
+        <div class="pass-head">
+          ${kicker(term.name, state, review)}
+          <h2 class="pass-state t-display" id="status-title">${term.short}</h2>
           ${duty ? html`<p class="pass-lede">Next duty ${routeTitle(duty)} · ${relativeDayLabel(now, duty.sectors[0].dep, tz)}</p>` : ''}
         </div>
         ${nextEventBlock(state, now, tz)}
@@ -287,7 +302,7 @@ function intelligence(view, weatherFor) {
       ${view.roster ? html`
         <section class="section">
           <div class="section-head"><h2 class="t-eyebrow">This week</h2></div>
-          ${weekView(view.roster.days, view.profile.homeTz)}
+          ${weekView(view.roster.days, view.profile.homeTz, airlineOf(view.profile).terminology)}
         </section>` : ''}
       ${clocksSection(view)}
       ${restSection(view)}

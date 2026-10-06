@@ -6,7 +6,8 @@
 // First matching rule wins; every result explains itself in `reasons`.
 
 import { localDateKey, startOfLocalDay, addDays } from '../lib/time.js';
-import { buildDays, WINDOW_RANK, MAX_INFERRED_LAYOVER_DAYS, layoverCalendarDays, OFF_SUBTYPE } from './roster.js';
+import { buildDays, WINDOW_RANK, MAX_INFERRED_LAYOVER_DAYS, layoverCalendarDays } from './roster.js';
+import { airlineOf } from '../airlines/index.js';
 
 const HOUR = 3600000;
 
@@ -26,8 +27,8 @@ export function dutyMilestones(duty) {
 function nextEventAfter(now, duties, windows) {
   const candidates = [
     ...duties.flatMap(dutyMilestones),
-    // Standby/reserve boundaries are operational events; the end of a day off is not.
-    ...windows.filter((w) => w.kind !== 'off').flatMap((w) => [
+    // Standby/reserve boundaries are operational events; the end of a day off or of an unassigned day is not.
+    ...windows.filter((w) => w.kind !== 'off' && w.kind !== 'unassigned').flatMap((w) => [
       { kind: `${w.kind}-start`, at: w.start, label: `${cap(w.kind)} begins` },
       { kind: `${w.kind}-end`, at: w.end, label: `${cap(w.kind)} ends` },
     ]),
@@ -37,14 +38,24 @@ function nextEventAfter(now, duties, windows) {
 
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
-function offState(today, upcomingDuty, nextEvent) {
-  const kind = OFF_SUBTYPE[today.offSubtype];
+function offState(today, upcomingDuty, nextEvent, profile) {
+  const term = airlineOf(profile).terminology;
+  const kind = term.offSubtype[today.offSubtype];
   const reason = today.offSubtype === 'ort'
-    ? 'The roster lists today as a protected free day (ORT): assigned by the company and not reassignable.'
+    ? term.protectedReason
     : kind ? `The roster lists today as: ${kind.name.toLowerCase()}.` : 'The roster lists today as off.';
   return base({
     status: 'off', confidence: 'confirmed', provenance: 'source', phase: 'off', offSubtype: today.offSubtype ?? null, protected: today.protected === true,
     window: today.window, duty: upcomingDuty, nextEvent, reasons: [reason],
+  });
+}
+
+/** A day the roster lists with no duty assigned: a source fact, never a day off. */
+function unassignedState(upcomingDuty, nextEvent, profile) {
+  const term = airlineOf(profile).terminology;
+  return base({
+    status: 'unassigned', confidence: 'confirmed', provenance: 'source', phase: 'unassigned',
+    duty: upcomingDuty, nextEvent, reasons: [term.unassigned.reason],
   });
 }
 
@@ -127,7 +138,9 @@ export function deriveState(snapshot, roster, profile, now) {
   }
 
   // An explicitly coded rest day (v2) is a source fact: it outranks an inferred layover.
-  if (today.status === 'off' && today.offSubtype) return offState(today, upcomingDuty, nextEvent);
+  if (today.status === 'off' && today.offSubtype) return offState(today, upcomingDuty, nextEvent, profile);
+  // Likewise a day the roster lists as unassigned (explicit source fact, not a day off).
+  if (today.status === 'unassigned') return unassignedState(upcomingDuty, nextEvent, profile);
 
   // 4. Layover: strong itinerary evidence only.
   const layover = rotations.flatMap((r) => r.layovers).find((l) => l.from <= now && now < l.to);
@@ -163,7 +176,7 @@ export function deriveState(snapshot, roster, profile, now) {
   }
 
   // 7. OFF only when the source states it (explicit window or explicit off day).
-  if (today.status === 'off') return offState(today, upcomingDuty, nextEvent);
+  if (today.status === 'off') return offState(today, upcomingDuty, nextEvent, profile);
 
   // 8. Everything else is UNKNOWN, explained with the same evidence the Calendar shows.
   const reasons = [];
