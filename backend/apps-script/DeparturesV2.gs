@@ -36,6 +36,7 @@ const FCV2_DEP_NEAR_MS_ = 6 * 3600000;
 const FCV2_DEP_CACHE_MAX_CHARS_ = 90000;
 const FCV2_DEP_MAX_CARRIERS_ = 10;
 const FCV2_DEP_TEXT_MAX_ = 60;
+const FCV2_DEP_FLIGHT_MAX_ = 16;                   // longest normalized flight number; the cache-read validator uses the same bound
 const FCV2_DEP_HOST_ = 'aerodatabox.p.rapidapi.com';
 const FCV2_DEP_STATUS_ = Object.freeze({
   expected: 'scheduled', checkin: 'scheduled', scheduled: 'scheduled',
@@ -78,11 +79,19 @@ function fcv2LocalMinutes_(a, b) {
 }
 
 /**
- * Splits [from, to] into provider windows: chunk i starts at from + i·11 h and ends at
- * min(start + 12 h, to); chunks stop once the previous chunk's end reaches `to` (so a
- * range of at most 12 h is one call, up to 23 h two, up to 34 h three; the handler never
- * asks for more than 26 h). The 1 h overlap is removed by filtering on the instant and
- * deduplicating. Each chunk also carries its airport-local strings.
+ * Splits [from, to] into provider windows: chunk i starts at from + i·11 h and asks for at
+ * most 12 h (ending at min(start + 12 h, to) before rounding). Chunks are created until the
+ * COVERAGE reaches the request: the last window's whole-minute ask END must be at least
+ * `to` rounded up to the whole minute (an exclusive-end provider then still returns every
+ * whole minute m with from <= m < to). The 1 h overlap is removed by filtering on the
+ * instant and deduplicating. Each chunk also carries its airport-local strings.
+ *
+ * Call count (F = from rounded down, C = to rounded up, both to the whole minute, DST aside):
+ * one call when C - F is at most 12 h, two when at most 23 h, three when at most 34 h. A
+ * range of exactly 12 h from an off-minute start therefore needs two calls and an off-minute
+ * 23 h range three. The handler's padded range is at most 26 h, so never more than three; a
+ * spring-forward change inside a window shortens that window by the skipped time (the next
+ * window still starts 11 h on), and the tests pin that the count stays at most three.
  *
  * Whole-minute boundaries: the provider takes minute-resolution local times and may treat
  * the window end as exclusive, so the start is floored and the end CEILED to the whole
@@ -98,8 +107,10 @@ function fcv2DepartureChunks_(from, to, tz, deps) {
   const floorMin = function (ms) { return Math.floor(ms / MINUTE) * MINUTE; };
   const ceilMin = function (ms) { return Math.ceil(ms / MINUTE) * MINUTE; };
   const chunks = [];
-  let previousEnd = -Infinity;
-  for (let start = from; start < to && previousEnd < to; start += FCV2_DEP_CHUNK_STEP_MS_) {
+  if (!(from < to)) return chunks;
+  const wanted = ceilMin(to);
+  let covered = -Infinity;   // whole-minute ask END of the last chunk (exclusive-safe)
+  for (let start = from; covered < wanted; start += FCV2_DEP_CHUNK_STEP_MS_) {
     let end = Math.min(start + FCV2_DEP_CHUNK_SPAN_MS_, to);
     const askStart = floorMin(start);
     let askEnd = ceilMin(end);
@@ -117,7 +128,7 @@ function fcv2DepartureChunks_(from, to, tz, deps) {
       end = askEnd;
     }
     chunks.push({ start: start, end: end, fromLocal: fromLocal, toLocal: toLocal });
-    previousEnd = end;
+    covered = askEnd;
   }
   return chunks;
 }
@@ -183,11 +194,12 @@ function fcv2DepartureNumber_(value) {
   return text || null;
 }
 
-/** One provider entry → ScheduledFlightWire, or null when it has no flight number or scheduled time. */
+/** One provider entry → ScheduledFlightWire, or null when it has no usable (1–16 characters) flight number or no scheduled time. */
 function fcv2NormalizeDeparture_(entry, airport, deps) {
   if (!entry || typeof entry !== 'object') return null;
   const flightNumber = fcv2DepartureNumber_(entry.number) || fcv2DepartureNumber_(entry.callSign);
-  if (!flightNumber) return null;
+  // Longer than the wire shape allows: dropped (and counted), never emitted, so a cached window always re-validates.
+  if (!flightNumber || flightNumber.length > FCV2_DEP_FLIGHT_MAX_) return null;
   const movement = entry.movement && typeof entry.movement === 'object' ? entry.movement : {};
   const scheduled = movement.scheduledTime && typeof movement.scheduledTime === 'object' ? movement.scheduledTime : {};
   const scheduledDep = fcv2ParseProviderUtc_(scheduled.utc);
@@ -246,14 +258,14 @@ function fcv2NormalizeAdb_(body, airport, carriers, deps) {
   if (!Array.isArray(list)) return null;
   const flights = [];
   const droppedKeys = [];
-  const occurrences = {};
+  const occurrences = Object.create(null);
   for (let i = 0; i < list.length; i++) {
     const flight = fcv2NormalizeDeparture_(list[i], airport, deps);
     if (flight) { flights.push(flight); continue; }
     // The n-th identical dropped entry gets '#n', so repeats inside one response still count,
     // while the same entry returned again by an overlapping chunk is recognised.
     const base = fcv2DroppedKey_(list[i]);
-    occurrences[base] = (Object.prototype.hasOwnProperty.call(occurrences, base) ? occurrences[base] : 0) + 1;
+    occurrences[base] = (occurrences[base] || 0) + 1;
     droppedKeys.push(base + '#' + occurrences[base]);
   }
   return { flights: fcv2FilterCarriers_(flights, carriers), dropped: droppedKeys.length, droppedKeys: droppedKeys };
@@ -306,7 +318,7 @@ function fcv2NullOrText_(value) {
 function fcv2ValidWireFlight_(f, airport) {
   if (!fcv2IsPlainObject_(f) || !fcv2SameKeys_(f, FCV2_DEP_WIRE_KEYS_)) return false;
   if (typeof f.id !== 'string' || !/^f_[0-9a-f]{16}$/.test(f.id)) return false;
-  if (typeof f.flightNumber !== 'string' || f.flightNumber.length < 1 || f.flightNumber.length > 16) return false;
+  if (typeof f.flightNumber !== 'string' || f.flightNumber.length < 1 || f.flightNumber.length > FCV2_DEP_FLIGHT_MAX_) return false;
   if (f.carrier !== null && (typeof f.carrier !== 'string' || !/^[A-Z0-9]{2}$/.test(f.carrier))) return false;
   if (f.origin !== airport) return false;
   if (f.destination !== null && (typeof f.destination !== 'string' || !/^[A-Z]{3}$/.test(f.destination))) return false;
@@ -372,7 +384,7 @@ function fcv2HandleDepartures_(req, env, now) {
   }
 
   // dropped: each dropped provider entry once per request, however many chunks returned it.
-  const droppedSeen = {};
+  const droppedSeen = new Set();   // a Set: a cached key such as "__proto__" or "constructor" is counted once, like any other
   let dropped = 0;
   // Same flight id in several chunks: keep the copy from the chunk fetched last (ties: the later chunk).
   const byId = {};
@@ -380,8 +392,8 @@ function fcv2HandleDepartures_(req, env, now) {
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i];
     for (let k = 0; k < entry.droppedKeys.length; k++) {
-      if (!Object.prototype.hasOwnProperty.call(droppedSeen, entry.droppedKeys[k])) {
-        droppedSeen[entry.droppedKeys[k]] = true;
+      if (!droppedSeen.has(entry.droppedKeys[k])) {
+        droppedSeen.add(entry.droppedKeys[k]);
         dropped += 1;
       }
     }

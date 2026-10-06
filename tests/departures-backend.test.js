@@ -116,9 +116,10 @@ function assertTiling(chunks, from, to, tz = 'Europe/Berlin') {
   });
 }
 
-test('chunking: call-count table (no chunk once the previous one reaches `to`), 1 h, 11 h, 12 h, 23 h, 24 h and an overnight range', () => {
+test('chunking: call-count table (chunks until the coverage reaches `to`), 1 h, 11 h, 12 h, 23 h, 24 h and an overnight range', () => {
   const from = T('2026-10-06T10:00:00Z');
-  // local span (h) -> chunks: <= 12 h 1, > 12 h and <= 23 h 2, > 23 h and <= 24 h 3
+  // `from` is on a whole minute here, so the whole-minute span C - F is the range length (the rule, with off-minute edges,
+  // is pinned in the F3 test): <= 12 h 1 chunk, > 12 h and <= 23 h 2, > 23 h and <= 24 h 3
   const counts = [[1, 1], [11, 1], [12, 1], [12 + 1 / 3600000, 2], [20, 2], [22, 2], [23, 2], [23 + 1 / 3600000, 3], [24, 3]];
   for (const [hours, n] of counts) {
     const chunks = chunksOf(from, from + Math.round(hours * H));
@@ -988,6 +989,178 @@ test('whole-minute windows: property test, exclusive-end provider, both DST chan
   assert.equal(stats.outOfRange, 0);
   assert.ok(stats.maxSpanMin <= 720, `max local span ${stats.maxSpanMin} min`);
   assert.ok(stats.maxCalls <= 3, `max calls ${stats.maxCalls}`);
+});
+
+// --- Review fixes (exclusive-end coverage, flight-number bound, call-count rule, prototype-safe dropped keys) ---
+
+test('F1 exclusive-end provider: a whole-minute flight at floor(to) is returned when the range crosses a spring-forward change (Berlin repro)', () => {
+  const from = T('2027-03-27T15:00:00.001Z');
+  const to = T('2027-03-28T02:00:00.001Z');                  // 11 h, off the minute, spring forward 2027-03-28 01:00Z in between
+  const flights = [-2, -1, 0, 1, 2].flatMap((d) => [
+    { number: `DE${3000 + d}`, t: T('2027-03-28T02:00:00Z') + d * MIN },    // d = 0 is floor(to), inside [from, to)
+    { number: `DE${3100 + d}`, t: T('2027-03-27T15:00:00Z') + d * MIN },
+  ]);
+  for (const exclusiveEnd of [true, false]) {
+    const s = setup({ providerFetch: minuteProvider('Europe/Berlin', flights, exclusiveEnd) });
+    const r = s.direct({ airport: 'FRA', from, to }, from);
+    assert.equal(r.ok, true);
+    const want = flights.filter((f) => f.t >= from && f.t < to).map((f) => f.number).sort();
+    assert.ok(want.includes('DE3000'), 'the flight at floor(to) is expected');
+    assert.deepEqual(r.flights.map((f) => f.flightNumber).sort(), want, exclusiveEnd ? 'exclusive end' : 'inclusive end');
+    assert.equal(s.calls.provider.length, 2, 'the pulled-back first window leaves one minute for a second call');
+    for (const [a, b] of urlWindowsOf(s)) assert.ok(localMin(b) - localMin(a) <= 720);
+  }
+  // The chunks themselves: coverage (the last whole-minute ask END) reaches `to` rounded up.
+  const chunks = chunksOf(from, to);
+  assert.equal(chunks.length, 2);
+  assert.deepEqual(chunks.map((c) => [c.fromLocal, c.toLocal]), [['2027-03-27T16:00', '2027-03-28T04:00'], ['2027-03-28T04:00', '2027-03-28T04:01']]);
+});
+
+test('F1 exclusive-end provider: sweep of ranges ending near a UTC-offset change, lengths around 11 h and 22 h, off-minute ends (no flight missed, <= 12 local hours, <= 3 calls)', () => {
+  const zones = [
+    { airport: 'FRA', tz: 'Europe/Berlin', changes: [T('2027-03-28T01:00:00Z'), T('2026-10-25T01:00:00Z')] },
+    { airport: 'JFK', tz: 'America/New_York', changes: [T('2027-03-14T07:00:00Z'), T('2026-11-01T06:00:00Z')] },
+    { airport: 'SYD', tz: 'Australia/Sydney', changes: [T('2026-10-03T16:00:00Z'), T('2027-04-03T16:00:00Z')] },
+    { airport: 'AKL', tz: 'Pacific/Auckland', changes: [T('2026-09-26T14:00:00Z'), T('2027-04-03T14:00:00Z')] },
+  ];
+  const lengths = [11 * H - 1, 11 * H, 11 * H + 1, 11 * H - MIN, 11 * H + MIN, 22 * H - 1, 22 * H, 22 * H + 1, 22 * H - MIN, 22 * H + MIN];
+  const stats = { ranges: 0, missing: 0, maxCalls: 0, maxSpanMin: 0, offMinuteTo: 0 };
+  for (const z of zones) {
+    for (const change of z.changes) {
+      for (let d = -60; d <= 60; d += 15) {
+        for (const ms of [0, 1, 30001, 59999]) {
+          for (const length of lengths) {
+            const to = change + d * MIN + ms;
+            const from = to - length;
+            const minutes = new Set();
+            const asked = gs.fcv2ProviderRange_(from, to, z.tz, deps);
+            const edges = [from, to, asked.from, asked.to];
+            for (const c of gs.fcv2DepartureChunks_(asked.from, asked.to, z.tz, deps)) edges.push(c.start, c.end);
+            for (const e of edges) for (let k = -3; k <= 3; k++) minutes.add(Math.floor(e / MIN) + k);
+            const flights = [...minutes].map((m) => ({ number: `DE${m}`, t: m * MIN }));
+            const s = setup({ providerFetch: minuteProvider(z.tz, flights, true) });
+            const r = s.direct({ airport: z.airport, from, to }, change);
+            assert.equal(r.ok, true);
+            const got = new Set(r.flights.map((f) => f.flightNumber));
+            const missing = flights.filter((f) => f.t >= from && f.t < to && !got.has(f.number));
+            const windows = urlWindowsOf(s);
+            stats.ranges += 1;
+            stats.missing += missing.length;
+            stats.maxCalls = Math.max(stats.maxCalls, windows.length);
+            for (const [a, b] of windows) stats.maxSpanMin = Math.max(stats.maxSpanMin, localMin(b) - localMin(a));
+            if (to % MIN) stats.offMinuteTo += 1;
+            assert.equal(r.flights.filter((f) => f.scheduledDep < from || f.scheduledDep >= to).length, 0);
+            assert.equal(missing.length, 0, `${z.tz} ${new Date(from).toISOString()}..${new Date(to).toISOString()} missed ${missing.map((f) => new Date(f.t).toISOString()).join(',')}`);
+          }
+        }
+      }
+    }
+  }
+  assert.ok(stats.ranges >= 2000 && stats.offMinuteTo > 1000, JSON.stringify(stats));
+  assert.equal(stats.missing, 0);
+  assert.ok(stats.maxCalls <= 3, `max calls ${stats.maxCalls}`);
+  assert.ok(stats.maxSpanMin <= 720, `max local span ${stats.maxSpanMin} min`);
+});
+
+test('F3 call count rule: C - F (to rounded up minus from rounded down, whole minutes) <= 12 h one call, <= 23 h two, <= 34 h three', () => {
+  const MINUTE = 60000;
+  const expected = (from, to) => {
+    const span = Math.ceil(to / MINUTE) * MINUTE - Math.floor(from / MINUTE) * MINUTE;
+    return span <= 12 * H ? 1 : span <= 23 * H ? 2 : 3;
+  };
+  const whole = T('2026-10-06T10:00:00Z');
+  const cases = [
+    [whole, whole + 12 * H, 1], [whole + 30000, whole + 30000 + 12 * H, 2], [whole + 30000, whole + 30000 + 12 * H - MINUTE, 1],
+    [whole, whole + 12 * H + 1, 2], [whole + 1, whole + 1 + 12 * H, 2],
+    [whole, whole + 23 * H, 2], [whole + 30000, whole + 30000 + 23 * H, 3], [whole + 30000, whole + 30000 + 23 * H - MINUTE, 2], [whole, whole + 23 * H + 1, 3],
+    [whole, whole + 24 * H, 3], [whole + 1, whole + 1 + 24 * H, 3],
+  ];
+  for (const [from, to, n] of cases) {
+    const chunks = chunksOf(from, to);
+    assert.equal(chunks.length, n, `${from % H} ms into the hour, ${(to - from) / H} h`);
+    assert.equal(chunks.length, expected(from, to));
+  }
+  // The rule over a grid of off-minute starts and lengths (no DST change on this day).
+  for (const startMs of [0, 1, 30000, 59999]) {
+    for (let len = 10 * H; len <= 26 * H; len += 17 * MINUTE + 12345) {
+      const from = whole + startMs;
+      assert.equal(chunksOf(from, from + len).length, expected(from, from + len), `${startMs} ms, ${len / H} h`);
+    }
+  }
+});
+
+test('F2 flight number length: the normalizer drops (and counts) a normalized number over 16 characters; the validator accepts exactly the normalizer output', () => {
+  const at = '2026-10-06 21:30Z';
+  const sixteen = 'AB' + '1'.repeat(14);
+  const seventeen = 'AB' + '1'.repeat(15);
+  const r = normalize({ departures: [
+    entry(sixteen, at), entry(seventeen, at),
+    { callSign: seventeen, movement: { scheduledTime: { utc: at } } },                     // long call sign, no number
+    { number: 'ab 1111 1111 1111 111', movement: { scheduledTime: { utc: at } } },         // 17 after the spaces are removed
+    { number: 'ab 1111 1111 1111 11', movement: { scheduledTime: { utc: at } } },          // 16 after removal (upper-cased): kept
+  ] });
+  assert.deepEqual(r.flights.map((f) => f.flightNumber), [sixteen, sixteen]);
+  assert.equal(r.dropped, 3);
+  assert.equal(r.droppedKeys.length, 3);
+  for (const f of r.flights) assert.equal(gs.fcv2ValidWireFlight_(plain(f), 'FRA'), true, f.flightNumber);
+  // A window answered with long numbers is cached and read back (it used to be refetched on every request).
+  const s = setup({ providerFetch: () => ok(adb(entry(seventeen, '2026-10-06 11:00Z'), entry('DE1', '2026-10-06 11:00Z'))) });
+  const first = s.post(range(4));
+  assert.equal(s.calls.provider.length, 1);
+  assert.equal(s.post(range(4)).dropped, first.dropped);
+  assert.equal(s.calls.provider.length, 1, 'the second request is a cache hit');
+  assert.equal(first.dropped, 1);
+  assert.deepEqual(first.flights.map((f) => f.flightNumber), ['DE1']);
+});
+
+test('F2 property test: every record fcv2NormalizeAdb_ produces (random provider data incl. long numbers and call signs) passes fcv2ValidWireFlight_ and its envelope passes fcv2ValidChunkCache_', () => {
+  let seed = 4242;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  const pick = (a) => a[Math.floor(rnd() * a.length)];
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcxyz0123456789 \t-_/éÜ漢ß\u{1F600}'.split('');   // incl. ß (upper-cases to SS), an emoji (2 UTF-16 units)
+  const str = (max) => { let t = ''; const n = Math.floor(rnd() * max); for (let i = 0; i < n; i++) t += pick(chars); return t; };
+  const anyv = () => pick([null, undefined, 0, 1.5, -1, true, {}, [], str(5), str(80), NaN]);
+  const utc = () => pick([() => '2026-11-10 14:30Z', () => '2026-11-10T14:30:59.123Z', () => '2026-11-10 14:30+05:30', () => '2026-02-30 10:00Z', anyv, () => str(20)])();
+  const number = () => pick([() => str(10), () => str(40), () => 'DE ' + Math.floor(rnd() * 9999), () => 'A'.repeat(14 + Math.floor(rnd() * 5)), () => 'a b '.repeat(Math.floor(rnd() * 9)), () => 'ß'.repeat(Math.floor(rnd() * 12)), anyv])();
+  const make = () => (rnd() < 0.05 ? pick([null, 5, 'x', []]) : {
+    number: rnd() < 0.8 ? number() : undefined,
+    callSign: rnd() < 0.5 ? number() : anyv(),
+    airline: rnd() < 0.7 ? { iata: pick(['DE', 'de', 'LH', 'X1', '4Y', 'DEX', '', 5, null]) } : anyv(),
+    status: pick(['Expected', 'CHECKIN', 'gateclosed', 'Canceled', 'Unknown', '__proto__', 'constructor', 5, null, str(8)]),
+    movement: rnd() < 0.9 ? { scheduledTime: rnd() < 0.9 ? { utc: utc() } : anyv(), revisedTime: rnd() < 0.5 ? { utc: utc() } : anyv(), airport: rnd() < 0.8 ? { iata: pick(['PMI', 'pmi', 'PMIX', 5, null]), name: pick([str(70), str(10), '   ', 5, null]) } : anyv() } : anyv(),
+    aircraft: rnd() < 0.7 ? { model: pick([str(70), str(10), '  ', 5, null]), reg: pick([str(70), str(8), null, 7]) } : anyv(),
+  });
+  let flights = 0;
+  let longDropped = 0;
+  for (let i = 0; i < 4000; i++) {
+    const list = Array.from({ length: Math.floor(rnd() * 8) }, make);
+    const out = gs.fcv2NormalizeAdb_({ departures: list }, 'FRA', rnd() < 0.3 ? ['DE', 'LH', 'X1'] : null, deps);
+    for (const f of out.flights) {
+      flights += 1;
+      assert.equal(gs.fcv2ValidWireFlight_(plain(f), 'FRA'), true, JSON.stringify(f));
+    }
+    assert.equal(gs.fcv2ValidChunkCache_(plain({ fetchedAt: 1, ...out }), 'FRA'), true, 'the envelope is a valid cache entry');
+    longDropped += list.filter((e) => e && typeof e === 'object' && typeof e.number === 'string' && e.number.replace(/\s+/g, '').toUpperCase().length > 16).length > 0 ? 1 : 0;
+  }
+  assert.ok(flights > 2000, `flights ${flights}`);
+  assert.ok(longDropped > 100, 'long numbers are exercised');
+});
+
+test('F4 dropped keys are counted prototype-safely: "__proto__" and "constructor" count once, like any other key', () => {
+  const s = setup({ providerFetch: () => ok(adb()) });
+  s.post(range(20));
+  const keys = [...s.cache.keys()];
+  assert.equal(keys.length, 2);
+  s.cache.set(keys[0], cacheEntry([], { dropped: 3, droppedKeys: ['__proto__', 'constructor', 'plain'] }));
+  s.cache.set(keys[1], cacheEntry([], { dropped: 4, droppedKeys: ['__proto__', 'constructor', 'toString', 'hasOwnProperty'] }));
+  const before = s.calls.provider.length;
+  const r = s.post(range(20));
+  assert.equal(s.calls.provider.length, before, 'both entries are valid cache hits');
+  assert.equal(r.dropped, 5, '__proto__, constructor, plain, toString, hasOwnProperty: each once');
+  // Inside one response, repeats still count by occurrence (the n-th identical entry has its own key).
+  const twice = normalize({ departures: [{ number: 'DE1' }, { number: 'DE1' }] });
+  assert.equal(twice.dropped, 2);
+  assert.equal(new Set(twice.droppedKeys).size, 2);
 });
 
 // --- dropped counted once per request (L6) ----------------------------------------
