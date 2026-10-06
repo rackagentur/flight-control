@@ -1,0 +1,146 @@
+{
+  "_synthetic": true,
+  "_note": "Synthetic test data; not a real schedule.",
+  "ok": true,
+  "contract": "fc.roster",
+  "version": 2,
+  "action": "departures",
+  "airport": "FRA",
+  "airportTz": "Europe/Berlin",
+  "from": 1791259200000,
+  "to": 1791345600000,
+  "carriers": [
+    "DE"
+  ],
+  "provider": "synthetic-provider",
+  "generatedAt": 1791257400000,
+  "fetchedAt": 1791257100000,
+  "dropped": 2,
+  "flights": [
+    {
+      "id": "f_eb4fc1891764f1d0",
+      "flightNumber": "DE9101",
+      "carrier": "DE",
+      "origin": "FRA",
+      "destination": "PMI",
+      "destinationName": "Palma de Mallorca",
+      "scheduledDep": 1791268200000,
+      "revisedDep": null,
+      "status": "scheduled",
+      "aircraft": {
+        "model": "Airbus A320",
+        "registration": "D-ASYN"
+      },
+      "provenance": "provider"
+    },
+    {
+      "id": "f_af494ed0819d1cf2",
+      "flightNumber": "DE9102",
+      "carrier": "DE",
+      "origin": "FRA",
+      "destination": "LPA",
+      "destinationName": "Gran Canaria",
+      "scheduledDep": 1791273600000,
+      "revisedDep": 1791275100000,
+      "status": "delayed",
+      "aircraft": {
+        "model": "Boeing 757-300",
+        "registration": "D-ASYX"
+      },
+      "provenance": "provider"
+    },
+    {
+      "id": "f_a1e48f23c5da39b0",
+      "flightNumber": "DE9055",
+      "carrier": "DE",
+      "origin": "FRA",
+      "destination": "HER",
+      "destinationName": "Heraklion",
+      "scheduledDep": 1791278100000,
+      "revisedDep": null,
+      "status": "cancelled",
+      "aircraft": {
+        "model": "Airbus A320",
+        "registration": "D-ASYN"
+      },
+      "provenance": "provider"
+    },
+    {
+      "id": "f_7a1205faf11fb4df",
+      "flightNumber": "DE9310",
+      "carrier": "DE",
+      "origin": "FRA",
+      "destination": null,
+      "destinationName": null,
+      "scheduledDep": 1791280800000,
+      "revisedDep": null,
+      "status": "unknown",
+      "aircraft": {
+        "model": "Airbus A320",
+        "registration": "D-ASYN"
+      },
+      "provenance": "provider"
+    },
+    {
+      "id": "f_bed3fe0cf441caeb",
+      "flightNumber": "DE9411",
+      "carrier": "DE",
+      "origin": "FRA",
+      "destination": "ZZZ",
+      "destinationName": "Synthetic Test Airport",
+      "scheduledDep": 1791290700000,
+      "revisedDep": null,
+      "status": "boarding",
+      "aircraft": {
+        "model": "Airbus A320",
+        "registration": "D-ASYN"
+      },
+      "provenance": "provider"
+    },
+    {
+      "id": "f_689ab8a01d6a305d",
+      "flightNumber": "DE9500",
+      "carrier": "DE",
+      "origin": "FRA",
+      "destination": "FUE",
+      "destinationName": "Fuerteventura",
+      "scheduledDep": 1791295200000,
+      "revisedDep": null,
+      "status": "scheduled",
+      "aircraft": null,
+      "provenance": "provider"
+    },
+    {
+      "id": "f_f5d0b506dcb71767",
+      "flightNumber": "DE9617",
+      "carrier": "DE",
+      "origin": "FRA",
+      "destination": "MLA",
+      "destinationName": "Malta",
+      "scheduledDep": 1791302700000,
+      "revisedDep": null,
+      "status": "departed",
+      "aircraft": {
+        "model": null,
+        "registration": null
+      },
+      "provenance": "provider"
+    },
+    {
+      "id": "f_c295291b54daa472",
+      "flightNumber": "DE9720",
+      "carrier": null,
+      "origin": "FRA",
+      "destination": "ACE",
+      "destinationName": "Lanzarote",
+      "scheduledDep": 1791331200000,
+      "revisedDep": null,
+      "status": "scheduled",
+      "aircraft": {
+        "model": "Airbus A321",
+        "registration": null
+      },
+      "provenance": "provider"
+    }
+  ]
+}

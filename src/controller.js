@@ -12,6 +12,7 @@ import { fetchStats, postContract, fetchStatsSecure, ApiError } from './api/apps
 import { adaptV5, AdapterError } from './sources/fc-appscript-v5.js';
 import { adaptV2, adaptHistoryV2 } from './sources/fc-appscript-v2.js';
 import { request as v2Request, validateRoster, validateHistory } from './sources/contract-v2.js';
+import { purgeDeparturesCache } from './sources/departures-service.js';
 import { sampleSnapshot, sampleProfile } from './sources/sample.js';
 import { withHistory, rememberSectors } from './model/history.js';
 import { buildRoster } from './model/roster.js';
@@ -176,6 +177,7 @@ export function createController({ profile, onChange, store = defaultStore, api 
   /** Removes every roster-derived key and the in-memory roster (never theme, endpoint, profile). */
   function purgeRoster() {
     for (const key of [CACHE_KEY, HISTORY_KEY, CACHE_V2_KEY, HISTORY_V2_KEY]) store.remove(key);
+    purgeDeparturesCache(store);
     contract = { active: null, fallback: null };
     v2RetryAt = 0;
     freshBase = null;
@@ -215,6 +217,7 @@ export function createController({ profile, onChange, store = defaultStore, api 
     forgetContractData() {
       store.remove(CACHE_V2_KEY);
       store.remove(HISTORY_V2_KEY);
+      purgeDeparturesCache(store);
       contract = { active: null, fallback: null };
       v2RetryAt = 0;
       freshBase = null;

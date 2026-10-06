@@ -118,4 +118,42 @@
  * @property {string[]} reasons    human-readable evidence trail
  */
 
+/**
+ * A flight from an external schedule provider (the `departures` action), normalized by the V2
+ * browser adapter. It is NOT a roster sector (it is not in the crew member's roster), NOT an
+ * assignment, and NOT a prediction: it only says what the provider currently lists. Never
+ * convert it into a Sector or merge it into a RosterSnapshot; it carries no duty, report or
+ * pickup concept by design.
+ * @typedef {Object} ScheduledFlight
+ * @property {string} id                 'f_' + 16 hex, stable for (flightNumber, scheduledDep)
+ * @property {string} flightNumber       whitespace-free, uppercase
+ * @property {string|null} carrier       two-character airline designator, when known
+ * @property {string} origin             IATA; always the requested airport
+ * @property {string|null} destination   IATA, null when the provider gives none
+ * @property {string|null} destinationName
+ * @property {number} scheduledDep       instant (epoch ms); the only time used for window membership
+ * @property {number|null} revisedDep    provider's revised instant, informational only
+ * @property {'scheduled'|'delayed'|'boarding'|'departed'|'cancelled'|'unknown'} status
+ * @property {{model:string|null, registration:string|null}|null} aircraft
+ * @property {string|null} originTz      IANA from the V2 airport table, null when the airport is unknown
+ * @property {string|null} destTz
+ * @property {'provider'} provenance     always 'provider': never roster-confirmed
+ */
+
+/**
+ * Result of loading departures (src/sources/departures-service.js).
+ * @typedef {Object} DeparturesResult
+ * @property {string} airport
+ * @property {string} airportTz          as stated by the backend for the requested airport
+ * @property {number} from               instants (epoch ms), half-open [from, to)
+ * @property {number} to
+ * @property {ReadonlyArray<string>|null} carriers  the carrier filter applied, null = none
+ * @property {string} provider           opaque provider label from the backend
+ * @property {number} fetchedAt          oldest provider fetch behind this result
+ * @property {number} generatedAt        when the backend built the response
+ * @property {number} dropped            provider entries the backend dropped for lacking a usable scheduled time
+ * @property {ReadonlyArray<ScheduledFlight>} flights
+ * @property {boolean} fromCache         served from the device cache (5 min) instead of a new request
+ */
+
 export {};

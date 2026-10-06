@@ -50,7 +50,7 @@
  * @property {string} name          display name
  * @property {string|null} iata     two-letter airline code, null when not airline-specific
  * @property {Terminology} terminology
- * @property {ReadonlyArray<string>} [flightDesignators]  airline designators accepted in feed flight titles (packs with a roster feed)
+ * @property {ReadonlyArray<string>} [flightDesignators]  optional; two-character airline designators accepted in feed flight titles (packs with a roster feed); also the carrier filter for schedule departures (absent = no filter)
  * @property {ReadonlyArray<RosterCodeDefinition>} [rosterCodes]  raw roster codes in match order (packs with a roster feed)
  */
 

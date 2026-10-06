@@ -10,12 +10,14 @@ Status: **installed (private).** All six v2 files (`CondorAdapterV2.gs`, `Condor
 | `AirportsV2.gs` | Generated airport → IANA zone table (`node scripts/gen-airports-gs.mjs`) |
 | `CondorCodesV2.gs` | Generated Condor roster-code table: raw feed title → canonical concept (`node scripts/gen-condor-codes-gs.mjs`, from `src/airlines/condor/roster-codes.js`). Never edit by hand |
 | `RouterV2.gs` | Backend hardening (BH-1 in Version 25, BH-2 in Version 26): the project's only `doGet`. Refuses every GET with JSON and never serves a page. `getStats` by GET only while Script Property `FC_V5_GET` = `open` (BH-2 migration window); otherwise `auth-required`, and token holders use `doPost` `stats` |
+| `DeparturesV2.gs` | **Not yet deployed (Phase 3).** The `departures` action: validates the request, chunks the range into provider windows, normalizes AeroDataBox responses (pure; unit-tested in Node). All I/O (key, `UrlFetchApp`, cache, sleep) is injected by `RosterApiV2.gs` `fcv2LiveEnv_`. No top-level dependency on any other file; must stay last / is added as a new file |
 
 Rules the files follow:
 
 - Every helper name starts with `fcv2` and ends in `_` (no collisions with existing project functions; not callable through `google.script.run`). `doPost` is the only public name and checks the token before anything else.
 - Calendar ids, the hotel Sheet id and the sync tag are used **by constant name** from the existing project file; no ids, URLs, tokens or personal data are in these files.
 - Descriptions: only the hotel block (allow-listed line by line; crew-like lines, name lists and codes end it) and the aircraft line are read. Nothing else from a description is returned.
+- Outbound requests: `UrlFetchApp` is used only by the `departures` action, only toward the flight-data provider (AeroDataBox via RapidAPI). The provider key exists only in Script Property `FC_ADB_RAPIDAPI_KEY` (never in a file, a response or a log); without it `departures` is not offered in `capabilities` and answers `departures-not-configured`.
 - Nothing is written: no calendar, Sheet, trigger or property writes (the hotel Sheet is opened read-only, never via `getHotelSheet()`).
 - No top-level side effects (Apps Script runs every file's top-level code on every execution, including the existing triggers).
 
@@ -61,6 +63,17 @@ Phase 1b and Phase 2 ship **together in one new version**, three files: `CondorA
 - `--` never occurs in the feed (live trace 2026-10-06); it stays `unknown`.
 
 Rollback is the previous version: Version 26 (Phase 1b + 2 shipped as Version 27 on 2026-10-06).
+
+### Phase 3: `departures` action (NOT YET DEPLOYED; Version 27 stays live and is the rollback)
+
+Adds provider schedule data (AeroDataBox via RapidAPI) to the existing doPost API. Nothing below has been done yet. **Order: frontend first, then backend** (an older frontend ignores the new action; the new frontend falls back cleanly while the backend lacks it).
+
+1. **Add `DeparturesV2.gs` as a new file** (Files → + → Script, named exactly `DeparturesV2`, pasted unchanged) **and replace `RosterApiV2.gs`** with the updated copy, **in the same version**. The new file is appended after the existing ones, which is correct: it has no top-level dependency on any other file, and `RosterApiV2.gs` calls into it only inside function bodies at call time. Do not edit, rename or reorder any other file.
+2. **Script Property** `FC_ADB_RAPIDAPI_KEY` = the RapidAPI key (Project settings → Script properties; never typed into a file, a chat or a commit; clear the clipboard afterwards). Without it the action stays off (`capabilities` omits `departures`).
+3. **New authorization scope.** `UrlFetchApp` needs the external-requests OAuth scope (`script.external_request`). Apps Script asks for it on the first authorization after this version is deployed (run any function once from the editor, or re-authorize the deployment), and until then `departures` calls fail as `provider-unavailable`. The existing deployment keeps "Execute as: Me" / "Who has access: Anyone".
+4. **Version and deployment**: Deploy → Manage deployments → the existing *untitled* deployment → Edit → *New version* (description "fc.roster v2 departures") → Deploy. The /exec URL does not change.
+5. **Verify**: `capabilities` lists `departures` and `limits.departuresMaxHours: 24`; one small `departures` request (one airport, one hour); the other actions answer exactly as before.
+6. **Rollback**: Manage deployments → Edit → **Version 27** → Deploy (instant). Kill switch without redeploy: delete Script Property `FC_ADB_RAPIDAPI_KEY` (the action goes dark; everything else is unaffected).
 
 ## Rollback
 

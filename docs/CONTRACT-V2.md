@@ -46,7 +46,7 @@ The feed keeps only a few days of past events and extends to the end of the next
 
 - `POST` to the existing web-app URL, `Content-Type: text/plain` (a CORS simple request: no preflight).
 - Body: `{"contract":"fc.roster","version":2,"action":"…","token":"…", …}`. The token is never in the URL.
-- Always HTTP 200; failures are `{"ok":false,"error":"<code>"}`: `bad-request`, `not-configured`, `unauthorized`, `rate-limited`, `unsupported-contract`, `unknown-action`, `bad-range`, `range-too-long`, `before-history-start`, `history-is-past-only`.
+- Always HTTP 200; failures are `{"ok":false,"error":"<code>"}`: `bad-request`, `not-configured`, `unauthorized`, `rate-limited`, `unsupported-contract`, `unknown-action`, `bad-range`, `range-too-long`, `before-history-start`, `history-is-past-only`; `departures` adds `unknown-airport`, `range-out-of-bounds`, `departures-not-configured`, `provider-rate-limited`, `provider-auth-failed`, `provider-unavailable` (see below).
 - Auth: Script Property `FC_V2_TOKEN` (constant-time comparison). Without the property every call is refused. The correct token is always accepted; after 20 failed tokens within 10 minutes further failures get `rate-limited` (they are no longer counted, so the window ends 10 minutes after the 20th failure).
 
 ## Actions
@@ -57,6 +57,7 @@ The feed keeps only a few days of past events and extends to the end of the next
 | `roster` | optional `from`, `to` (`YYYY-MM-DD`) | Default: previous, current and next month. ≤ 100 days. Days before today from the **synced copy**, from today from the **airline feed** (decision D-SRC) |
 | `stats` | — | The unchanged v5 `getStats` payload (`{success: true, …}`), for token holders (backend hardening BH-2). The app's v5 fallback reads it this way when a token is saved; the unauthenticated `GET ?action=getStats` is served only while Script Property `FC_V5_GET` is `open` (migration window) and otherwise answers `{success:false, error:"auth-required"}` |
 | `history` | optional `from`, `to` | My own flown sectors from the synced copy (sync-tagged events only). ≤ 13 months, ≥ configured start date, past only, ≤ 2,000 sectors (most recent kept, `truncated: true`). Cached 6 h |
+| `departures` | `airport` (IATA, in the zone table), `from`, `to` (epoch ms), optional `carriers` | Provider schedule data (AeroDataBox), **not** roster sectors and not assignments; see below. ≤ 24 h per request. Listed in `capabilities.actions` only while its Script Property is set |
 
 ## `roster` response (synthetic example, shortened)
 
@@ -130,6 +131,22 @@ Field rules:
                  "blockMin": 520, "provenance": "source", "basis": "synced-copy" } ] }
 ```
 
+## `departures` action (provider data)
+
+Phase 3. Scheduled departures of one airport, fetched by the backend from AeroDataBox (RapidAPI) and normalized. These are **provider facts** (`provenance: "provider"`): they are not roster sectors, not assignments, and are never merged into the roster. The browser never talks to the provider; the provider key lives only in the Apps Script **Script Property `FC_ADB_RAPIDAPI_KEY`** (value never in the repo, a response or a log). Same token, envelope and always-HTTP-200 rules as every other action. Code: `backend/apps-script/DeparturesV2.gs` (pure, tested in `tests/departures-backend.test.js`).
+
+Request: `{"contract":"fc.roster","version":2,"action":"departures","token":"…","airport":"FRA","from":1791300000000,"to":1791343200000,"carriers":["DE"]}`
+
+- `airport`: three capital letters **and** present in the airport zone table, else `unknown-airport`.
+- `from`, `to`: integer epoch ms with `to > from` (else `bad-range`); `to - from` ≤ 24 h (else `range-too-long`); `from` ≥ now − 24 h and `to` ≤ now + 14 days (else `range-out-of-bounds`).
+- `carriers`: optional (absent or `null` = no filter); otherwise 1–10 two-character codes `[A-Z0-9]{2}` (else `bad-request`); deduplicated and sorted in the answer.
+
+Response: `{ok, contract, version, action:"departures", airport, airportTz, from, to, carriers|null, provider:"aerodatabox", generatedAt, fetchedAt, dropped, flights}`. `fetchedAt` is the oldest provider fetch among the chunks used (cache-aware); `dropped` counts provider entries that had no usable flight number or scheduled UTC time. Each flight: `{id:"f_<16 hex>", flightNumber, carrier|null, origin (= airport), destination|null, destinationName|null, scheduledDep, revisedDep|null, status, aircraft:{model|null, registration|null}|null, provenance:"provider"}` with `status` one of `scheduled | delayed | boarding | departed | cancelled | unknown`. Flights with `from ≤ scheduledDep < to`, cancelled ones kept, deduplicated by `id`, sorted by `scheduledDep` then `flightNumber`. Instants come from the provider's UTC times only; the airport zone comes from the backend table, never from the provider. Nothing is guessed: no airline names, no haul or region, no risk or eligibility.
+
+Errors in addition to the common ones: `bad-request`, `unknown-airport`, `bad-range`, `range-too-long`, `range-out-of-bounds`, `departures-not-configured` (Script Property missing), `provider-rate-limited` (HTTP 429 after retries at 1.2 s and 2.5 s), `provider-auth-failed` (401/403), `provider-unavailable` (anything else: other status, network error, unparseable or unexpected body). Any failing provider call fails the whole request (no partial list); there is never mock or sample data; responses never contain the key, the provider URL or provider text.
+
+Limits and caching: the provider allows 12 h per call, so a range is split into windows starting every 11 h (1 h overlap, removed by instant filtering and `id` deduplication), at most three calls per request, 1.1 s apart between real provider calls. Each window is cached server side (10 minutes if it starts within 6 h of now, otherwise 1 hour; skipped above 90,000 characters). `capabilities` lists `departures` in `actions` only when the key is configured and carries `limits.departuresMaxHours = 24`.
+
 ## Frontend use
 
 - **Feature detection and fallback** (`src/controller.js`): with a v2 token saved in Settings, the `roster` action is called first and validated (`src/sources/contract-v2.js`). Any failure (no `doPost` → HTML page, refused token, wrong version, invalid payload, network, timeout) falls back to v5 `getStats` in the same refresh; structural failures are not retried for an hour. Settings shows which contract is in use and why.
@@ -139,4 +156,4 @@ Field rules:
 
 ## Backend files (`backend/apps-script/`)
 
-`CondorAdapterV2.gs` (flight-title format and description whitelist), `RosterModelV2.gs` (airline-independent builder), `RosterApiV2.gs` (`doPost`, token, reads), `AirportsV2.gs` (generated: `node scripts/gen-airports-gs.mjs`), `CondorCodesV2.gs` (generated: `node scripts/gen-condor-codes-gs.mjs`; the source inventory table above is mirrored in `src/airlines/condor/roster-codes.js`, the one authoritative copy, and the adapter classifies titles from it). They reference project constants (calendar/sheet ids, sync tag) by name only and contain no ids, URLs or secrets. Installed (currently Version 24); install, rollback and kill switch in `backend/apps-script/README.md`.
+`CondorAdapterV2.gs` (flight-title format and description whitelist), `RosterModelV2.gs` (airline-independent builder), `RosterApiV2.gs` (`doPost`, token, reads), `AirportsV2.gs` (generated: `node scripts/gen-airports-gs.mjs`), `DeparturesV2.gs` (Phase 3 `departures` action; the only code that calls the provider, through `RosterApiV2.gs`'s live env), `CondorCodesV2.gs` (generated: `node scripts/gen-condor-codes-gs.mjs`; the source inventory table above is mirrored in `src/airlines/condor/roster-codes.js`, the one authoritative copy, and the adapter classifies titles from it). They reference project constants (calendar/sheet ids, sync tag) by name only and contain no ids, URLs or secrets. Installed (currently Version 24); install, rollback and kill switch in `backend/apps-script/README.md`.

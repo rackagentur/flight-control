@@ -1,0 +1,670 @@
+// fc.roster v2 `departures` action (backend, Apps Script sources in a sandbox): request
+// validation, chunking (incl. DST), provider URL, normalization, filtering, retry/spacing,
+// cache, error mapping, secrecy, auth, capabilities, load order. The provider is always a
+// fake; no network. Fixture: tests/fixtures/adb-departures.synthetic.json (synthetic).
+
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+import { createHash } from 'node:crypto';
+import { loadGs, nodeDeps, fakeEnv, localIso, GS_FILES } from './gs-harness.js';
+import { NOW as ROSTER_NOW, feedEvents, syncedEvents, hotelRows } from './fixtures/condor-feed.synthetic.mjs';
+
+const gs = loadGs();
+const fixture = JSON.parse(readFileSync(new URL('./fixtures/adb-departures.synthetic.json', import.meta.url), 'utf8'));
+const TOKEN = 'test-token-0123456789abcdef';
+const KEY = 'SYNTHETIC-PROVIDER-KEY-0042';
+const NOW = Date.parse('2026-10-06T08:00:00Z');
+const H = 3600000;
+const T = (s) => Date.parse(s);
+const plain = (x) => JSON.parse(JSON.stringify(x));
+const deps = nodeDeps(gs);
+const ok = (body) => ({ status: 200, body: JSON.stringify(body) });
+const adb = (...entries) => ({ departures: entries });
+const entry = (number, utc, extra = {}) => ({ number, status: 'Expected', airline: { iata: number.slice(0, 2) }, movement: { scheduledTime: { utc }, airport: { iata: 'PMI', name: 'Palma de Mallorca' } }, ...extra });
+
+function setup(options = {}) {
+  const f = fakeEnv(gs, { now: NOW, departuresKey: KEY, ...options });
+  const post = (body, token = TOKEN) => plain(gs.fcv2HandlePost_(JSON.stringify({ contract: 'fc.roster', version: 2, action: 'departures', token, ...body }), f.env));
+  const direct = (body, now = NOW) => plain(gs.fcv2HandleDepartures_({ action: 'departures', ...body }, f.env, now));
+  return { ...f, post, direct };
+}
+const range = (hours, startOffsetHours = 2) => ({ airport: 'FRA', from: NOW + startOffsetHours * H, to: NOW + (startOffsetHours + hours) * H });
+const FX = { from: T(fixture.from), to: T(fixture.to) };           // 20 h: two chunks
+const fixtureFetch = (_url, _key, n) => ok(n === 1 ? { departures: fixture.departures } : fixture.chunk2);
+
+// --- Request validation -----------------------------------------------------------
+
+test('validation: every error code, and no provider call or sleep for any refused request', () => {
+  const s = setup({ providerFetch: () => { throw new Error('must not be called'); } });
+  const base = range(3);
+  const cases = [
+    [{ ...base, airport: 'XXX' }, 'unknown-airport'],
+    [{ ...base, airport: 'fra' }, 'unknown-airport'],
+    [{ ...base, airport: 'FRAA' }, 'unknown-airport'],
+    [{ ...base, airport: 123 }, 'unknown-airport'],
+    [{ from: base.from, to: base.to }, 'unknown-airport'],
+    [{ ...base, from: String(base.from) }, 'bad-range'],
+    [{ ...base, to: undefined }, 'bad-range'],
+    [{ ...base, from: base.from + 0.5 }, 'bad-range'],
+    [{ ...base, to: null }, 'bad-range'],
+    [{ ...base, to: base.from }, 'bad-range'],
+    [{ ...base, to: base.from - 1 }, 'bad-range'],
+    [{ ...base, to: base.from + 24 * H + 1 }, 'range-too-long'],
+    [{ ...base, from: NOW - 24 * H - 1, to: NOW - 23 * H }, 'range-out-of-bounds'],
+    [{ ...base, from: NOW + 14 * 24 * H, to: NOW + 14 * 24 * H + 1 + H }, 'range-out-of-bounds'],
+    [{ ...base, carriers: 'DE' }, 'bad-request'],
+    [{ ...base, carriers: [] }, 'bad-request'],
+    [{ ...base, carriers: ['de'] }, 'bad-request'],
+    [{ ...base, carriers: ['D'] }, 'bad-request'],
+    [{ ...base, carriers: ['DEX'] }, 'bad-request'],
+    [{ ...base, carriers: [1] }, 'bad-request'],
+    [{ ...base, carriers: {} }, 'bad-request'],
+    [{ ...base, carriers: ['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1', 'I1', 'J1', 'K1'] }, 'bad-request'],
+  ];
+  for (const [body, error] of cases) {
+    assert.deepEqual(s.post(body), { ok: false, error }, JSON.stringify(body));
+  }
+  assert.equal(s.calls.provider.length, 0);
+  assert.equal(s.calls.sleeps.length, 0);
+  assert.equal(Object.hasOwn(gs.FCV2_AIRPORT_TZ_, 'XXX'), false, 'XXX stays outside the zone table for this test');
+});
+
+test('validation: the invalid-request body shape is bad-request (existing envelope rule), the boundaries are inclusive', () => {
+  const s = setup({ providerFetch: () => ok(adb()) });
+  assert.equal(plain(gs.fcv2HandlePost_('not json', s.env)).error, 'bad-request');
+  assert.equal(s.post({ ...range(1), from: NOW - 24 * H, to: NOW - 23 * H }).ok, true, 'from = now - 24 h is allowed');
+  assert.equal(s.post({ ...range(1), from: NOW + 14 * 24 * H - H, to: NOW + 14 * 24 * H }).ok, true, 'to = now + 14 d is allowed');
+  assert.equal(s.post({ ...range(24) }).ok, true, 'exactly 24 h is allowed');
+  assert.equal(s.post({ ...range(1), carriers: null }).carriers, null, 'null carriers = no filter');
+});
+
+test('carriers: validated list is deduplicated and sorted; absent = null', () => {
+  const s = setup({ providerFetch: () => ok(adb()) });
+  assert.deepEqual(s.post({ ...range(1), carriers: ['LH', 'DE', 'DE', 'X3'] }).carriers, ['DE', 'LH', 'X3']);
+  assert.equal(s.post({ ...range(1) }).carriers, null);
+});
+
+test('departures-not-configured: no key, empty key, and an env without the function; valid requests only', () => {
+  for (const departuresKey of [undefined, '']) {
+    const s = setup({ departuresKey: departuresKey ?? null, providerFetch: () => { throw new Error('must not be called'); } });
+    assert.deepEqual(s.post(range(2)), { ok: false, error: 'departures-not-configured' });
+    assert.equal(s.post({ ...range(2), airport: 'XXX' }).error, 'unknown-airport', 'a bad request is still reported as such');
+    assert.equal(s.calls.provider.length, 0);
+  }
+  const s = setup();
+  delete s.env.departuresKey;
+  assert.equal(plain(gs.fcv2HandleDepartures_({ action: 'departures', ...range(2) }, s.env, NOW)).error, 'departures-not-configured');
+});
+
+// --- Chunking ---------------------------------------------------------------------
+
+const localMin = (s) => Date.parse(`${s}:00Z`) / 60000;
+function chunksOf(from, to, tz = 'Europe/Berlin') { return plain(gs.fcv2DepartureChunks_(from, to, tz, deps)); }
+function assertTiling(chunks, from, to, tz = 'Europe/Berlin') {
+  assert.equal(chunks[0].start, from);
+  assert.equal(chunks.at(-1).end, to, 'the last window ends at the range end');
+  chunks.forEach((c, i) => {
+    assert.equal(c.start, from + i * 11 * H, `chunk ${i} starts at from + ${i}*11h`);
+    assert.ok(c.end - c.start <= 12 * H, 'instant span <= 12 h');
+    assert.ok(localMin(c.toLocal) - localMin(c.fromLocal) <= 720, `local span <= 12 h (${c.fromLocal} .. ${c.toLocal})`);
+    assert.equal(c.fromLocal, localIso(c.start, tz).slice(0, 16));
+    assert.equal(c.toLocal, localIso(c.end, tz).slice(0, 16));
+    assert.match(c.fromLocal, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
+    if (i > 0) assert.ok(c.start <= chunks[i - 1].end, `no gap before chunk ${i}`);
+  });
+}
+
+test('chunking: 1 h, 11 h, 12 h, 23 h, 24 h and an overnight range', () => {
+  const from = T('2026-10-06T10:00:00Z');
+  const counts = [[1, 1], [11, 1], [12, 2], [23, 3], [24, 3]];
+  for (const [hours, n] of counts) {
+    const chunks = chunksOf(from, from + hours * H);
+    assert.equal(chunks.length, n, `${hours} h`);
+    assertTiling(chunks, from, from + hours * H);
+  }
+  const twenty = chunksOf(from, from + 20 * H);
+  assert.deepEqual(twenty.map((c) => [c.fromLocal, c.toLocal]), [['2026-10-06T12:00', '2026-10-07T00:00'], ['2026-10-06T23:00', '2026-10-07T08:00']]);
+  // Overnight: 22:00 -> 10:00 local (crossing midnight).
+  const nightFrom = T('2026-10-06T20:00:00Z');
+  const night = chunksOf(nightFrom, nightFrom + 12 * H);
+  assertTiling(night, nightFrom, nightFrom + 12 * H);
+  assert.deepEqual(night.map((c) => [c.fromLocal, c.toLocal]), [['2026-10-06T22:00', '2026-10-07T10:00'], ['2026-10-07T09:00', '2026-10-07T10:00']]);
+  // A range whose length is a multiple of the step: the chunk starting exactly at `to` does not exist.
+  assert.equal(chunksOf(from, from + 22 * H).length, 2);
+});
+
+test('chunking across Europe/Berlin DST changes: correct local strings, no gaps, windows never above 12 h', () => {
+  // Spring forward 2026-03-29 01:00Z (02:00 -> 03:00): 12 h of instants would span 13 local hours.
+  const spring = T('2026-03-28T22:00:00Z');
+  const sc = chunksOf(spring, spring + 24 * H);
+  assertTiling(sc, spring, spring + 24 * H);
+  assert.deepEqual(sc.map((c) => [c.fromLocal, c.toLocal]), [
+    ['2026-03-28T23:00', '2026-03-29T11:00'],   // pulled back from 12:00 (13 local hours) to 12 local hours
+    ['2026-03-29T11:00', '2026-03-29T23:00'],
+    ['2026-03-29T22:00', '2026-03-30T00:00'],
+  ]);
+  assert.equal(sc[0].end, sc[1].start, 'the shortened window still meets the next one');
+  // Fall back 2026-10-25 01:00Z (03:00 -> 02:00): 12 h of instants span 11 local hours.
+  const fall = T('2026-10-24T22:00:00Z');
+  const fc = chunksOf(fall, fall + 24 * H);
+  assertTiling(fc, fall, fall + 24 * H);
+  assert.deepEqual(fc.map((c) => [c.fromLocal, c.toLocal]), [
+    ['2026-10-25T00:00', '2026-10-25T11:00'],
+    ['2026-10-25T10:00', '2026-10-25T22:00'],
+    ['2026-10-25T21:00', '2026-10-25T23:00'],
+  ]);
+  // Every instant of both days lies in some chunk (sampled every 5 minutes).
+  for (const [from, n] of [[spring, sc], [fall, fc]]) {
+    for (let t = from; t < from + 24 * H; t += 300000) assert.ok(n.some((c) => c.start <= t && t <= c.end), new Date(t).toISOString());
+  }
+  // Starting inside the changeover hour.
+  const mid = T('2026-03-29T00:30:00Z');
+  assertTiling(chunksOf(mid, mid + 13 * H), mid, mid + 13 * H);
+});
+
+test('chunking: the handler asks the provider for exactly these windows', () => {
+  const s = setup({ providerFetch: () => ok(adb()) });
+  const from = T('2026-10-24T22:00:00Z');
+  const now = from - 2 * H;
+  const r = s.direct({ airport: 'FRA', from, to: from + 24 * H }, now);
+  assert.equal(r.ok, true);
+  assert.deepEqual(s.calls.provider.map(([u]) => u.split('?')[0].split('/').slice(7, 9)), [
+    ['2026-10-25T00:00', '2026-10-25T11:00'], ['2026-10-25T10:00', '2026-10-25T22:00'], ['2026-10-25T21:00', '2026-10-25T23:00'],
+  ]);
+});
+
+// --- Provider URL and headers -----------------------------------------------------
+
+test('provider URL is exact and the key is passed separately to providerFetch', () => {
+  const s = setup({ providerFetch: () => ok(adb()) });
+  s.post({ ...range(1), airport: 'FRA' });
+  assert.equal(s.calls.provider.length, 1);
+  const [url, key] = s.calls.provider[0];
+  assert.equal(url, 'https://aerodatabox.p.rapidapi.com/flights/airports/iata/FRA/2026-10-06T12:00/2026-10-06T13:00'
+    + '?withLeg=false&direction=Departure&withCancelled=true&withCodeshared=false&withCargo=false&withPrivate=false&withLocation=false');
+  assert.equal(key, KEY);
+  assert.ok(!url.includes(KEY), 'the key is never part of the URL');
+});
+
+function liveSandbox({ props = {}, status = 200, text = '{}' } = {}) {
+  const store = new Map();
+  const puts = [];
+  const fetched = [];
+  const slept = [];
+  const sandbox = {
+    Utilities: { sleep: (ms) => slept.push(ms) },
+    PropertiesService: { getScriptProperties: () => ({ getProperty: (k) => (Object.hasOwn(props, k) ? props[k] : null) }) },
+    CacheService: { getScriptCache: () => ({ get: (k) => store.get(k) ?? null, put: (k, v, ttl) => { store.set(k, v); puts.push([k, v, ttl]); } }) },
+    UrlFetchApp: { fetch: (url, opts) => { fetched.push([url, opts]); return { getResponseCode: () => status, getContentText: () => text }; } },
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(GS_FILES.map((f) => readFileSync(new URL(`../backend/apps-script/${f}`, import.meta.url), 'utf8')).join('\n;\n') + '\n;globalThis.__live = fcv2LiveEnv_();', sandbox);
+  return { env: sandbox.__live, puts, fetched, slept };
+}
+
+test('live env bindings: key from Script Property only, UrlFetchApp options, sleep, TTL-aware cachePut with the old default kept', () => {
+  const none = liveSandbox();
+  assert.equal(none.env.departuresKey(), null);
+  const live = liveSandbox({ props: { FC_ADB_RAPIDAPI_KEY: KEY }, status: 429, text: 'provider text' });
+  assert.equal(live.env.departuresKey(), KEY);
+  const res = live.env.providerFetch('https://example.invalid/x', KEY);
+  assert.deepEqual(plain(res), { status: 429, body: 'provider text' });
+  assert.deepEqual(plain(live.fetched), [['https://example.invalid/x', {
+    method: 'get', headers: { 'x-rapidapi-host': 'aerodatabox.p.rapidapi.com', 'x-rapidapi-key': KEY }, muteHttpExceptions: true,
+  }]]);
+  live.env.sleep(1100);
+  assert.deepEqual(live.slept, [1100]);
+  live.env.cachePut('k1', { a: 1 });
+  live.env.cachePut('k2', { a: 2 }, 600);
+  live.env.cachePut('k3', { big: 'x'.repeat(90000) }, 600);
+  assert.deepEqual(live.puts, [['k1', '{"a":1}', 6 * 3600], ['k2', '{"a":2}', 600]], 'default TTL unchanged, explicit TTL used, oversize skipped');
+  assert.deepEqual(plain(live.env.cacheGet('k2')), { a: 2 });
+});
+
+// --- Normalization ----------------------------------------------------------------
+
+const normalize = (body, carriers = null) => plain(gs.fcv2NormalizeAdb_(body, 'FRA', carriers, deps));
+const idOf = (number, ms) => `f_${createHash('sha256').update(`${number}|${ms}`).digest('hex').slice(0, 16)}`;
+const byNumber = (list) => Object.fromEntries(list.map((f) => [f.flightNumber, f]));
+
+test('normalization: every field of the full wire record', () => {
+  const { flights } = normalize({ departures: [fixture.departures[0]] });
+  assert.deepEqual(flights, [{
+    id: idOf('DE1234', T('2026-10-06T12:30:00Z')), flightNumber: 'DE1234', carrier: 'DE', origin: 'FRA',
+    destination: 'PMI', destinationName: 'Palma de Mallorca',
+    scheduledDep: T('2026-10-06T12:30:00Z'), revisedDep: T('2026-10-06T12:55:00Z'), status: 'delayed',
+    aircraft: { model: 'Airbus A320', registration: 'D-AXXA' }, provenance: 'provider',
+  }]);
+});
+
+test('normalization: fixture entries (number with space, callSign only, revised, aircraft, carriers, dropped)', () => {
+  const r = normalize({ departures: fixture.departures });
+  assert.equal(r.dropped, 4, 'missing scheduled time, unparseable utc, a null entry, and an entry without any flight number');
+  assert.equal(r.flights.length, 16);
+  const f = byNumber(r.flights);
+  assert.equal(f.DE1234.flightNumber, 'DE1234', 'whitespace removed');
+  assert.equal(f.TUI4XYZ.carrier, 'X3', 'callSign fallback; carrier from airline.iata');
+  assert.equal(f.TUI4XYZ.status, 'scheduled');
+  assert.equal(f.LH9001.revisedDep, null, 'absent revisedTime');
+  assert.deepEqual(f.LH9001.aircraft, { model: 'Boeing 737-800', registration: null });
+  assert.deepEqual(f.EW9002.aircraft, { model: null, registration: 'D-AXXB' });
+  assert.equal(f.DE9007.aircraft, null, 'no aircraft object: null');
+  assert.equal(f.DE9005.destination, null, 'destination iata missing');
+  assert.equal(f.DE9005.destinationName, 'Synthetic Field');
+  assert.equal(f.DE9006.destination, 'AYT');
+  assert.equal(f.DE9006.destinationName, null, 'a destination name over 60 characters is not shown');
+  assert.equal(f.DE9008.carrier, 'DE', 'no airline: first two characters of the number');
+  assert.equal(f.EW9010.carrier, 'EW', 'invalid airline.iata falls back to the number');
+  assert.equal(f[7].carrier, null, 'neither airline nor a two-character prefix');
+  assert.equal(f.DE9012.revisedDep, T('2026-10-06T18:00:00Z'));
+  assert.ok(r.flights.every((x) => x.origin === 'FRA' && x.provenance === 'provider'));
+  assert.equal(r.flights.length, new Set(r.flights.map((x) => x.id)).size);
+});
+
+test('normalization: only the utc instant is used (a wrong "local" never matters)', () => {
+  const e = fixture.departures[0];
+  assert.notEqual(e.movement.scheduledTime.local, '2026-10-06T14:30+02:00');
+  assert.equal(normalize({ departures: [e] }).flights[0].scheduledDep, T('2026-10-06T12:30:00Z'));
+  const onlyLocal = { number: 'DE9100', movement: { scheduledTime: { local: '2026-10-06 14:30+02:00' } } };
+  assert.deepEqual(normalize({ departures: [onlyLocal] }), { flights: [], dropped: 1 });
+});
+
+test('normalization: status mapping buckets, case-insensitive, unknown otherwise', () => {
+  const map = (s) => gs.fcv2MapDepartureStatus_(s);
+  const expected = {
+    scheduled: ['Expected', 'CheckIn', 'Scheduled', 'expected', 'CHECKIN'],
+    delayed: ['Delayed', 'DELAYED'],
+    boarding: ['Boarding', 'GateClosed', 'gateclosed'],
+    departed: ['Departed', 'EnRoute', 'Approaching', 'Arrived', 'Diverted'],
+    cancelled: ['Canceled', 'Cancelled', 'CanceledUncertain', 'canceled'],
+    unknown: ['Unknown', 'SomethingNew', '', undefined, null, 5, 'constructor', '__proto__', 'toString'],
+  };
+  for (const [bucket, list] of Object.entries(expected)) for (const s of list) assert.equal(map(s), bucket, String(s));
+});
+
+test('normalization: carrier, text and number edge cases', () => {
+  const one = (extra, number = 'DE9101') => { const { movement, ...rest } = extra; return normalize({ departures: [{ number, ...rest, movement: { scheduledTime: { utc: '2026-10-06 12:00Z' }, ...movement } }] }).flights[0]; };
+  assert.equal(one({ airline: { iata: 'LH' } }).carrier, 'LH', 'airline.iata wins over the number prefix');
+  assert.equal(one({ airline: { iata: 'lh' } }).carrier, 'DE');
+  assert.equal(one({}, 'de 9101').flightNumber, 'DE9101', 'uppercased');
+  assert.equal(one({}, ' D E\t9101 ').flightNumber, 'DE9101', 'all whitespace removed');
+  assert.equal(one({}, 'X').carrier, null);
+  assert.equal(one({ movement: { airport: { iata: 'pmi', name: '  Palma  ' } } }).destination, null, 'iata must be uppercase letters');
+  assert.equal(one({ movement: { airport: { iata: 'PMI', name: '  Palma  ' } } }).destinationName, 'Palma');
+  assert.equal(one({ movement: { airport: { iata: 'PMI', name: 'x'.repeat(60) } } }).destinationName.length, 60);
+  assert.equal(one({ movement: { airport: { iata: 'PMI', name: 'x'.repeat(61) } } }).destinationName, null);
+  assert.equal(one({ movement: { airport: { iata: 'PMI', name: '   ' } } }).destinationName, null);
+  assert.equal(one({ aircraft: { model: 'y'.repeat(61), reg: '  ' } }).aircraft, null, 'both unusable: null aircraft');
+  assert.deepEqual(one({ aircraft: { model: ' Airbus A320 ', reg: 'D-AXXX' } }).aircraft, { model: 'Airbus A320', registration: 'D-AXXX' });
+  assert.equal(normalize({ departures: [{ number: 12, callSign: ' ab12 ', movement: { scheduledTime: { utc: '2026-10-06 12:00Z' } } }] }).flights[0].flightNumber, 'AB12', 'non-string number falls back to callSign');
+});
+
+test('normalization: utc parsing accepts the provider format and rejects everything else', () => {
+  const p = (v) => gs.fcv2ParseProviderUtc_(v);
+  assert.equal(p('2026-10-06 14:30Z'), T('2026-10-06T14:30:00Z'));
+  assert.equal(p('2026-10-06T14:30Z'), T('2026-10-06T14:30:00Z'));
+  assert.equal(p('2026-10-06 14:30:15Z'), T('2026-10-06T14:30:15Z'));
+  assert.equal(p('2026-10-06 14:30+00:00'), T('2026-10-06T14:30:00Z'));
+  for (const bad of [undefined, null, 5, {}, '', 'not a time', '2026-10-06', '2026-10-06 14:30', '2026-02-30 10:00Z', '2026-10-06 25:00Z']) assert.equal(p(bad), null, String(bad));
+});
+
+test('normalization: body shape rules', () => {
+  assert.deepEqual(normalize({}), { flights: [], dropped: 0 }, 'an object without departures is an empty list');
+  assert.deepEqual(normalize({ departures: null }), { flights: [], dropped: 0 });
+  for (const bad of [null, undefined, 'x', 5, [], { departures: 'x' }, { departures: {} }]) assert.equal(gs.fcv2NormalizeAdb_(bad, 'FRA', null, deps), null, JSON.stringify(bad));
+});
+
+test('carrier filter: applied per chunk, dropped entries are not carrier-filtered', () => {
+  const r = normalize({ departures: fixture.departures }, ['DE']);
+  assert.ok(r.flights.length > 0 && r.flights.every((f) => f.carrier === 'DE'));
+  assert.equal(r.dropped, 4);
+  assert.ok(!r.flights.some((f) => f.carrier === null), 'a null carrier never matches a filter');
+  assert.deepEqual(plain(gs.fcv2FilterCarriers_([{ carrier: 'LH' }, { carrier: null }, { carrier: 'X3' }], ['LH', 'X3'])), [{ carrier: 'LH' }, { carrier: 'X3' }]);
+  assert.equal(gs.fcv2FilterCarriers_([1, 2], null).length, 2);
+});
+
+// --- Whole action over the fixture ------------------------------------------------
+
+const EXPECTED_NUMBERS = ['DE9015', 'DE1234', 'LH9001', 'TUI4XYZ', 'EW9002', 'DE9005', 'DE9006', 'DE9007', 'DE9008', 'LH9009', 'EW9010', 'DE9011', 'DE9012', '7', 'DE9016', 'DE9020', 'LH9021', 'X39022'];
+
+test('action over the fixture: [from,to) filtering, cancelled kept, dedupe, sort, dropped, envelope', () => {
+  const s = setup({ providerFetch: fixtureFetch });
+  const r = s.post({ airport: 'FRA', ...FX });
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.flights.map((f) => f.flightNumber), EXPECTED_NUMBERS);
+  assert.deepEqual(r.flights.map((f) => f.scheduledDep), [...r.flights.map((f) => f.scheduledDep)].sort((a, b) => a - b));
+  assert.equal(r.flights[0].scheduledDep, FX.from, 'from is inclusive');
+  assert.ok(r.flights.every((f) => f.scheduledDep >= FX.from && f.scheduledDep < FX.to), 'to is exclusive');
+  assert.ok(!r.flights.some((f) => ['DE9013', 'DE9023', 'DE9024'].includes(f.flightNumber)), 'before, at and after the range end are out');
+  assert.equal(r.flights.filter((f) => f.flightNumber === 'DE9016').length, 1, 'the duplicate across two chunks is kept once');
+  assert.deepEqual(r.flights.filter((f) => f.status === 'cancelled').map((f) => f.flightNumber), ['DE9007', 'DE9011']);
+  assert.equal(r.flights.find((f) => f.flightNumber === 'DE9006').status, 'departed');
+  assert.equal(r.dropped, 4);
+  const { flights, ...envelope } = r;
+  assert.deepEqual(envelope, {
+    ok: true, contract: 'fc.roster', version: 2, action: 'departures', airport: 'FRA', airportTz: 'Europe/Berlin',
+    from: FX.from, to: FX.to, carriers: null, provider: 'aerodatabox', generatedAt: NOW, fetchedAt: NOW, dropped: 4,
+  });
+  assert.equal(s.calls.provider.length, 2);
+});
+
+test('action with carriers: only listed carriers, carriers echoed sorted, the filter is part of the cache key', () => {
+  const s = setup({ providerFetch: fixtureFetch });
+  const r = s.post({ airport: 'FRA', ...FX, carriers: ['X3', 'LH'] });
+  assert.deepEqual(r.carriers, ['LH', 'X3']);
+  assert.deepEqual(r.flights.map((f) => f.flightNumber), ['LH9001', 'TUI4XYZ', 'LH9009', 'LH9021', 'X39022']);
+  assert.deepEqual(s.calls.cachePuts.map(([k]) => k), [
+    'fcv2-dep-FRA-2026-10-06T12:00-2026-10-07T00:00-LH,X3', 'fcv2-dep-FRA-2026-10-06T23:00-2026-10-07T08:00-LH,X3']);
+  s.post({ airport: 'FRA', ...FX });   // no filter: different keys, so a new provider round
+  assert.equal(s.calls.provider.length, 4);
+});
+
+test('sort: equal instants order by flight number; ties on id are deduplicated', () => {
+  const s = setup({ providerFetch: () => ok(adb(entry('LH9302', '2026-10-06 12:00Z'), entry('DE9301', '2026-10-06 12:00Z'), entry('DE9300', '2026-10-06 12:30Z'), entry('DE9300', '2026-10-06 12:30Z'))) });
+  const r = s.post(range(3));
+  assert.deepEqual(r.flights.map((f) => f.flightNumber), ['DE9301', 'LH9302', 'DE9300']);
+});
+
+test('airport zone: the provider is asked in the airport zone, flights keep origin = airport', () => {
+  const s = setup({ providerFetch: () => ok(adb(entry('DE9401', '2026-10-06 11:00Z'))) });
+  const tzOfJfk = gs.FCV2_AIRPORT_TZ_.JFK;
+  if (!tzOfJfk) return;   // table without JFK: nothing to assert
+  const r = s.post({ airport: 'JFK', from: NOW + 2 * H, to: NOW + 4 * H });
+  assert.equal(r.airportTz, tzOfJfk);
+  assert.ok(s.calls.provider[0][0].includes('/iata/JFK/2026-10-06T06:00/2026-10-06T08:00?'), s.calls.provider[0][0]);
+  assert.equal(r.flights[0].origin, 'JFK');
+});
+
+// --- Retry, spacing, errors -------------------------------------------------------
+
+test('429: retry after 1200 ms then 2500 ms, then success', () => {
+  const s = setup({ providerFetch: (_u, _k, n) => (n < 3 ? { status: 429, body: 'slow down' } : ok(adb(entry('DE9501', '2026-10-06 11:00Z')))) });
+  const r = s.post(range(3));
+  assert.equal(r.ok, true);
+  assert.equal(r.flights.length, 1);
+  assert.deepEqual(s.calls.sleeps, [1200, 2500]);
+  assert.equal(s.calls.provider.length, 3);
+  const early = setup({ providerFetch: (_u, _k, n) => (n < 2 ? { status: 429, body: '' } : ok(adb())) });
+  assert.equal(early.post(range(3)).ok, true);
+  assert.deepEqual(early.calls.sleeps, [1200]);
+});
+
+test('429 after both retries: provider-rate-limited, nothing else', () => {
+  const s = setup({ providerFetch: () => ({ status: 429, body: 'PROVIDER-BODY-SECRET' }) });
+  assert.deepEqual(s.post(range(3)), { ok: false, error: 'provider-rate-limited' });
+  assert.deepEqual(s.calls.sleeps, [1200, 2500]);
+  assert.equal(s.calls.provider.length, 3);
+});
+
+test('401 and 403: provider-auth-failed, no retry', () => {
+  for (const status of [401, 403]) {
+    const s = setup({ providerFetch: () => ({ status, body: 'PROVIDER-BODY-SECRET' }) });
+    assert.deepEqual(s.post(range(3)), { ok: false, error: 'provider-auth-failed' });
+    assert.equal(s.calls.provider.length, 1);
+    assert.equal(s.calls.sleeps.length, 0);
+  }
+});
+
+test('other failures: 500, 404, network throw, HTML, non-object JSON, bad shapes all become provider-unavailable', () => {
+  const failures = {
+    500: () => ({ status: 500, body: 'PROVIDER-BODY-SECRET' }),
+    404: () => ({ status: 404, body: '{"departures":[]}' }),
+    400: () => ({ status: 400, body: 'PROVIDER-BODY-SECRET' }),
+    throw: () => { throw new Error(`socket closed for ${KEY} https://aerodatabox.p.rapidapi.com/x`); },
+    html: () => ({ status: 200, body: '<html>PROVIDER-BODY-SECRET</html>' }),
+    empty: () => ({ status: 200, body: '' }),
+    array: () => ({ status: 200, body: '[]' }),
+    string: () => ({ status: 200, body: '"PROVIDER-BODY-SECRET"' }),
+    null: () => ({ status: 200, body: 'null' }),
+    number: () => ({ status: 200, body: '5' }),
+    badList: () => ({ status: 200, body: '{"departures":"PROVIDER-BODY-SECRET"}' }),
+    objectList: () => ({ status: 200, body: '{"departures":{"a":1}}' }),
+    noBody: () => ({ status: 200 }),
+    noResponse: () => undefined,
+  };
+  for (const [name, providerFetch] of Object.entries(failures)) {
+    const s = setup({ providerFetch });
+    const r = s.post(range(3));
+    assert.deepEqual(r, { ok: false, error: 'provider-unavailable' }, name);
+    assert.equal(s.calls.sleeps.length, 0, `${name}: no retry`);
+  }
+});
+
+test('no partial results: a failing chunk fails the request, whatever its position', () => {
+  const second = (status) => (_u, _k, n) => (n === 1 ? ok({ departures: fixture.departures }) : { status, body: 'x' });
+  for (const [status, error] of [[500, 'provider-unavailable'], [401, 'provider-auth-failed'], [429, 'provider-rate-limited']]) {
+    const s = setup({ providerFetch: second(status) });
+    const r = s.post({ airport: 'FRA', ...FX });
+    assert.deepEqual(r, { ok: false, error });
+    assert.equal(Object.hasOwn(r, 'flights'), false);
+  }
+  const first = setup({ providerFetch: (_u, _k, n) => (n === 1 ? { status: 500, body: '' } : ok(fixture.chunk2)) });
+  assert.deepEqual(first.post({ airport: 'FRA', ...FX }), { ok: false, error: 'provider-unavailable' });
+  assert.equal(first.calls.provider.length, 1, 'stops at the first failure');
+});
+
+test('spacing: 1100 ms between provider calls only, none before the first, none for cache hits', () => {
+  const s = setup({ providerFetch: () => ok(adb()) });
+  s.post(range(11));
+  assert.deepEqual(s.calls.sleeps, [], 'single chunk');
+  const two = setup({ providerFetch: () => ok(adb()) });
+  two.post(range(20));
+  assert.deepEqual(two.calls.sleeps, [1100]);
+  const three = setup({ providerFetch: () => ok(adb()) });
+  three.post(range(24));
+  assert.deepEqual(three.calls.sleeps, [1100, 1100]);
+  three.calls.sleeps.length = 0;
+  three.post(range(24));
+  assert.deepEqual(three.calls.sleeps, [], 'all cache hits');
+  assert.equal(three.calls.provider.length, 3);
+  const retry = setup({ providerFetch: (_u, _k, n) => (n === 2 ? { status: 429, body: '' } : ok(adb())) });
+  retry.post(range(20));
+  assert.deepEqual(retry.calls.sleeps, [1100, 1200], 'spacing, then the retry delay');
+});
+
+test('partially cached: only the missing chunk is fetched, without a spacing sleep', () => {
+  const s = setup({ providerFetch: () => ok(adb()) });
+  s.post(range(20));
+  s.cache.delete([...s.cache.keys()][0]);
+  s.calls.sleeps.length = 0;
+  s.calls.provider.length = 0;
+  s.post(range(20));
+  assert.equal(s.calls.provider.length, 1);
+  assert.deepEqual(s.calls.sleeps, []);
+});
+
+// --- Cache ------------------------------------------------------------------------
+
+test('cache: keys, TTL 600 s near / 3600 s later, value shape (normalized, carrier-filtered, not range-filtered)', () => {
+  const s = setup({ providerFetch: fixtureFetch });
+  s.post({ airport: 'FRA', ...FX });
+  assert.deepEqual(s.calls.cachePuts, [
+    ['fcv2-dep-FRA-2026-10-06T12:00-2026-10-07T00:00-*', 600],   // starts 10:00Z < now + 6 h
+    ['fcv2-dep-FRA-2026-10-06T23:00-2026-10-07T08:00-*', 3600],  // starts 21:00Z >= now + 6 h
+  ]);
+  const value = plain(s.cache.get('fcv2-dep-FRA-2026-10-06T12:00-2026-10-07T00:00-*'));
+  assert.deepEqual(Object.keys(value).sort(), ['dropped', 'fetchedAt', 'flights']);
+  assert.equal(value.fetchedAt, NOW);
+  assert.equal(value.dropped, 4);
+  assert.ok(value.flights.some((f) => f.flightNumber === 'DE9013'), 'the chunk keeps entries outside the requested range');
+  const other = plain(s.cache.get('fcv2-dep-FRA-2026-10-06T23:00-2026-10-07T08:00-*'));
+  assert.ok(other.flights.some((f) => f.flightNumber === 'DE9024'));
+});
+
+test('cache: the TTL boundary is now + 6 h (a chunk starting exactly then is "later")', () => {
+  const at = (offset) => { const s = setup({ providerFetch: () => ok(adb()) }); s.post({ airport: 'FRA', from: NOW + 6 * H + offset, to: NOW + 7 * H + offset }); return s.calls.cachePuts[0][1]; };
+  assert.equal(at(-60000), 600);
+  assert.equal(at(0), 3600);
+});
+
+test('cache: a second identical request is served from the cache with no provider call', () => {
+  const s = setup({ providerFetch: fixtureFetch });
+  const a = s.post({ airport: 'FRA', ...FX });
+  const b = s.post({ airport: 'FRA', ...FX });
+  assert.deepEqual(b, a);
+  assert.equal(s.calls.provider.length, 2);
+});
+
+test('cache: fetchedAt is the oldest provider fetch among the chunks used; generatedAt is now', () => {
+  const s = setup({ providerFetch: fixtureFetch });
+  const first = s.direct({ airport: 'FRA', ...FX }, NOW);
+  assert.equal(first.fetchedAt, NOW);
+  const later = s.direct({ airport: 'FRA', ...FX }, NOW + 300000);
+  assert.equal(later.generatedAt, NOW + 300000);
+  assert.equal(later.fetchedAt, NOW, 'both chunks came from the cache fetched at NOW');
+  // One chunk refreshed later: the oldest still wins.
+  s.cache.delete('fcv2-dep-FRA-2026-10-06T23:00-2026-10-07T08:00-*');
+  const mixed = s.direct({ airport: 'FRA', ...FX }, NOW + 400000);
+  assert.equal(mixed.fetchedAt, NOW);
+  assert.equal(mixed.generatedAt, NOW + 400000);
+  assert.deepEqual(mixed.flights.map((f) => f.flightNumber), EXPECTED_NUMBERS);
+});
+
+test('cache: a cached value is re-filtered to the request range, so a narrower request reuses nothing it should not return', () => {
+  const s = setup({ providerFetch: fixtureFetch });
+  s.direct({ airport: 'FRA', ...FX }, NOW);
+  const narrow = s.direct({ airport: 'FRA', from: FX.from, to: FX.from + 11 * H }, NOW);   // different local strings: new key
+  assert.equal(narrow.ok, true);
+  assert.ok(narrow.flights.every((f) => f.scheduledDep < FX.from + 11 * H));
+});
+
+test('cache: malformed cache entries are treated as a miss; cache errors never fail the request', () => {
+  const s = setup({ providerFetch: () => ok(adb(entry('DE9601', '2026-10-06 11:00Z'))) });
+  const key = 'fcv2-dep-FRA-2026-10-06T12:00-2026-10-06T14:00-*';
+  for (const junk of ['x', 5, {}, { flights: 'no', fetchedAt: 1, dropped: 0 }, { flights: [], fetchedAt: 'x', dropped: 0 }, { flights: [], fetchedAt: 1 }]) {
+    s.cache.set(key, junk);
+    s.calls.provider.length = 0;
+    assert.equal(s.post({ airport: 'FRA', from: NOW + 2 * H, to: NOW + 4 * H }).flights.length, 1);
+    assert.equal(s.calls.provider.length, 1);
+  }
+  s.env.cacheGet = () => { throw new Error('cache down'); };
+  s.env.cachePut = () => { throw new Error('cache down'); };
+  assert.equal(s.post({ airport: 'FRA', from: NOW + 2 * H, to: NOW + 4 * H }).ok, true);
+});
+
+test('cache: a chunk whose JSON exceeds 90 000 characters is served but not cached', () => {
+  const many = Array.from({ length: 600 }, (_, i) => entry(`DE${String(1000 + i)}`, '2026-10-06 11:00Z', { aircraft: { model: 'Airbus A320', reg: 'D-AXXX' } }));
+  const s = setup({ providerFetch: () => ok(adb(...many)) });
+  const r = s.post(range(3));
+  assert.equal(r.flights.length, 600);
+  assert.ok(JSON.stringify({ fetchedAt: NOW, flights: r.flights, dropped: 0 }).length > 90000);
+  assert.equal(s.calls.cachePuts.length, 0);
+  s.post(range(3));
+  assert.equal(s.calls.provider.length, 2, 'not cached, so asked again');
+});
+
+// --- Secrecy ----------------------------------------------------------------------
+
+test('secrecy: neither the key, the URL, nor any provider body appears in any response', () => {
+  const secrets = [KEY, 'PROVIDER-BODY-SECRET', 'rapidapi', 'http', 'x-rapidapi', 'aerodatabox.p'];
+  const scenarios = [
+    () => ({ status: 429, body: 'PROVIDER-BODY-SECRET' }),
+    () => ({ status: 401, body: 'PROVIDER-BODY-SECRET' }),
+    () => ({ status: 500, body: `PROVIDER-BODY-SECRET ${KEY}` }),
+    () => { throw new Error(`failed ${KEY} https://aerodatabox.p.rapidapi.com`); },
+    () => ({ status: 200, body: '<html>PROVIDER-BODY-SECRET</html>' }),
+    () => ({ status: 200, body: JSON.stringify({ departures: [{ number: 'DE9701', movement: { scheduledTime: { utc: '2026-10-06 11:00Z' } }, secret: 'PROVIDER-BODY-SECRET', url: 'https://x.invalid' }], note: KEY }) }),
+  ];
+  for (const providerFetch of scenarios) {
+    const s = setup({ providerFetch });
+    const text = JSON.stringify(s.post(range(3)));
+    for (const secret of secrets) assert.ok(!text.includes(secret), `${secret} in ${text}`);
+    assert.doesNotThrow(() => s.post(range(3)));
+  }
+  const s = setup({ providerFetch: fixtureFetch });
+  const full = JSON.stringify(s.post({ airport: 'FRA', ...FX }));
+  for (const secret of [KEY, 'rapidapi', 'http', 'PROVIDER-BODY-SECRET']) assert.ok(!full.includes(secret));
+  assert.ok(!JSON.stringify(s.post({ contract: 'x' })).includes(KEY));
+  assert.ok(![...s.cache.values()].some((v) => JSON.stringify(v).includes(KEY)), 'the key is never cached');
+  assert.ok(!JSON.stringify(plain(s.post({ action: 'capabilities' }))).includes(KEY));
+});
+
+test('the provider key literal never appears in the source and the property name is the documented one', () => {
+  const src = readFileSync(new URL('../backend/apps-script/DeparturesV2.gs', import.meta.url), 'utf8');
+  assert.equal(gs.FCV2_DEP_KEY_PROPERTY_, 'FC_ADB_RAPIDAPI_KEY');
+  assert.ok(!/[A-Fa-f0-9]{32,}/.test(src), 'no key-like literal');
+  assert.ok(!/mock|sample data|fallback/i.test(src.replace(/no mock or sample data/i, '')), 'no mock/sample fallback');
+});
+
+// --- Auth, capabilities, existing actions -----------------------------------------
+
+test('auth is required first: no/wrong token, wrong contract/version are refused before any provider call', () => {
+  const s = setup({ providerFetch: fixtureFetch });
+  const send = (body) => plain(gs.fcv2HandlePost_(JSON.stringify({ contract: 'fc.roster', version: 2, action: 'departures', airport: 'FRA', ...FX, ...body }), s.env));
+  assert.equal(send({}).error, 'unauthorized');
+  assert.equal(send({ token: TOKEN + 'x' }).error, 'unauthorized');
+  assert.equal(send({ token: 5 }).error, 'unauthorized');
+  assert.equal(send({ token: TOKEN, version: 3 }).error, 'unsupported-contract');
+  assert.equal(send({ token: TOKEN, contract: 'other' }).error, 'unsupported-contract');
+  assert.equal(plain(gs.fcv2HandlePost_(JSON.stringify({ contract: 'fc.roster', version: 2, action: 'departures', token: TOKEN, airport: 'FRA', ...FX }), setup({ token: null }).env)).error, 'not-configured');
+  assert.equal(s.calls.provider.length, 0);
+  assert.equal(s.calls.sleeps.length, 0);
+  assert.equal(send({ token: TOKEN }).ok, true);
+});
+
+test('capabilities gating: departures only with a key, limits always carry departuresMaxHours', () => {
+  const caps = (opts) => plain(gs.fcv2HandlePost_(JSON.stringify({ contract: 'fc.roster', version: 2, action: 'capabilities', token: TOKEN }), fakeEnv(gs, { now: NOW, ...opts }).env));
+  assert.deepEqual(caps({}).actions, ['capabilities', 'roster', 'history', 'stats']);
+  assert.deepEqual(caps({ departuresKey: '' }).actions, ['capabilities', 'roster', 'history', 'stats']);
+  assert.deepEqual(caps({ departuresKey: KEY }).actions, ['capabilities', 'roster', 'history', 'stats', 'departures']);
+  assert.equal(caps({}).limits.departuresMaxHours, 24);
+  assert.equal(caps({ departuresKey: KEY }).limits.departuresMaxHours, 24);
+  const without = caps({});
+  assert.deepEqual(without, {
+    ok: true, contract: 'fc.roster', version: 2, action: 'capabilities', generatedAt: NOW,
+    actions: ['capabilities', 'roster', 'history', 'stats'],
+    limits: { rosterMaxDays: without.limits.rosterMaxDays, historyMaxMonths: without.limits.historyMaxMonths, historyMaxSectors: without.limits.historyMaxSectors, departuresMaxHours: 24 },
+    source: { adapter: 'condor-calendar', baseTimeZone: 'Europe/Berlin' },
+  });
+  assert.deepEqual(Object.keys(without.limits), ['rosterMaxDays', 'historyMaxMonths', 'historyMaxSectors', 'departuresMaxHours']);
+  const env = fakeEnv(gs, { now: NOW, departuresKey: undefined }).env;
+  delete env.departuresKey;
+  assert.equal(plain(gs.fcv2HandlePost_(JSON.stringify({ contract: 'fc.roster', version: 2, action: 'capabilities', token: TOKEN }), env)).ok, true, 'an env without the function still answers capabilities');
+});
+
+test('existing actions are unaffected by the departures configuration', () => {
+  const run = (opts, body) => {
+    const f = fakeEnv(gs, { now: ROSTER_NOW, feed: feedEvents(), synced: syncedEvents(), rows: hotelRows(feedEvents()), ...opts });
+    return JSON.stringify(gs.fcv2HandlePost_(JSON.stringify({ contract: 'fc.roster', version: 2, token: TOKEN, ...body }), f.env));
+  };
+  const withKey = { departuresKey: KEY, providerFetch: () => { throw new Error('departures must not be touched'); } };
+  for (const body of [{ action: 'roster' }, { action: 'history', to: '2026-10-03' }, { action: 'stats' }, { action: 'nope' }]) {
+    assert.equal(run({}, body), run(withKey, body), JSON.stringify(body));
+  }
+  assert.equal(JSON.parse(run({}, { action: 'nope' })).error, 'unknown-action');
+  assert.equal(JSON.parse(run({}, { action: 'roster' })).ok, true);
+  assert.equal(JSON.parse(run({}, { action: 'history', to: '2026-10-03' })).ok, true);
+  assert.equal(JSON.parse(run({}, { action: 'stats' })).marker, 'v5-payload');
+});
+
+// --- Load order -------------------------------------------------------------------
+
+function runFiles(files, extra = '') {
+  const sandbox = { Utilities: {} };
+  vm.createContext(sandbox);
+  const code = files.map((f) => readFileSync(new URL(`../backend/apps-script/${f}`, import.meta.url), 'utf8')).join('\n;\n');
+  vm.runInContext(`${code}\n;${extra}`, sandbox);
+  return sandbox;
+}
+
+test('load order: DeparturesV2.gs is last in GS_FILES, loads alone, and nothing else needs it while loading', () => {
+  assert.equal(GS_FILES.at(-1), 'DeparturesV2.gs');
+  assert.doesNotThrow(() => runFiles(['DeparturesV2.gs']), 'no top-level dependency on any other file');
+  assert.doesNotThrow(() => runFiles(GS_FILES.filter((f) => f !== 'DeparturesV2.gs')), 'the others load without it (functions reference it only at call time)');
+  assert.doesNotThrow(() => runFiles(GS_FILES));
+  // Any order of the departures file still loads (file-by-file top-level evaluation).
+  for (const order of [['DeparturesV2.gs', ...GS_FILES.slice(0, -1)], [...GS_FILES.slice(0, 3), 'DeparturesV2.gs', ...GS_FILES.slice(3, -1)]]) {
+    assert.doesNotThrow(() => runFiles(order));
+  }
+});
+
+test('naming: every top-level name in DeparturesV2.gs starts with fcv2/FCV2 and ends in an underscore; nothing but declarations at top level', () => {
+  const src = readFileSync(new URL('../backend/apps-script/DeparturesV2.gs', import.meta.url), 'utf8');
+  const names = [...src.matchAll(/^(?:function|const|let|var)\s+([A-Za-z0-9_]+)/gm)].map((m) => m[1]);
+  assert.ok(names.length >= 15);
+  for (const n of names) assert.match(n, /^(?:fcv2|FCV2)[A-Za-z0-9_]*_$/, n);
+  const topLevel = src.split('\n').filter((l) => /^\S/.test(l) && !/^(?:function|const|\}|\/\/|\/\*\*)/.test(l));
+  assert.deepEqual(topLevel, [], 'no top-level statements other than function and const declarations');
+});

@@ -5,8 +5,9 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { createHash } from 'node:crypto';
 
-export const GS_FILES = ['CondorAdapterV2.gs', 'RosterModelV2.gs', 'AirportsV2.gs', 'RosterApiV2.gs', 'RouterV2.gs', 'CondorCodesV2.gs'];
-// CondorCodesV2.gs is last on purpose: Apps Script appends a newly added file after the existing ones.
+export const GS_FILES = ['CondorAdapterV2.gs', 'RosterModelV2.gs', 'AirportsV2.gs', 'RosterApiV2.gs', 'RouterV2.gs', 'CondorCodesV2.gs', 'DeparturesV2.gs'];
+// DeparturesV2.gs is last on purpose: Apps Script appends a newly added file after the existing ones
+// (CondorCodesV2.gs was the previous newcomer). It has no top-level dependency on the other files.
 const dir = new URL('../backend/apps-script/', import.meta.url);
 
 function part(ms, tz, opts) {
@@ -39,7 +40,7 @@ export function loadGs() {
   const sandbox = { Utilities, console };
   vm.createContext(sandbox);
   const code = GS_FILES.map((f) => readFileSync(new URL(f, dir), 'utf8')).join('\n;\n');
-  vm.runInContext(`${code}\n;globalThis.__gs = { FCV2_CONDOR_CONFIG_, FCV2_CONDOR_CODES_, FCV2_AIRPORT_TZ_, fcv2ClassifyEvent_, fcv2ParseDescription_, fcv2BuildRoster_, fcv2BuildHistory_, fcv2HandlePost_, fcv2SafeEqual_, fcv2StartOfDay_, fcv2LocalIso_, fcv2Range_, FCV2_HISTORY_MAX_SECTORS_, fcv2HandleGet_, FCV2_GET_REFUSED_ };`, sandbox);
+  vm.runInContext(`${code}\n;globalThis.__gs = { FCV2_CONDOR_CONFIG_, FCV2_CONDOR_CODES_, FCV2_AIRPORT_TZ_, fcv2ClassifyEvent_, fcv2ParseDescription_, fcv2BuildRoster_, fcv2BuildHistory_, fcv2HandlePost_, fcv2SafeEqual_, fcv2StartOfDay_, fcv2LocalIso_, fcv2Range_, FCV2_HISTORY_MAX_SECTORS_, fcv2HandleGet_, FCV2_GET_REFUSED_, fcv2HandleDepartures_, fcv2DepartureChunks_, fcv2DepartureUrl_, fcv2DepartureRequest_, fcv2DepartureCarriers_, fcv2MapDepartureStatus_, fcv2ParseProviderUtc_, fcv2NormalizeAdb_, fcv2FilterCarriers_, FCV2_DEP_STATUS_, FCV2_DEP_KEY_PROPERTY_ };`, sandbox);
   return sandbox.__gs;
 }
 
@@ -65,10 +66,10 @@ export function sheetLookup(rows) {
 }
 
 /** A fake env for fcv2HandlePost_. */
-export function fakeEnv(gs, { token = 'test-token-0123456789abcdef', now, feed = [], synced = [], rows = [] } = {}) {
+export function fakeEnv(gs, { token = 'test-token-0123456789abcdef', now, feed = [], synced = [], rows = [], departuresKey, providerFetch, sleep } = {}) {
   const cache = new Map();
   let failures = 0;
-  const calls = { airline: [], synced: [], stats: 0 };
+  const calls = { airline: [], synced: [], stats: 0, provider: [], sleeps: [], cachePuts: [] };
   const config = gs.FCV2_CONDOR_CONFIG_;
   const inRange = (list, from, to) => list.filter((e) => e.end > from && e.start < to);
   return {
@@ -84,7 +85,11 @@ export function fakeEnv(gs, { token = 'test-token-0123456789abcdef', now, feed =
       airlineEvents: (from, to) => { calls.airline.push([from, to]); return inRange(feed, from, to); },
       syncedEvents: (from, to) => { calls.synced.push([from, to]); return inRange(synced, from, to); },
       cacheGet: (k) => cache.get(k) ?? null,
-      cachePut: (k, v) => cache.set(k, v),
+      cachePut: (k, v, ttl) => { cache.set(k, v); calls.cachePuts.push([k, ttl]); },
+      // departures action: only present when a test supplies it (undefined = not configured)
+      departuresKey: () => departuresKey ?? null,
+      providerFetch: (url, key) => { calls.provider.push([url, key]); if (!providerFetch) throw new Error('provider not faked'); return providerFetch(url, key, calls.provider.length); },
+      sleep: (ms) => { calls.sleeps.push(ms); if (sleep) sleep(ms); },
       deps: nodeDeps(gs, sheetLookup(rows)),
     },
   };

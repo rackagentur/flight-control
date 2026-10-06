@@ -1,0 +1,506 @@
+{
+ "_synthetic": true,
+ "_comment": "Synthetic AeroDataBox-shaped departures for tests; no real flights. Request: FRA 2026-10-06T10:00Z..2026-10-07T06:00Z (two chunks).",
+ "now": "2026-10-06T08:00:00Z",
+ "from": "2026-10-06T10:00:00Z",
+ "to": "2026-10-07T06:00:00Z",
+ "departures": [
+  {
+   "number": "DE 1234",
+   "status": "Delayed",
+   "movement": {
+    "scheduledTime": {
+     "utc": "2026-10-06 12:30Z",
+     "local": "2026-10-06T12:30+02:00"
+    },
+    "revisedTime": {
+     "utc": "2026-10-06 12:55Z"
+    },
+    "airport": {
+     "iata": "PMI",
+     "name": "Palma de Mallorca"
+    }
+   },
+   "aircraft": {
+    "model": "Airbus A320",
+    "reg": "D-AXXA"
+   },
+   "airline": {
+    "name": "Synthetic Air",
+    "iata": "DE"
+   },
+   "isCargo": false
+  },
+  {
+   "number": "LH9001",
+   "status": "Expected",
+   "movement": {
+    "scheduledTime": {
+     "utc": "2026-10-06 13:00Z",
+     "local": "2026-10-06T13:00+02:00"
+    },
+    "airport": {
+     "iata": "MUC",
+     "name": "Munich"
+    }
+   },
+   "aircraft": {
+    "model": "Boeing 737-800"
+   },
+   "airline": {
+    "name": "Synthetic Air",
+    "iata": "LH"
+   },
+   "isCargo": false
+  },
+  {
+   "callSign": "TUI4XYZ",
+   "status": "CheckIn",
+   "movement": {
+    "scheduledTime": {
+     "utc": "2026-10-06 13:30Z",
+     "local": "2026-10-06T13:30+02:00"
+    },
+    "airport": {
+     "iata": "HER",
+     "name": "Heraklion"
+    }
+   },
+   "airline": {
+    "name": "Synthetic Air",
+    "iata": "X3"
+   },
+   "isCargo": false
+  },
+  {
+   "number": "EW9002",
+   "status": "Boarding",
+   "movement": {
+    "scheduledTime": {
+     "utc": "2026-10-06 14:00Z",
+     "local": "2026-10-06T14:00+02:00"
+    },
+    "airport": {
+     "iata": "VIE",
+     "name": "Vienna"
+    }
+   },
+   "aircraft": {
+    "reg": "D-AXXB"
+   },
+   "airline": {
+    "name": "Synthetic Air",
+    "iata": "EW"
+   },
+   "isCargo": false
+  },
+  {
+   "number": "DE9003",
+   "status": "Expected",
+   "movement": {
+    "airport": {
+     "iata": "LIS",
+     "name": "Lisbon"
+    }
+   },
+   "airline": {
+    "name": "Synthetic Air",
+    "iata": "DE"
+   },
+   "isCargo": false
+  },
+  {
+   "number": "DE9004",
+   "status": "Expected",
+   "movement": {
+    "scheduledTime": {
+     "utc": "not a time",
+     "local": "notTaTtim+02:00"
+    },
+    "airport": {
+     "iata": "LIS",
+     "name": "Lisbon"
+    }
+   },
+   "airline": {
+    "name": "Synthetic Air",
+    "iata": "DE"
+   },
+   "isCargo": false
+  },
+  {
+   "number": "DE9005",
+   "status": "GateClosed",
+   "movement": {
+    "scheduledTime": {
+     "utc": "2026-10-06 14:30Z",
+     "local": "2026-10-06T14:30+02:00"
+    },
+    "airport": {
+     "name": "Synthetic Field"
+    }
+   },
+   "aircraft": {
+    "model": "Airbus A321",
+    "reg": "D-AXXC"
+   },
+   "airline": {
+    "name": "Synthetic Air",
+    "iata": "DE"
+   },
+   "isCargo": false
+  },
+  {
+   "number": "DE9006",
+   "status": "Departed",
+   "movement": {
+    "scheduledTime": {
+     "utc": "2026-10-06 15:00Z",
+     "local": "2026-10-06T15:00+02:00"
+    },
+    "airport": {
+     "iata": "AYT",
+     "name": "Synthetic Destination Airport With A Deliberately Overlong Descriptive Name"
+    }
+   },
+   "aircraft": {
+    "model": "Airbus A330-300",
+    "reg": "D-AXXD"
+   },
+   "airline": {
+    "name": "Synthetic Air",
+    "iata": "DE"
+   },
+   "isCargo": false
+  },
+  {
+   "number": "DE9007",
+   "status": "Canceled",
+   "movement": {
+    "scheduledTime": {
+     "utc": "2026-10-06 15:30Z",
+     "local": "2026-10-06T15:30+02:00"
+    },
+    "airport": {
+     "iata": "KGS",
+     "name": "Kos"
+    }
+   },
+   "airline": {
+    "name": "Synthetic Air",
+    "iata": "DE"
+   },
+   "isCargo": false
+  },
+  {
+   "number": "DE9008",
+   "status": "Diverted",
+   "movement": {
+    "scheduledTime": {
+     "utc": "2026-10-06 16:00Z",
+     "local": "2026-10-06T16:00+02:00"
+    },
+    "airport": {
+     "iata": "FUE",
+     "name": "Fuerteventura"
+    }
+   },
+   "aircraft": {
+    "model": "Airbus A320",
+    "reg": "D-AXXE"
+   },
+   "isCargo": false
+  },
+  {
+   "number": "LH9009",
+   "status": "SomethingNew",
+   "movement": {
+    "scheduledTime": {
+     "utc": "2026-10-06 16:30Z",
+     "local": "2026-10-06T16:30+02:00"
+    },
+    "airport": {
+     "iata": "BER",
+     "name": "Berlin"
+    }
+   },
+   "airline": {
+    "name": "Synthetic Air",
+    "iata": "LH"
+   },
+   "isCargo": false
+  },
+  {
+   "number": "EW9010",
+   "movement": {
+    "scheduledTime": {
+     "utc": "2026-10-06 17:00Z",
+     "local": "2026-10-06T17:00+02:00"
+    },
+    "airport": {
+     "iata": "HAM",
+     "name": "Hamburg"
+    }
+   },
+   "airline": {
+    "name": "Synthetic Air",
+    "iata": "ZZZ"
+   },
+   "isCargo": false
+  },
+  {
+   "number": "DE9011",
+   "status": "CanceledUncertain",
+   "movement": {
+    "scheduledTime": {
+     "utc": "2026-10-06 17:30Z",
+     "local": "2026-10-06T17:30+02:00"
+    },
+    "airport": {
+     "iata": "PMI",
+     "name": "Palma de Mallorca"
+    }
+   },
+   "airline": {
+    "name": "Synthetic Air",
+    "iata": "DE"
+   },
+   "isCargo": false
+  },
+  {
+   "number": "DE9012",
+   "status": "EnRoute",
+   "movement": {
+    "scheduledTime": {
+     "utc": "2026-10-06 18:00Z",
+     "local": "2026-10-06T18:00+02:00"
+    },
+    "revisedTime": {
+     "utc": "2026-10-06 18:00Z"
+    },
+    "airport": {
+     "iata": "TFS",
+     "name": "Tenerife South"
+    }
+   },
+   "aircraft": {
+    "model": "Airbus A320"
+   },
+   "airline": {
+    "name": "Synthetic Air",
+    "iata": "DE"
+   },
+   "isCargo": false
+  },
+  {
+   "number": "7",
+   "status": "Expected",
+   "movement": {
+    "scheduledTime": {
+     "utc": "2026-10-06 18:30Z",
+     "local": "2026-10-06T18:30+02:00"
+    },
+    "airport": {
+     "iata": "LPA",
+     "name": "Gran Canaria"
+    }
+   },
+   "isCargo": false
+  },
+  {
+   "number": "DE9013",
+   "status": "Departed",
+   "movement": {
+    "scheduledTime": {
+     "utc": "2026-10-06 09:30Z",
+     "local": "2026-10-06T09:30+02:00"
+    },
+    "airport": {
+     "iata": "PMI",
+     "name": "Palma de Mallorca"
+    }
+   },
+   "airline": {
+    "name": "Synthetic Air",
+    "iata": "DE"
+   },
+   "isCargo": false
+  },
+  {
+   "number": "DE9015",
+   "status": "Departed",
+   "movement": {
+    "scheduledTime": {
+     "utc": "2026-10-06 10:00Z",
+     "local": "2026-10-06T10:00+02:00"
+    },
+    "airport": {
+     "iata": "MLA",
+     "name": "Malta"
+    }
+   },
+   "airline": {
+    "name": "Synthetic Air",
+    "iata": "DE"
+   },
+   "isCargo": false
+  },
+  {
+   "number": "DE9016",
+   "status": "Expected",
+   "movement": {
+    "scheduledTime": {
+     "utc": "2026-10-06 21:30Z",
+     "local": "2026-10-06T21:30+02:00"
+    },
+    "airport": {
+     "iata": "FAO",
+     "name": "Faro"
+    }
+   },
+   "aircraft": {
+    "model": "Airbus A320",
+    "reg": "D-AXXF"
+   },
+   "airline": {
+    "name": "Synthetic Air",
+    "iata": "DE"
+   },
+   "isCargo": false
+  },
+  null,
+  {
+   "airline": {
+    "iata": "DE"
+   },
+   "status": "Expected",
+   "movement": {
+    "scheduledTime": {
+     "utc": "2026-10-06 19:00Z"
+    }
+   }
+  }
+ ],
+ "chunk2": {
+  "departures": [
+   {
+    "number": "DE9016",
+    "status": "Expected",
+    "movement": {
+     "scheduledTime": {
+      "utc": "2026-10-06 21:30Z",
+      "local": "2026-10-06T21:30+02:00"
+     },
+     "airport": {
+      "iata": "FAO",
+      "name": "Faro"
+     }
+    },
+    "aircraft": {
+     "model": "Airbus A320",
+     "reg": "D-AXXF"
+    },
+    "airline": {
+     "name": "Synthetic Air",
+     "iata": "DE"
+    },
+    "isCargo": false
+   },
+   {
+    "number": "DE9020",
+    "status": "Expected",
+    "movement": {
+     "scheduledTime": {
+      "utc": "2026-10-06 23:00Z",
+      "local": "2026-10-06T23:00+02:00"
+     },
+     "airport": {
+      "iata": "PMI",
+      "name": "Palma de Mallorca"
+     }
+    },
+    "airline": {
+     "name": "Synthetic Air",
+     "iata": "DE"
+    },
+    "isCargo": false
+   },
+   {
+    "number": "LH9021",
+    "status": "Expected",
+    "movement": {
+     "scheduledTime": {
+      "utc": "2026-10-07 02:00Z",
+      "local": "2026-10-07T02:00+02:00"
+     },
+     "airport": {
+      "iata": "MUC",
+      "name": "Munich"
+     }
+    },
+    "airline": {
+     "name": "Synthetic Air",
+     "iata": "LH"
+    },
+    "isCargo": false
+   },
+   {
+    "number": "X3 9022",
+    "status": "Expected",
+    "movement": {
+     "scheduledTime": {
+      "utc": "2026-10-07 05:30Z",
+      "local": "2026-10-07T05:30+02:00"
+     },
+     "airport": {
+      "iata": "ADB",
+      "name": "Izmir"
+     }
+    },
+    "airline": {
+     "name": "Synthetic Air",
+     "iata": "X3"
+    },
+    "isCargo": false
+   },
+   {
+    "number": "DE9023",
+    "status": "Expected",
+    "movement": {
+     "scheduledTime": {
+      "utc": "2026-10-07 06:00Z",
+      "local": "2026-10-07T06:00+02:00"
+     },
+     "airport": {
+      "iata": "PMI",
+      "name": "Palma de Mallorca"
+     }
+    },
+    "airline": {
+     "name": "Synthetic Air",
+     "iata": "DE"
+    },
+    "isCargo": false
+   },
+   {
+    "number": "DE9024",
+    "status": "Expected",
+    "movement": {
+     "scheduledTime": {
+      "utc": "2026-10-07 06:30Z",
+      "local": "2026-10-07T06:30+02:00"
+     },
+     "airport": {
+      "iata": "PMI",
+      "name": "Palma de Mallorca"
+     }
+    },
+    "airline": {
+     "name": "Synthetic Air",
+     "iata": "DE"
+    },
+    "isCargo": false
+   }
+  ]
+ }
+}
