@@ -75,17 +75,22 @@ function token(day) {
 }
 
 /**
- * One aircraft per rotation, on the rotation's first day only (its start or single cell). Nothing on
- * middle, end or layover days, nothing on later rows or in later months, and nothing when the first
- * day is not in the data (open start). The calendar does not show how many sectors a rotation has.
+ * One aircraft per rotation, on the rotation's first day only (its start or single cell): the aircraft IS the
+ * start marker (a small ring marks only the end). Nothing on middle, end or layover days, nothing on later rows
+ * or in later months, and nothing when the first day is not in the data (open start). The calendar does not
+ * show how many sectors a rotation has.
  */
 export function showsAircraft(day) {
   return day.status === 'flight' && (day.rotationPos === 'start' || day.rotationPos === 'single') && !day.rotationOpenStart;
 }
 
-/** The aircraft (a sibling of the band, so the band's fade masks never dim it). */
+/** The aircraft: a halo svg under a body svg (a sibling of the band, so the band's fade masks never dim it). */
+function aircraftSvgs() {
+  return html`${icon('aircraftHalo')}${icon('aircraft')}`;
+}
+
 function aircraft(day) {
-  return showsAircraft(day) ? html`<span class="cal-glyph pos-${day.rotationPos}${day.rotationPos === 'start' && day.column === 6 ? ' wrap-out' : ''}" aria-hidden="true">${icon('aircraft')}</span>` : '';
+  return showsAircraft(day) ? html`<span class="cal-glyph pos-${day.rotationPos}" aria-hidden="true">${aircraftSvgs()}</span>` : '';
 }
 
 function dayCell(day, month, tz) {
@@ -97,7 +102,7 @@ function dayCell(day, month, tz) {
     day.isToday ? 'is-today' : '', selected ? 'is-selected' : '', day.confidence === 'inferred' ? 'is-inferred' : '',
     noData(day) ? 'is-nodata' : '', band ? 'has-band' : '',
   ].filter(Boolean).join(' ');
-  // Journey line: one continuous stroke per rotation, with a node where it departs and where it ends.
+  // Journey line: one continuous stroke per rotation, with the aircraft where it departs and a small ring where it ends.
   const bandClasses = band ? [
     'cal-band', `pos-${day.rotationPos}`, `kind-${day.status}`, day.confidence === 'inferred' ? 'is-inferred' : 'is-confirmed',
     day.column === 0 && (day.rotationPos === 'middle' || day.rotationPos === 'end') ? 'wrap-in' : '',
@@ -138,7 +143,7 @@ function keyView() {
     <details class="cal-key" data-cal-key>
       <summary>Key</summary>
       <ul class="cal-key-list" role="list">
-        ${KEY.map(([cls, label, code]) => html`<li class="cal-key-item ${cls}"><span class="cal-key-sample" aria-hidden="true">${code ?? ''}${cls === 'key-flight' ? html`<span class="cal-key-plane">${icon('aircraft')}</span>` : ''}</span>${label}</li>`)}
+        ${KEY.map(([cls, label, code]) => html`<li class="cal-key-item ${cls}"><span class="cal-key-sample" aria-hidden="true">${code ?? ''}${cls === 'key-flight' ? html`<span class="cal-key-plane">${aircraftSvgs()}</span>` : ''}</span>${label}</li>`)}
       </ul>
     </details>`;
 }
