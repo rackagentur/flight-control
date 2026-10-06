@@ -12,10 +12,25 @@
 
 /**
  * @typedef {Object} Terminology
- * @property {Object<string, OffSubtypeLabel>} offSubtype  labels for the free-family day subtypes, by contract id
+ * Every field below is REQUIRED: Today, Calendar and the state engine read them unconditionally
+ * (tests/airlines.test.js enforces this for every pack and the generic fallback).
+ * @property {{off: OffSubtypeLabel, free: OffSubtypeLabel, leave: OffSubtypeLabel, ort: OffSubtypeLabel}} offSubtype  labels for the free-family day subtypes, by contract id (short and name required)
  * @property {string} protectedLegend   calendar key text for the protected free day
  * @property {string} protectedEyebrow  day detail heading for a protected free day stated by the roster
  * @property {string} protectedReason   state-engine reason for a protected free day
+ */
+
+/**
+ * One raw roster code of an airline and the canonical Flight Control concept it is established
+ * to mean. Raw codes stay separate from canonical concepts (contract v2) and from user-facing
+ * terminology.
+ * @typedef {Object} RosterCodeDefinition
+ * @property {string} id                 stable key inside the pack ('checkin', 'pickup', 'standby-sb', 'reserve-re', 'day-off', 'day-free', 'day-leave', 'day-ort')
+ * @property {{exact:string}|{pattern:string}} match   raw roster title: exact code, or an anchored regex SOURCE string
+ * @property {'checkin'|'pickup'|'standby'|'reserve'|'off'} kind   canonical Flight Control concept (contract v2)
+ * @property {'off'|'free'|'leave'|'ort'|null} [subtype]
+ * @property {boolean} [protected]
+ * @property {string} source             where the mapping is established, e.g. 'docs/CONTRACT-V2.md source inventory (2026-10-04)'
  */
 
 /**
@@ -24,6 +39,8 @@
  * @property {string} name          display name
  * @property {string|null} iata     two-letter airline code, null when not airline-specific
  * @property {Terminology} terminology
+ * @property {ReadonlyArray<string>} [flightDesignators]  airline designators accepted in feed flight titles (packs with a roster feed)
+ * @property {ReadonlyArray<RosterCodeDefinition>} [rosterCodes]  raw roster codes in match order (packs with a roster feed)
  */
 
 export {};

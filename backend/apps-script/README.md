@@ -4,10 +4,11 @@ Status: **installed (private).** The four files below are installed unchanged in
 
 | File | Role |
 |---|---|
-| `CondorAdapterV2.gs` | Airline feed configuration and parsing (codes, base zone, description whitelist). The only airline-specific file |
+| `CondorAdapterV2.gs` | Airline feed configuration and parsing (base zone, flight-title format, description whitelist). Classifies titles with the table in `CondorCodesV2.gs`, read at call time only |
 | `RosterModelV2.gs` | Airline-independent contract builder (pure; unit-tested in Node) |
 | `RosterApiV2.gs` | `doPost` entry point, token check, read-only Calendar/Sheet access |
 | `AirportsV2.gs` | Generated airport → IANA zone table (`node scripts/gen-airports-gs.mjs`) |
+| `CondorCodesV2.gs` | Generated Condor roster-code table: raw feed title → canonical concept (`node scripts/gen-condor-codes-gs.mjs`, from `src/airlines/condor/roster-codes.js`). Never edit by hand |
 | `RouterV2.gs` | Backend hardening (BH-1 in Version 25, BH-2 in Version 26): the project's only `doGet`. Refuses every GET with JSON and never serves a page. `getStats` by GET only while Script Property `FC_V5_GET` = `open` (BH-2 migration window); otherwise `auth-required`, and token holders use `doPost` `stats` |
 
 Rules the files follow:
@@ -37,6 +38,15 @@ hashes, deployment "untitled" on version 22, triggers unchanged, Script Properti
    "Who has access: Anyone". The /exec URL does not change. Do not touch the "V5.2" deployment.
 5. **Verify** (see the checkpoint plan): v5 still works, wrong/absent tokens are refused, the
    correct token returns contract v2, the app uses v2, and the fallback to v5 works.
+
+### Adding `CondorCodesV2.gs` (Phase 1b)
+
+`CondorCodesV2.gs` is a **new file**: add it in the project editor (Files → + → Script, named exactly
+`CondorCodesV2`, pasted unchanged) **in the same version as the updated `CondorAdapterV2.gs`**, which no
+longer holds the codes. Apps Script appends a new file after the existing ones; that order is correct,
+because the adapter reads `FCV2_CONDOR_CODES_` only inside function bodies at call time, never while
+loading. Regenerate after any change to the pack table: `node scripts/gen-condor-codes-gs.mjs`
+(`tests/condor-codes.test.js` fails when the committed copy is stale).
 
 ## Rollback
 

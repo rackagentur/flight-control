@@ -1,10 +1,12 @@
 // ============================================================================
 // FLIGHT CONTROL ROSTER CONTRACT V2 — SOURCE ADAPTER: Condor duty-plan calendar
 // ============================================================================
-// The ONLY place that knows the airline feed's codes and description layout.
+// The ONLY place that knows the airline feed's description layout and flight-title format.
 // Everything here is configuration or pure parsing (no Apps Script services), so it
-// is unit-tested in Node. Codes were established by the read-only source inventory
-// (docs/CONTRACT-V2.md §Source inventory).
+// is unit-tested in Node. The roster CODES (raw title → canonical concept) are NOT here: they
+// live in CondorCodesV2.gs, generated from src/airlines/condor/roster-codes.js. That file loads
+// AFTER this one (Apps Script appends new files), so this file reads FCV2_CONDOR_CODES_ only
+// inside function bodies at call time, never at load time.
 //
 // Privacy: descriptions contain colleague names and employee numbers. Only two
 // things are read: the hotel block, parsed fail-closed against its expected structure
@@ -18,20 +20,12 @@ const FCV2_CONDOR_CONFIG_ = Object.freeze({
   // Operational base(s) and the zone the feed's day codes are aligned to.
   baseTimeZone: 'Europe/Berlin',
   homeBases: ['FRA'],
-  airlineCodes: ['DE'],
   // Prefixes the sync adds to flight titles in the synced copy of the calendar.
   titlePrefixes: ['✈️✈️✈️ '],
   // First date of usable synced history.
   historyStart: '2022-08-01',
   // Crew rank codes that open crew-list lines in this feed (never part of hotel data).
   crewRanks: ['CP', 'CPT', 'FO', 'SFO', 'SO', 'PU', 'ST', 'SEN', 'FA', 'CA', 'CM', 'FE', 'IP', 'TRI', 'TRE'],
-  // Day codes: whole local days. ORT is a protected free day assigned by the company.
-  dayCodes: {
-    'OFF': { kind: 'off', subtype: 'off', label: 'Off day' },
-    '-': { kind: 'off', subtype: 'free', label: 'Free day' },
-    'U': { kind: 'off', subtype: 'leave', label: 'Leave' },
-    'ORT': { kind: 'off', subtype: 'ort', label: 'Protected free day', protected: true },
-  },
 });
 
 /** Title without the sync's decorative prefix, trimmed. */
@@ -119,8 +113,26 @@ function fcv2ParseDescription_(description) {
   return { hotel: hotel, aircraft: aircraft };
 }
 
+/** Compiled code matchers, built on first call (never at load time; see the header). */
+let FCV2_CODE_MATCHERS_ = null;
+
+function fcv2CodeMatchers_() {
+  if (!FCV2_CODE_MATCHERS_) {
+    FCV2_CODE_MATCHERS_ = FCV2_CONDOR_CODES_.codes.map(function (def) {
+      if (Object.prototype.hasOwnProperty.call(def.match, 'exact')) {
+        const exact = def.match.exact;
+        return { def: def, test: function (t) { return t === exact; } };
+      }
+      const re = new RegExp(def.match.pattern);
+      return { def: def, test: function (t) { return re.test(t); } };
+    });
+  }
+  return FCV2_CODE_MATCHERS_;
+}
+
 /**
  * Classifies one raw calendar event into a normalized source event.
+ * Order: flight title (designator from the code table), then the code table in its own order.
  * @param {{sourceId:string, title:string, start:number, end:number, location?:string, description?:string, basis:string}} raw
  * @returns {object} {sourceId, kind, subtype, code, title, start, end, location, flight, aircraft, hotel, basis, protected}
  */
@@ -134,7 +146,7 @@ function fcv2ClassifyEvent_(raw, config) {
     basis: raw.basis, protected: false,
   };
   const flight = title.match(/^([A-Z0-9]{2})(\d{1,4})\s+([A-Z]{3})-([A-Z]{3})\b/);
-  if (flight && config.airlineCodes.indexOf(flight[1]) >= 0) {
+  if (flight && FCV2_CONDOR_CODES_.flightDesignators.indexOf(flight[1]) >= 0) {
     out.kind = 'flight';
     out.code = flight[1];
     out.flight = { number: flight[1] + flight[2], origin: flight[3], destination: flight[4] };
@@ -142,21 +154,16 @@ function fcv2ClassifyEvent_(raw, config) {
     out.hotel = parsed.hotel;
     return out;
   }
-  if (title === 'C/I') { out.kind = 'checkin'; out.code = 'C/I'; return out; }
-  if (title === 'P/U') { out.kind = 'pickup'; out.code = 'P/U'; return out; }
-  const window = title.match(/^(SB|RE)(\d{0,3})$/);
-  if (window) {
-    out.kind = window[1] === 'SB' ? 'standby' : 'reserve';
+  const matchers = fcv2CodeMatchers_();
+  for (let i = 0; i < matchers.length; i++) {
+    if (!matchers[i].test(title)) continue;
+    const def = matchers[i].def;
+    out.kind = def.kind;
+    out.subtype = def.subtype || null;
     out.code = title;
-    out.hotel = parsed.hotel;
-    return out;
-  }
-  const day = Object.prototype.hasOwnProperty.call(config.dayCodes, title) ? config.dayCodes[title] : null;
-  if (day) {
-    out.kind = day.kind;
-    out.subtype = day.subtype;
-    out.code = title;
-    out.protected = Boolean(day.protected);
+    // Only windows (standby/reserve) carry a roster hotel; day codes and check-in/pickup do not.
+    if (def.kind === 'standby' || def.kind === 'reserve') out.hotel = parsed.hotel;
+    out.protected = Boolean(def.protected);
     return out;
   }
   // Unknown code: kept with its original code/title, never dropped or guessed.

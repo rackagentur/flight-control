@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getAirline, airlineOf } from '../src/airlines/index.js';
+import { getAirline, airlineOf, AIRLINE_IDS } from '../src/airlines/index.js';
 import { normalizeProfile } from '../src/config/profile.js';
 import { loadGs, fakeEnv } from './gs-harness.js';
 import { NOW, feedEvents, syncedEvents, hotelRows } from './fixtures/condor-feed.synthetic.mjs';
@@ -47,6 +47,26 @@ test('generic terminology carries no ORT; Condor keeps its own wording', () => {
   const t = getAirline('condor').terminology;
   assert.equal(t.offSubtype.ort.short, 'ORT');
   assert.equal(t.offSubtype.ort.name, 'Protected free day');
+});
+
+test('every pack and the generic fallback supply all terminology the Today/Calendar UI reads', () => {
+  assert.ok(AIRLINE_IDS.includes('condor'));
+  assert.ok(Object.isFrozen(AIRLINE_IDS));
+  const text = (v, what) => assert.ok(typeof v === 'string' && v.trim().length > 0, what);
+  for (const id of [...AIRLINE_IDS, 'generic']) {
+    const pack = getAirline(id);
+    assert.equal(pack.id, id);
+    const t = pack.terminology;
+    // calendar.js and today.js read short + name for these four subtypes unconditionally.
+    for (const sub of ['off', 'free', 'leave', 'ort']) {
+      text(t.offSubtype?.[sub]?.short, `${id}: offSubtype.${sub}.short`);
+      text(t.offSubtype?.[sub]?.name, `${id}: offSubtype.${sub}.name`);
+      if ('detail' in t.offSubtype[sub]) text(t.offSubtype[sub].detail, `${id}: offSubtype.${sub}.detail is optional but never empty`);
+    }
+    text(t.protectedLegend, `${id}: protectedLegend`);
+    text(t.protectedEyebrow, `${id}: protectedEyebrow`);
+    text(t.protectedReason, `${id}: protectedReason`);
+  }
 });
 
 test('profile: Condor by default, legacy airlineAdapter migrates, invalid ids fall back', () => {

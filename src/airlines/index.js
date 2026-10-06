@@ -14,6 +14,9 @@ const REGISTRY = Object.freeze({
 });
 const FALLBACK = deepFreeze(GENERIC);
 
+/** Ids of the registered airline packs (the generic fallback is not a registered pack). */
+export const AIRLINE_IDS = Object.freeze(Object.keys(REGISTRY));
+
 /** @param {string|null|undefined} id @returns {import('./types.js').AirlineProfile} */
 export function getAirline(id) {
   return Object.hasOwn(REGISTRY, id ?? '') ? REGISTRY[id] : FALLBACK;

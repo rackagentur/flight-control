@@ -133,4 +133,4 @@ Field rules:
 
 ## Backend files (`backend/apps-script/`)
 
-`CondorAdapterV2.gs` (airline codes and description whitelist), `RosterModelV2.gs` (airline-independent builder), `RosterApiV2.gs` (`doPost`, token, reads), `AirportsV2.gs` (generated: `node scripts/gen-airports-gs.mjs`). They reference project constants (calendar/sheet ids, sync tag) by name only and contain no ids, URLs or secrets. Installed (currently Version 24); install, rollback and kill switch in `backend/apps-script/README.md`.
+`CondorAdapterV2.gs` (flight-title format and description whitelist), `RosterModelV2.gs` (airline-independent builder), `RosterApiV2.gs` (`doPost`, token, reads), `AirportsV2.gs` (generated: `node scripts/gen-airports-gs.mjs`), `CondorCodesV2.gs` (generated: `node scripts/gen-condor-codes-gs.mjs`; the source inventory table above is mirrored in `src/airlines/condor/roster-codes.js`, the one authoritative copy, and the adapter classifies titles from it). They reference project constants (calendar/sheet ids, sync tag) by name only and contain no ids, URLs or secrets. Installed (currently Version 24); install, rollback and kill switch in `backend/apps-script/README.md`.

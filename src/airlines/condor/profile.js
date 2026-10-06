@@ -1,11 +1,15 @@
-// Condor airline pack: Condor's own terminology for the generic day model.
-// (Later phases add Condor's rules here; today it carries wording only.)
+// Condor airline pack: Condor's own terminology for the generic day model, plus its raw roster
+// codes (roster-codes.js). Wording (terminology) and raw codes stay separate.
+
+import { CONDOR_ROSTER_CODES, CONDOR_FLIGHT_DESIGNATORS } from './roster-codes.js';
 
 /** @type {import('../types.js').AirlineProfile} */
 export const CONDOR = {
   id: 'condor',
   name: 'Condor',
   iata: 'DE',
+  flightDesignators: CONDOR_FLIGHT_DESIGNATORS,
+  rosterCodes: CONDOR_ROSTER_CODES,
   terminology: {
     offSubtype: {
       off: { short: 'OFF', name: 'Off day' },
