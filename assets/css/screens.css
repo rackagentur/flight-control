@@ -122,11 +122,11 @@
 /* Nodes sit inside the line's box (so fade masks never clip them): the line starts 5px early. */
 .cal-band.pos-start { left: calc(50% - 5px); }
 .cal-band.pos-end { right: calc(50% - 5px); }
-.cal-band.pos-single { left: calc(22% - 5px); right: calc(22% - 5px); }
+.cal-band.pos-single { left: 0.5px; right: 0.5px; }  /* the line runs (almost) the full cell so a day trip has room for its aircraft between the two anchors; 0.5px in, so rotations on consecutive days keep a 3px gap between their rings */
 .cal-band.pos-start::before, .cal-band.pos-single::before,
 .cal-band.pos-end::after, .cal-band.pos-single::after {
-  content: ""; position: absolute; top: -3.5px; width: 12px; height: 12px; border-radius: 50%;
-  background: var(--canvas); box-shadow: inset 0 0 0 3px var(--journey);
+  content: ""; position: absolute; top: -1.5px; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--canvas); box-shadow: inset 0 0 0 2px var(--journey);
 }
 .cal-band.pos-start::before, .cal-band.pos-single::before { left: 0; }
 .cal-band.pos-end::after, .cal-band.pos-single::after { right: 0; }
@@ -136,6 +136,30 @@
 .cal-band.open-start::before, .cal-band.open-end::after { display: none; }
 .cal-band.open-start { left: -1px; }
 .cal-band.open-end { right: -1px; }
+
+/* Aircraft: ONE per rotation, on its first day only (the start or single cell; calendar.js decides). A top-down
+   silhouette pointing right, the primary mark on the line (small ring, line, aircraft, line, small ring). A
+   sibling of the band (never inside it) so the band's fade masks cannot dim it; absolutely placed on the 12px
+   track, so it overflows the row (never moves any other marker). Decorative and static: nothing animates.
+   --gs is the square box; the visible ink is 0.8 of it long (x 2.4-21.6 of 24) and 0.755 across (the wings).
+   Start day (--glyph-start): the ink starts 2px right of the start ring and may cross the cell's right edge by up
+   to 8px (the line continues there); a column-6 start (wrap-out) must stay inside the cell (the grid edge), so it
+   is sized to fit. Day trip (--glyph): centred between the two rings, ink at least 2px from each. Vertical: the
+   wings overflow the 12px track; the start size is the largest whose wing tips stay clear of the date number box
+   (ink 0px from it). */
+.cal-main { --glyph: 23px; --glyph-start: 26px; }
+@media (max-width: 359px) { .cal-main { --glyph: 21px; --glyph-start: 24px; } }
+@media (min-width: 768px) { .cal-main { --glyph: 25px; --glyph-start: 26.4px; } }
+.cal-track { container-type: inline-size; }
+.cal-glyph { --gs: var(--glyph); position: absolute; top: 50%; width: var(--gs); height: var(--gs); transform: translateY(-50%); pointer-events: none; }
+.cal-glyph.pos-start { --gs: var(--glyph-start); left: calc(50% + 5px - var(--gs) * 0.1); }
+.cal-glyph.pos-single { left: 50%; transform: translate(-50%, -50%); }
+@media (max-width: 399px) { .cal-glyph.pos-start.wrap-out { --gs: 18px; } }
+@supports (width: 1cqw) { .cal-glyph.pos-start.wrap-out { --gs: min(var(--glyph-start), calc((50cqw - 5px) / 0.8)); } }
+.cal-glyph svg, .cal-key-plane svg { display: block; position: absolute; left: 0; top: 0; width: 100%; height: 100%; max-width: none; overflow: visible; color: var(--journey); }
+.cal-glyph svg path, .cal-key-plane svg path { stroke: var(--canvas); stroke-width: 2.8; stroke-linejoin: round; paint-order: stroke; }
+.cal-day.is-outside .cal-glyph { opacity: 0.55; }
+
 
 /* Marks for days without a journey line. */
 .cal-mark { width: 0; height: 0; }
@@ -166,7 +190,9 @@
 .cal-key-item { display: flex; align-items: center; gap: var(--space-2); }
 .cal-key-sample { position: relative; display: inline-grid; place-items: center; flex: none; width: 34px; height: 18px; border-radius: 9px; font-size: 10px; font-weight: var(--weight-semibold); color: var(--fg-1); letter-spacing: 0.04em; }
 .key-flight .cal-key-sample::before { content: ""; position: absolute; left: 4px; right: 4px; top: 7px; height: 4px; background: light-dark(#3A5B7C, #94B4D2); border-radius: 2px; }
-.key-flight .cal-key-sample::after { content: ""; position: absolute; left: 1px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--canvas); box-shadow: inset 0 0 0 2.5px light-dark(#3A5B7C, #94B4D2); }
+.key-flight .cal-key-sample::after { content: ""; position: absolute; left: 3px; top: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--canvas); box-shadow: inset 0 0 0 2px light-dark(#3A5B7C, #94B4D2); }
+.key-flight .cal-key-plane { position: absolute; left: 12px; top: -1px; width: 20px; height: 20px; }
+.key-flight .cal-key-plane svg { color: light-dark(#3A5B7C, #94B4D2); }
 .key-layover .cal-key-sample { font-style: italic; background: repeating-linear-gradient(90deg, light-dark(#6A6259, #BBB1A5) 0 3px, transparent 3px 6px) bottom / 100% 3px no-repeat; border-radius: 0; }
 .key-layover-roster .cal-key-sample { background: linear-gradient(light-dark(#6A6259, #BBB1A5) 0 2px, transparent 2px 4px, light-dark(#6A6259, #BBB1A5) 4px 6px) bottom / 100% 6px no-repeat; border-radius: 0; }
 .key-sb .cal-key-sample { box-shadow: inset 0 0 0 1.5px light-dark(#8E6322, #D9A85C); }
@@ -220,6 +246,7 @@
   .cal-side { position: sticky; top: var(--space-8); }
   .cal-grid, .cal-row { gap: 4px; }
   .cal-band { left: -2px; right: -2px; }
+  .cal-band.pos-single { left: -0.5px; right: -0.5px; }
   .cal-band.pos-start { left: calc(50% - 5px); }
   .cal-band.pos-end { right: calc(50% - 5px); }
   .cal-band.open-start { left: -2px; }

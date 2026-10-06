@@ -7,6 +7,9 @@ const PATHS = {
   today: '<path d="M3 16.5h18"/><path d="M7 16.5a5 5 0 0 1 10 0"/><path d="M12 6.5V4.5M5.9 9.4 4.5 8M18.1 9.4 19.5 8"/><path d="M8 20h8"/>',
   calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8 14h2M14 14h2M8 17h2"/>',
   flights: '<path d="M12 3c.8 0 1.4.7 1.4 1.5v5l7.1 4.1v1.9l-7.1-2.2v4.4l2.1 1.6V21L12 20.1 8.5 21v-1.7l2.1-1.6v-4.4l-7.1 2.2v-1.9l7.1-4.1v-5C10.6 3.7 11.2 3 12 3z"/>',
+  // Top-down airliner for the calendar's rotation line, pointing right (the direction of travel on its time axis).
+  // The same silhouette as the `flights` icon, filled, turned 90 degrees and scaled so the ink spans x 2.4-21.6.
+  aircraft: '<path transform="translate(12 12) rotate(90) scale(1.0667) translate(-12 -12)" fill="currentColor" stroke="none" d="M12 3c.8 0 1.4.7 1.4 1.5v5l7.1 4.1v1.9l-7.1-2.2v4.4l2.1 1.6V21L12 20.1 8.5 21v-1.7l2.1-1.6v-4.4l-7.1 2.2v-1.9l7.1-4.1v-5C10.6 3.7 11.2 3 12 3z"/>',
   map: '<path d="M9 4.5 3.5 6.5v13l5.5-2 6 2 5.5-2v-13l-5.5 2-6-2z"/><path d="M9 4.5v13M15 6.5v13"/>',
   more: '<circle cx="12" cy="12" r="8.5"/><path d="M8 12h.01M12 12h.01M16 12h.01" stroke-width="2.4"/>',
   weather: '<path d="M8.5 5.5V4M4.6 7.1l-1-1M12.4 7.1l1-1"/><path d="M5.2 11.2A3.6 3.6 0 0 1 11.8 9"/><path d="M8 19.5h9a3.5 3.5 0 0 0 .4-7 5 5 0 0 0-9.6 1.2A2.9 2.9 0 0 0 8 19.5z"/>',

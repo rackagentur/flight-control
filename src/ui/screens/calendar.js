@@ -74,6 +74,20 @@ function token(day) {
   return '';
 }
 
+/**
+ * One aircraft per rotation, on the rotation's first day only (its start or single cell). Nothing on
+ * middle, end or layover days, nothing on later rows or in later months, and nothing when the first
+ * day is not in the data (open start). The calendar does not show how many sectors a rotation has.
+ */
+export function showsAircraft(day) {
+  return day.status === 'flight' && (day.rotationPos === 'start' || day.rotationPos === 'single') && !day.rotationOpenStart;
+}
+
+/** The aircraft (a sibling of the band, so the band's fade masks never dim it). */
+function aircraft(day) {
+  return showsAircraft(day) ? html`<span class="cal-glyph pos-${day.rotationPos}${day.rotationPos === 'start' && day.column === 6 ? ' wrap-out' : ''}" aria-hidden="true">${icon('aircraft')}</span>` : '';
+}
+
 function dayCell(day, month, tz) {
   const selected = day.date === ui.selected;
   const band = day.rotationPos && (day.status === 'flight' || day.status === 'layover');
@@ -90,6 +104,7 @@ function dayCell(day, month, tz) {
     day.column === 6 && (day.rotationPos === 'middle' || day.rotationPos === 'start') ? 'wrap-out' : '',
     day.rotationOpenStart ? 'open-start' : '', day.rotationOpenEnd ? 'open-end' : '',
   ].filter(Boolean).join(' ') : '';
+  const glyphs = band ? aircraft(day) : '';
   const dateLabel = formatDate(day.start + 12 * 3600000, tz) ?? day.date;
   return html`
     <button type="button" class="${classes}" role="gridcell" data-date="${day.date}"
@@ -97,7 +112,7 @@ function dayCell(day, month, tz) {
       tabindex="${day.date === focusDate(month) ? '0' : '-1'}"
       aria-label="${day.isToday ? 'Today, ' : ''}${dateLabel}: ${noData(day) ? 'No data' : describe(day)}">
       <span class="cal-num t-tabular" aria-hidden="true">${Number(day.date.slice(8))}</span>
-      <span class="cal-track" aria-hidden="true">${band ? html`<span class="${bandClasses}"></span>` : html`<span class="cal-mark"></span>`}</span>
+      <span class="cal-track" aria-hidden="true">${band ? html`<span class="${bandClasses}"></span>${glyphs}` : html`<span class="cal-mark"></span>`}</span>
       <span class="cal-code ${tok}" aria-hidden="true">${cellCode(day)}</span>
       <span class="cal-sub t-tabular" aria-hidden="true">${cellSub(day, tz)}</span>
     </button>`;
@@ -123,7 +138,7 @@ function keyView() {
     <details class="cal-key" data-cal-key>
       <summary>Key</summary>
       <ul class="cal-key-list" role="list">
-        ${KEY.map(([cls, label, code]) => html`<li class="cal-key-item ${cls}"><span class="cal-key-sample" aria-hidden="true">${code ?? ''}</span>${label}</li>`)}
+        ${KEY.map(([cls, label, code]) => html`<li class="cal-key-item ${cls}"><span class="cal-key-sample" aria-hidden="true">${code ?? ''}${cls === 'key-flight' ? html`<span class="cal-key-plane">${icon('aircraft')}</span>` : ''}</span>${label}</li>`)}
       </ul>
     </details>`;
 }
