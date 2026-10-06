@@ -27,6 +27,7 @@ const FCV2_DEP_PAST_MS_ = 24 * 3600000;            // `from` may be at most this
 const FCV2_DEP_FUTURE_MS_ = 14 * 24 * 3600000;     // `to` may be at most this far ahead
 const FCV2_DEP_CHUNK_STEP_MS_ = 11 * 3600000;      // chunk starts; the 1 h overlap absorbs DST ambiguity
 const FCV2_DEP_CHUNK_SPAN_MS_ = 12 * 3600000;      // AeroDataBox allows at most 12 h per call
+const FCV2_DEP_OVERLAP_MS_ = 3600000;              // chunk overlap, and the outer padding next to a UTC-offset change
 const FCV2_DEP_SPACING_MS_ = 1100;                 // pause between calls that really hit the provider
 const FCV2_DEP_RETRY_DELAYS_MS_ = [1200, 2500];    // after HTTP 429
 const FCV2_DEP_TTL_NEAR_S_ = 600;                  // chunk starts within 6 h of now
@@ -78,26 +79,52 @@ function fcv2LocalMinutes_(a, b) {
 
 /**
  * Splits [from, to] into provider windows: chunk i starts at from + i·11 h and ends at
- * min(start + 12 h, to); chunks stop when the start reaches `to`. The 1 h overlap is
- * removed by filtering on the instant and deduplicating. Each chunk also carries its
+ * min(start + 12 h, to); chunks stop once the previous chunk's end reaches `to` (so a
+ * range of at most 12 h is one call, up to 23 h two, up to 34 h three; the handler never
+ * asks for more than 26 h). The 1 h overlap is removed by filtering on the instant and
+ * deduplicating. Each chunk also carries its
  * airport-local strings; if a spring-forward gap makes a 12 h window span 13 local hours
  * (AeroDataBox counts local time), the end is pulled back to 12 local hours, which is
  * exactly the next chunk's start, so there is still no gap.
  */
 function fcv2DepartureChunks_(from, to, tz, deps) {
   const chunks = [];
-  for (let start = from; start < to; start += FCV2_DEP_CHUNK_STEP_MS_) {
+  let previousEnd = -Infinity;
+  for (let start = from; start < to && previousEnd < to; start += FCV2_DEP_CHUNK_STEP_MS_) {
     let end = Math.min(start + FCV2_DEP_CHUNK_SPAN_MS_, to);
     const fromLocal = deps.localIso(start, tz).slice(0, 16);
     let toLocal = deps.localIso(end, tz).slice(0, 16);
     const span = fcv2LocalMinutes_(fromLocal, toLocal);
     if (span > 720) {
-      end -= (span - 720) * 60000;
+      // Never pull back past the next chunk's start (a `to` off the minute would leave a few seconds uncovered).
+      end = Math.max(end - (span - 720) * 60000, start + FCV2_DEP_CHUNK_STEP_MS_);
       toLocal = deps.localIso(end, tz).slice(0, 16);
     }
     chunks.push({ start: start, end: end, fromLocal: fromLocal, toLocal: toLocal });
+    previousEnd = end;
   }
   return chunks;
+}
+
+/** UTC offset text ('+01:00') of the airport zone at an instant, from deps.localIso. */
+function fcv2OffsetAt_(ms, tz, deps) {
+  return deps.localIso(ms, tz).slice(16);
+}
+
+/**
+ * The range sent to the provider. The provider takes airport-LOCAL strings, and a local time
+ * inside a repeated (fall-back) hour or next to a changeover is ambiguous, so an outer end
+ * within 1 h of a UTC-offset change of the airport zone is moved outward by 1 h (results are
+ * still filtered by instant to [from, to)). Otherwise nothing is added (provider quota).
+ */
+function fcv2ProviderRange_(from, to, tz, deps) {
+  const nearChange = function (ms) {
+    return fcv2OffsetAt_(ms - FCV2_DEP_OVERLAP_MS_, tz, deps) !== fcv2OffsetAt_(ms + FCV2_DEP_OVERLAP_MS_, tz, deps);
+  };
+  return {
+    from: nearChange(from) ? from - FCV2_DEP_OVERLAP_MS_ : from,
+    to: nearChange(to) ? to + FCV2_DEP_OVERLAP_MS_ : to,
+  };
 }
 
 function fcv2DepartureUrl_(airport, fromLocal, toLocal) {
@@ -181,7 +208,19 @@ function fcv2FilterCarriers_(flights, carriers) {
 }
 
 /**
- * Provider response object → {flights, dropped}. `body` must be a plain object; a missing
+ * Stable identity of a provider entry that was dropped: flight number, call sign and the raw
+ * scheduled utc string (JSON, so a missing field and a non-object entry are still keyed).
+ */
+function fcv2DroppedKey_(entry) {
+  if (!entry || typeof entry !== 'object') return JSON.stringify([entry === undefined ? null : entry]);
+  const movement = entry.movement && typeof entry.movement === 'object' ? entry.movement : {};
+  const scheduled = movement.scheduledTime && typeof movement.scheduledTime === 'object' ? movement.scheduledTime : {};
+  const part = function (v) { return v === undefined ? null : v; };
+  return JSON.stringify([part(entry.number), part(entry.callSign), part(scheduled.utc)]);
+}
+
+/**
+ * Provider response object → {flights, dropped, droppedKeys}. `body` must be a plain object; a missing
  * `departures` is an empty list, a non-array `departures` is an unexpected shape (null).
  * Not range-filtered (the handler filters by instant); carrier-filtered when `carriers` is set.
  */
@@ -190,16 +229,23 @@ function fcv2NormalizeAdb_(body, airport, carriers, deps) {
   const list = body.departures === undefined || body.departures === null ? [] : body.departures;
   if (!Array.isArray(list)) return null;
   const flights = [];
-  let dropped = 0;
+  const droppedKeys = [];
+  const occurrences = {};
   for (let i = 0; i < list.length; i++) {
     const flight = fcv2NormalizeDeparture_(list[i], airport, deps);
-    if (flight) flights.push(flight); else dropped += 1;
+    if (flight) { flights.push(flight); continue; }
+    // The n-th identical dropped entry gets '#n', so repeats inside one response still count,
+    // while the same entry returned again by an overlapping chunk is recognised.
+    const base = fcv2DroppedKey_(list[i]);
+    occurrences[base] = (Object.prototype.hasOwnProperty.call(occurrences, base) ? occurrences[base] : 0) + 1;
+    droppedKeys.push(base + '#' + occurrences[base]);
   }
-  return { flights: fcv2FilterCarriers_(flights, carriers), dropped: dropped };
+  return { flights: fcv2FilterCarriers_(flights, carriers), dropped: droppedKeys.length, droppedKeys: droppedKeys };
 }
 
 /**
- * One provider call with the 429 retry schedule. Returns {body} (parsed object) or {error}.
+ * One provider call with the 429 retry schedule. Returns {body} (parsed object; {departures:[]}
+ * for 204 or an empty 200) or {error}.
  * Never returns or throws the URL, the key or any provider text.
  */
 function fcv2ProviderGet_(url, key, env) {
@@ -212,6 +258,8 @@ function fcv2ProviderGet_(url, key, env) {
   }
   if (res.status === 429) return { error: 'provider-rate-limited' };
   if (res.status === 401 || res.status === 403) return { error: 'provider-auth-failed' };
+  // 204, and a 200 with an empty body, mean "no flights in this window": an empty list.
+  if (res.status === 204 || (res.status === 200 && typeof res.body === 'string' && !res.body.trim())) return { body: { departures: [] } };
   if (res.status !== 200 || typeof res.body !== 'string') return { error: 'provider-unavailable' };
   let parsed;
   try { parsed = JSON.parse(res.body); } catch (err) { return { error: 'provider-unavailable' }; }
@@ -222,7 +270,8 @@ function fcv2ProviderGet_(url, key, env) {
 function fcv2ValidChunkCache_(value) {
   return !!value && typeof value === 'object' && Array.isArray(value.flights)
     && typeof value.fetchedAt === 'number' && isFinite(value.fetchedAt)
-    && typeof value.dropped === 'number' && isFinite(value.dropped);
+    && typeof value.dropped === 'number' && isFinite(value.dropped)
+    && Array.isArray(value.droppedKeys);
 }
 
 /**
@@ -236,9 +285,10 @@ function fcv2HandleDepartures_(req, env, now) {
   const key = typeof env.departuresKey === 'function' ? env.departuresKey() : null;
   if (typeof key !== 'string' || !key) return { ok: false, error: 'departures-not-configured' };
 
-  const chunks = fcv2DepartureChunks_(checked.from, checked.to, checked.tz, env.deps);
-  let all = [];
-  let dropped = 0;
+  // The provider is asked for the padded range (see fcv2ProviderRange_); results are filtered to [from, to).
+  const asked = fcv2ProviderRange_(checked.from, checked.to, checked.tz, env.deps);
+  const chunks = fcv2DepartureChunks_(asked.from, asked.to, checked.tz, env.deps);
+  const entries = [];
   let fetchedAt = now;
   let calls = 0;
   for (let i = 0; i < chunks.length; i++) {
@@ -253,24 +303,42 @@ function fcv2HandleDepartures_(req, env, now) {
       if (got.error) return { ok: false, error: got.error };
       const normalized = fcv2NormalizeAdb_(got.body, checked.airport, checked.carriers, env.deps);
       if (!normalized) return { ok: false, error: 'provider-unavailable' };
-      entry = { fetchedAt: now, flights: normalized.flights, dropped: normalized.dropped };
+      entry = { fetchedAt: now, flights: normalized.flights, dropped: normalized.dropped, droppedKeys: normalized.droppedKeys };
       const ttl = chunk.start < now + FCV2_DEP_NEAR_MS_ ? FCV2_DEP_TTL_NEAR_S_ : FCV2_DEP_TTL_FAR_S_;
       try {
         if (JSON.stringify(entry).length <= FCV2_DEP_CACHE_MAX_CHARS_) env.cachePut(cacheKey, entry, ttl);
       } catch (err) { /* a cache failure never fails the request */ }
     }
     if (entry.fetchedAt < fetchedAt) fetchedAt = entry.fetchedAt;
-    dropped += entry.dropped;
-    all = all.concat(entry.flights);
+    entries.push(entry);
   }
 
-  const seen = {};
-  const flights = all.filter(function (f) {
-    if (f.scheduledDep < checked.from || f.scheduledDep >= checked.to) return false;
-    if (Object.prototype.hasOwnProperty.call(seen, f.id)) return false;
-    seen[f.id] = true;
-    return true;
-  }).sort(function (a, b) {
+  // dropped: each dropped provider entry once per request, however many chunks returned it.
+  const droppedSeen = {};
+  let dropped = 0;
+  // Same flight id in several chunks: keep the copy from the chunk fetched last (ties: the later chunk).
+  const byId = {};
+  const ids = [];
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    for (let k = 0; k < entry.droppedKeys.length; k++) {
+      if (!Object.prototype.hasOwnProperty.call(droppedSeen, entry.droppedKeys[k])) {
+        droppedSeen[entry.droppedKeys[k]] = true;
+        dropped += 1;
+      }
+    }
+    for (let k = 0; k < entry.flights.length; k++) {
+      const f = entry.flights[k];
+      if (f.scheduledDep < checked.from || f.scheduledDep >= checked.to) continue;
+      if (!Object.prototype.hasOwnProperty.call(byId, f.id)) {
+        ids.push(f.id);
+        byId[f.id] = { flight: f, fetchedAt: entry.fetchedAt };
+      } else if (entry.fetchedAt >= byId[f.id].fetchedAt) {
+        byId[f.id] = { flight: f, fetchedAt: entry.fetchedAt };
+      }
+    }
+  }
+  const flights = ids.map(function (id) { return byId[id].flight; }).sort(function (a, b) {
     return a.scheduledDep - b.scheduledDep || (a.flightNumber < b.flightNumber ? -1 : a.flightNumber > b.flightNumber ? 1 : 0);
   });
 

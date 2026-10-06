@@ -11,6 +11,8 @@ export const DEPARTURES_CACHE_KEY = 'departures.v2';
 export const DEPARTURES_TTL_MS = 5 * 60000;
 export const DEPARTURES_MAX_ENTRIES = 8;
 export const DEPARTURES_MAX_RANGE_MS = 24 * 3600000;
+// Up to three provider calls 1.1 s apart (plus 429 retries) happen behind one request: more than the default timeout.
+export const DEPARTURES_TIMEOUT_MS = 60000;
 
 const IATA = /^[A-Z]{3}$/;
 const CARRIER = /^[A-Z0-9]{2}$/;
@@ -89,7 +91,7 @@ export async function loadDepartures(query, { api = { postContract }, store = de
 
   let data;
   try {
-    ({ data } = await api.postContract(endpoint, departuresRequest({ airport, from, to, carriers }, token)));
+    ({ data } = await api.postContract(endpoint, departuresRequest({ airport, from, to, carriers }, token), { timeoutMs: DEPARTURES_TIMEOUT_MS }));
   } catch (error) {
     if (error instanceof ApiError || error instanceof DeparturesError) throw error;
     throw new ApiError('network', 'The departures request could not be completed.', error?.message ?? null);

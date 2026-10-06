@@ -7,7 +7,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { departuresRequest, validateDepartures, adaptDepartures } from '../src/sources/departures-v2.js';
-import { loadDepartures, purgeDeparturesCache, DEPARTURES_CACHE_KEY, DeparturesError } from '../src/sources/departures-service.js';
+import { loadDepartures, purgeDeparturesCache, DEPARTURES_CACHE_KEY, DEPARTURES_TIMEOUT_MS, DeparturesError } from '../src/sources/departures-service.js';
 import { departuresContext, rangeForWindow, inWindow } from '../src/model/scheduled-flights.js';
 import { ApiError } from '../src/api/appscript.js';
 import { createStore } from '../src/store.js';
@@ -230,6 +230,17 @@ test('service: at most 8 entries; the oldest storedAt is evicted', async () => {
   const callsBefore = b.calls.length;
   assert.equal((await loadDepartures(range(1), deps)).fromCache, true);
   assert.equal(b.calls.length, callsBefore);
+});
+
+test('service: the request is posted with an explicit 60 s timeout (up to three provider calls run behind it)', async () => {
+  assert.equal(DEPARTURES_TIMEOUT_MS, 60000);
+  const seen = [];
+  const api = { postContract: async (endpoint, body, options) => {
+    seen.push(options);
+    const p = fixture(); p.carriers = body.carriers; return { data: p, meta: {} };
+  } };
+  await loadDepartures(Q, { api, store: freshStore() });
+  assert.deepEqual(seen, [{ timeoutMs: 60000 }]);
 });
 
 test('service: failures are never cached; a later success is served from the network', async () => {

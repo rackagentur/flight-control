@@ -154,7 +154,7 @@ What the Flights screen can genuinely show from `getStats`, and what stays a doc
 3. `layoverHotel` per outstation stay: `{airport, from, to, name, address, mapsUrl, phone?, verified}`. Only reviewed records; never the Places API key, raw roster text or unreviewed candidates.
 4. Report/briefing time per duty (already listed above).
 
-## Roster contract v2 (Phase 7, installed privately, currently Version 24, not yet enabled in the app)
+## Roster contract v2 (Phase 7, installed privately, currently Version 27, enabled in the app)
 
 What the richer contract closes once enabled (`docs/CONTRACT-V2.md`), and what stays open:
 

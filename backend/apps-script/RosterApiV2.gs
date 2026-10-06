@@ -47,6 +47,11 @@ function fcv2SafeEqual_(a, b) {
   return diff === 0;
 }
 
+/** False when DeparturesV2.gs is missing from the project (e.g. only this file was replaced). */
+function fcv2DeparturesAvailable_() {
+  return typeof fcv2HandleDepartures_ === 'function';
+}
+
 /** Month arithmetic on 'YYYY-MM-DD' keys. */
 function fcv2MonthStart_(key, deltaMonths) {
   const p = key.split('-').map(Number);
@@ -86,7 +91,8 @@ function fcv2HandlePost_(body, env) {
   if (req.action === 'capabilities') {
     const depKey = typeof env.departuresKey === 'function' ? env.departuresKey() : null;
     const actions = ['capabilities', 'roster', 'history', 'stats'];
-    if (typeof depKey === 'string' && depKey) actions.push('departures');
+    // Only when DeparturesV2.gs is part of the deployment AND the key is set (partial-deploy safety).
+    if (fcv2DeparturesAvailable_() && typeof depKey === 'string' && depKey) actions.push('departures');
     return {
       ok: true, contract: FCV2_CONTRACT_, version: FCV2_VERSION_, action: 'capabilities', generatedAt: now,
       actions: actions,
@@ -144,7 +150,10 @@ function fcv2HandlePost_(body, env) {
     try { return env.stats(); } catch (err) { return { ok: false, error: 'stats-unavailable' }; }
   }
 
-  if (req.action === 'departures') return fcv2HandleDepartures_(req, env, now);
+  if (req.action === 'departures') {
+    if (!fcv2DeparturesAvailable_()) return { ok: false, error: 'departures-not-configured' };
+    return fcv2HandleDepartures_(req, env, now);
+  }
 
   return { ok: false, error: 'unknown-action' };
 }

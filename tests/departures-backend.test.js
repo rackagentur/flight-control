@@ -116,21 +116,24 @@ function assertTiling(chunks, from, to, tz = 'Europe/Berlin') {
   });
 }
 
-test('chunking: 1 h, 11 h, 12 h, 23 h, 24 h and an overnight range', () => {
+test('chunking: call-count table (no chunk once the previous one reaches `to`), 1 h, 11 h, 12 h, 23 h, 24 h and an overnight range', () => {
   const from = T('2026-10-06T10:00:00Z');
-  const counts = [[1, 1], [11, 1], [12, 2], [23, 3], [24, 3]];
+  // local span (h) -> chunks: <= 12 h 1, > 12 h and <= 23 h 2, > 23 h and <= 24 h 3
+  const counts = [[1, 1], [11, 1], [12, 1], [12 + 1 / 3600000, 2], [20, 2], [22, 2], [23, 2], [23 + 1 / 3600000, 3], [24, 3]];
   for (const [hours, n] of counts) {
-    const chunks = chunksOf(from, from + hours * H);
+    const chunks = chunksOf(from, from + Math.round(hours * H));
     assert.equal(chunks.length, n, `${hours} h`);
-    assertTiling(chunks, from, from + hours * H);
+    assertTiling(chunks, from, from + Math.round(hours * H));
   }
+  // The padded provider range (at most 26 h) still needs at most three calls.
+  for (const hours of [25, 26]) assert.equal(chunksOf(from, from + hours * H).length, 3, `${hours} h`);
   const twenty = chunksOf(from, from + 20 * H);
   assert.deepEqual(twenty.map((c) => [c.fromLocal, c.toLocal]), [['2026-10-06T12:00', '2026-10-07T00:00'], ['2026-10-06T23:00', '2026-10-07T08:00']]);
   // Overnight: 22:00 -> 10:00 local (crossing midnight).
   const nightFrom = T('2026-10-06T20:00:00Z');
   const night = chunksOf(nightFrom, nightFrom + 12 * H);
   assertTiling(night, nightFrom, nightFrom + 12 * H);
-  assert.deepEqual(night.map((c) => [c.fromLocal, c.toLocal]), [['2026-10-06T22:00', '2026-10-07T10:00'], ['2026-10-07T09:00', '2026-10-07T10:00']]);
+  assert.deepEqual(night.map((c) => [c.fromLocal, c.toLocal]), [['2026-10-06T22:00', '2026-10-07T10:00']], '12 h is one call: nothing is left for a second chunk');
   // A range whose length is a multiple of the step: the chunk starting exactly at `to` does not exist.
   assert.equal(chunksOf(from, from + 22 * H).length, 2);
 });
@@ -158,6 +161,16 @@ test('chunking across Europe/Berlin DST changes: correct local strings, no gaps,
   // Every instant of both days lies in some chunk (sampled every 5 minutes).
   for (const [from, n] of [[spring, sc], [fall, fc]]) {
     for (let t = from; t < from + 24 * H; t += 300000) assert.ok(n.some((c) => c.start <= t && t <= c.end), new Date(t).toISOString());
+  }
+  // A range end off the minute: the pulled-back window still meets the next one (no gap of seconds).
+  for (const [tz, from, hours] of [['America/New_York', 1772919747750, 11.963861666666666], ['America/New_York', 1772898109723, 22.171129722222222]]) {
+    const to = from + Math.round(hours * H);
+    const odd = chunksOf(from, to, tz);
+    odd.forEach((c, i) => {
+      if (i > 0) assert.ok(c.start <= odd[i - 1].end, `${tz} chunk ${i} starts at or before the previous end`);
+      assert.ok(localMin(c.toLocal) - localMin(c.fromLocal) <= 720);
+    });
+    assert.equal(odd.at(-1).end, to);
   }
   // Starting inside the changeover hour.
   const mid = T('2026-03-29T00:30:00Z');
@@ -226,6 +239,7 @@ test('live env bindings: key from Script Property only, UrlFetchApp options, sle
 // --- Normalization ----------------------------------------------------------------
 
 const normalize = (body, carriers = null) => plain(gs.fcv2NormalizeAdb_(body, 'FRA', carriers, deps));
+const countsOnly = ({ flights, dropped }) => ({ flights, dropped });   // droppedKeys has its own test
 const idOf = (number, ms) => `f_${createHash('sha256').update(`${number}|${ms}`).digest('hex').slice(0, 16)}`;
 const byNumber = (list) => Object.fromEntries(list.map((f) => [f.flightNumber, f]));
 
@@ -268,7 +282,7 @@ test('normalization: only the utc instant is used (a wrong "local" never matters
   assert.notEqual(e.movement.scheduledTime.local, '2026-10-06T14:30+02:00');
   assert.equal(normalize({ departures: [e] }).flights[0].scheduledDep, T('2026-10-06T12:30:00Z'));
   const onlyLocal = { number: 'DE9100', movement: { scheduledTime: { local: '2026-10-06 14:30+02:00' } } };
-  assert.deepEqual(normalize({ departures: [onlyLocal] }), { flights: [], dropped: 1 });
+  assert.deepEqual(countsOnly(normalize({ departures: [onlyLocal] })), { flights: [], dropped: 1 });
 });
 
 test('normalization: status mapping buckets, case-insensitive, unknown otherwise', () => {
@@ -311,8 +325,8 @@ test('normalization: utc parsing accepts the provider format and rejects everyth
 });
 
 test('normalization: body shape rules', () => {
-  assert.deepEqual(normalize({}), { flights: [], dropped: 0 }, 'an object without departures is an empty list');
-  assert.deepEqual(normalize({ departures: null }), { flights: [], dropped: 0 });
+  assert.deepEqual(countsOnly(normalize({})), { flights: [], dropped: 0 }, 'an object without departures is an empty list');
+  assert.deepEqual(countsOnly(normalize({ departures: null })), { flights: [], dropped: 0 });
   for (const bad of [null, undefined, 'x', 5, [], { departures: 'x' }, { departures: {} }]) assert.equal(gs.fcv2NormalizeAdb_(bad, 'FRA', null, deps), null, JSON.stringify(bad));
 });
 
@@ -414,7 +428,6 @@ test('other failures: 500, 404, network throw, HTML, non-object JSON, bad shapes
     400: () => ({ status: 400, body: 'PROVIDER-BODY-SECRET' }),
     throw: () => { throw new Error(`socket closed for ${KEY} https://aerodatabox.p.rapidapi.com/x`); },
     html: () => ({ status: 200, body: '<html>PROVIDER-BODY-SECRET</html>' }),
-    empty: () => ({ status: 200, body: '' }),
     array: () => ({ status: 200, body: '[]' }),
     string: () => ({ status: 200, body: '"PROVIDER-BODY-SECRET"' }),
     null: () => ({ status: 200, body: 'null' }),
@@ -485,7 +498,8 @@ test('cache: keys, TTL 600 s near / 3600 s later, value shape (normalized, carri
     ['fcv2-dep-FRA-2026-10-06T23:00-2026-10-07T08:00-*', 3600],  // starts 21:00Z >= now + 6 h
   ]);
   const value = plain(s.cache.get('fcv2-dep-FRA-2026-10-06T12:00-2026-10-07T00:00-*'));
-  assert.deepEqual(Object.keys(value).sort(), ['dropped', 'fetchedAt', 'flights']);
+  assert.deepEqual(Object.keys(value).sort(), ['dropped', 'droppedKeys', 'fetchedAt', 'flights']);
+  assert.equal(value.droppedKeys.length, 4);
   assert.equal(value.fetchedAt, NOW);
   assert.equal(value.dropped, 4);
   assert.ok(value.flights.some((f) => f.flightNumber === 'DE9013'), 'the chunk keeps entries outside the requested range');
@@ -533,7 +547,7 @@ test('cache: a cached value is re-filtered to the request range, so a narrower r
 test('cache: malformed cache entries are treated as a miss; cache errors never fail the request', () => {
   const s = setup({ providerFetch: () => ok(adb(entry('DE9601', '2026-10-06 11:00Z'))) });
   const key = 'fcv2-dep-FRA-2026-10-06T12:00-2026-10-06T14:00-*';
-  for (const junk of ['x', 5, {}, { flights: 'no', fetchedAt: 1, dropped: 0 }, { flights: [], fetchedAt: 'x', dropped: 0 }, { flights: [], fetchedAt: 1 }]) {
+  for (const junk of ['x', 5, {}, { flights: 'no', fetchedAt: 1, dropped: 0, droppedKeys: [] }, { flights: [], fetchedAt: 'x', dropped: 0, droppedKeys: [] }, { flights: [], fetchedAt: 1, droppedKeys: [] }, { flights: [], fetchedAt: 1, dropped: 0 }]) {
     s.cache.set(key, junk);
     s.calls.provider.length = 0;
     assert.equal(s.post({ airport: 'FRA', from: NOW + 2 * H, to: NOW + 4 * H }).flights.length, 1);
@@ -549,10 +563,248 @@ test('cache: a chunk whose JSON exceeds 90 000 characters is served but not cach
   const s = setup({ providerFetch: () => ok(adb(...many)) });
   const r = s.post(range(3));
   assert.equal(r.flights.length, 600);
-  assert.ok(JSON.stringify({ fetchedAt: NOW, flights: r.flights, dropped: 0 }).length > 90000);
+  assert.ok(JSON.stringify({ fetchedAt: NOW, flights: r.flights, dropped: 0, droppedKeys: [] }).length > 90000);
   assert.equal(s.calls.cachePuts.length, 0);
   s.post(range(3));
   assert.equal(s.calls.provider.length, 2, 'not cached, so asked again');
+});
+
+// --- Provider semantics: empty windows (M1) ---------------------------------------
+
+test('provider 204 and an empty 200 mean "no flights in this window": an empty list, cached; other statuses keep failing', () => {
+  const variants = {
+    '204 empty': { status: 204, body: '' },
+    '204 no body': { status: 204 },
+    '204 null body': { status: 204, body: null },
+    '200 empty': { status: 200, body: '' },
+    '200 whitespace': { status: 200, body: ' \n ' },
+  };
+  for (const [name, response] of Object.entries(variants)) {
+    const s = setup({ providerFetch: () => response });
+    const r = s.post(range(3));
+    assert.equal(r.ok, true, name);
+    assert.deepEqual(r.flights, [], name);
+    assert.equal(r.dropped, 0, name);
+    assert.equal(s.calls.cachePuts.length, 1, `${name}: an empty window is cacheable`);
+    s.post(range(3));
+    assert.equal(s.calls.provider.length, 1, `${name}: the second request is served from the cache`);
+  }
+  // One empty window among others does not disturb the rest, and a 204 is not retried.
+  const mixed = setup({ providerFetch: (_u, _k, n) => (n === 1 ? { status: 204, body: '' } : ok(adb(entry('DE9701', '2026-10-06 21:30Z')))) });
+  const r = mixed.post(range(20));
+  assert.deepEqual(r.flights.map((f) => f.flightNumber), ['DE9701']);
+  assert.deepEqual(mixed.calls.sleeps, [1100]);
+  // Everything else stays an error.
+  for (const status of [201, 202, 205, 301, 400, 404, 500, 503]) {
+    const s = setup({ providerFetch: () => ({ status, body: '' }) });
+    assert.deepEqual(s.post(range(3)), { ok: false, error: 'provider-unavailable' }, String(status));
+  }
+  assert.deepEqual(setup({ providerFetch: () => ({ status: 200, body: 'not json' }) }).post(range(3)), { ok: false, error: 'provider-unavailable' });
+  assert.deepEqual(setup({ providerFetch: () => ({ status: 200 }) }).post(range(3)), { ok: false, error: 'provider-unavailable' });
+  assert.deepEqual(setup({ providerFetch: () => ({ status: 429, body: '' }) }).post(range(3)), { ok: false, error: 'provider-rate-limited' });
+  assert.deepEqual(setup({ providerFetch: () => ({ status: 401, body: '' }) }).post(range(3)), { ok: false, error: 'provider-auth-failed' });
+});
+
+// --- Provider windows next to a UTC-offset change (L1) ----------------------------
+
+const adbUtc = (ms) => new Date(ms).toISOString().slice(0, 16).replace('T', ' ') + 'Z';
+/**
+ * A fake provider that reads the local strings like the real one: it answers with every flight whose
+ * airport-local wall-clock time lies in [fromLocal, toLocal], both occurrences of a repeated hour included.
+ * flights: [{number, t, status?}] (t = instant); the status is read at call time.
+ */
+function windowProvider(tz, flights) {
+  const locals = flights.map((f) => localIso(f.t, tz).slice(0, 16));
+  return (url) => {
+    const [fromLocal, toLocal] = url.split('?')[0].split('/').slice(-2);
+    const hits = flights.filter((_, i) => locals[i] >= fromLocal && locals[i] <= toLocal);
+    return ok(adb(...hits.map((f) => entry(f.number, adbUtc(f.t), { status: f.status ?? 'Expected' }))));
+  };
+}
+const every = (from, to, minutes, prefix = 'DE') => {
+  const list = [];
+  for (let t = from, i = 0; t < to; t += minutes * 60000, i++) list.push({ number: `${prefix}${1000 + i}`, t });
+  return list;
+};
+const CHANGES = [
+  { name: 'London fall-back', airport: 'LHR', tz: 'Europe/London', change: T('2026-10-25T01:00:00Z') },
+  { name: 'New York fall-back', airport: 'JFK', tz: 'America/New_York', change: T('2026-11-01T06:00:00Z') },
+  { name: 'Frankfurt fall-back', airport: 'FRA', tz: 'Europe/Berlin', change: T('2026-10-25T01:00:00Z') },
+  { name: 'Sydney fall-back', airport: 'SYD', tz: 'Australia/Sydney', change: T('2026-04-04T16:00:00Z') },
+  { name: 'London spring-forward', airport: 'LHR', tz: 'Europe/London', change: T('2026-03-29T01:00:00Z') },
+  { name: 'New York spring-forward', airport: 'JFK', tz: 'America/New_York', change: T('2026-03-08T07:00:00Z') },
+  { name: 'Frankfurt spring-forward', airport: 'FRA', tz: 'Europe/Berlin', change: T('2026-03-29T01:00:00Z') },
+  { name: 'Sydney spring-forward', airport: 'SYD', tz: 'Australia/Sydney', change: T('2026-10-03T16:00:00Z') },
+];
+const MIN = 60000;
+
+function runWindow(c, fromOffsetMin, toOffsetMin, step = 3) {
+  const flights = every(c.change - 40 * H, c.change + 40 * H, step);
+  const s = setup({ providerFetch: windowProvider(c.tz, flights) });
+  const from = c.change + fromOffsetMin * MIN;
+  const to = c.change + toOffsetMin * MIN;
+  const r = s.direct({ airport: c.airport, from, to }, c.change);
+  const expected = flights.filter((f) => f.t >= from && f.t < to).map((f) => f.number);
+  return { r, s, expected, from, to };
+}
+
+test('DST fall-back outer boundary: from/to inside the repeated hour lose no flight (local-window provider)', () => {
+  const falls = CHANGES.filter((c) => c.name.includes('fall-back'));
+  // [from, to] offsets in minutes from the changeover instant: in the first and in the second occurrence of the hour.
+  const windows = [[-50, 300], [10, 300], [-300, -20], [-300, 40], [-50, 40], [-18, 400], [30, 120], [-120, -45]];
+  for (const c of falls) {
+    for (const [a, b] of windows) {
+      const { r, expected, s } = runWindow(c, a, b);
+      assert.equal(r.ok, true, `${c.name} [${a}, ${b}]`);
+      assert.deepEqual(r.flights.map((f) => f.flightNumber), expected, `${c.name} [${a}, ${b}] min around the changeover`);
+      assert.ok(expected.length > 0);
+      assert.ok(s.calls.provider.length <= 3);
+    }
+  }
+});
+
+test('DST padding: 1 h outward on a boundary within 1 h of an offset change, never otherwise (provider range only)', () => {
+  const c = CHANGES[0];                                        // London, change 01:00Z
+  const urlWindows = (from, to, now = c.change) => {
+    const s = setup({ providerFetch: () => ok(adb()) });
+    s.direct({ airport: c.airport, from, to }, now);
+    return s.calls.provider.map(([u]) => u.split('?')[0].split('/').slice(-2));
+  };
+  const local = (ms) => localIso(ms, c.tz).slice(0, 16);
+  // `from` exactly 60 min before the change pads (instant + 1 h reaches the change), 61 min does not.
+  assert.deepEqual(urlWindows(c.change - 61 * MIN, c.change + 3 * H), [[local(c.change - 61 * MIN), local(c.change + 3 * H)]]);
+  assert.deepEqual(urlWindows(c.change - 60 * MIN, c.change + 3 * H), [[local(c.change - 2 * H), local(c.change + 3 * H)]]);
+  // `from` 59 min after the change pads (instant - 1 h is still before it), 60 min does not.
+  assert.deepEqual(urlWindows(c.change + 59 * MIN, c.change + 5 * H), [[local(c.change - 1 * MIN), local(c.change + 5 * H)]]);
+  assert.deepEqual(urlWindows(c.change + 60 * MIN, c.change + 5 * H), [[local(c.change + 60 * MIN), local(c.change + 5 * H)]]);
+  // Same for `to`.
+  assert.deepEqual(urlWindows(c.change - 4 * H, c.change - 60 * MIN), [[local(c.change - 4 * H), local(c.change)]]);
+  assert.deepEqual(urlWindows(c.change - 4 * H, c.change - 61 * MIN), [[local(c.change - 4 * H), local(c.change - 61 * MIN)]]);
+  assert.deepEqual(urlWindows(c.change - 4 * H, c.change + 59 * MIN), [[local(c.change - 4 * H), local(c.change + 119 * MIN)]]);
+  assert.deepEqual(urlWindows(c.change - 4 * H, c.change + 60 * MIN), [[local(c.change - 4 * H), local(c.change + 60 * MIN)]]);
+  // Far from any change: exactly the requested window.
+  const far = T('2026-06-10T10:00:00Z');
+  assert.deepEqual(urlWindows(far, far + 3 * H, far), [[local(far), local(far + 3 * H)]]);
+  // The padded range is still cut by instant: nothing outside [from, to) is returned.
+  const { r, from, to } = runWindow(c, -50, 40);
+  assert.ok(r.flights.every((f) => f.scheduledDep >= from && f.scheduledDep < to));
+  assert.equal(r.from, from);
+  assert.equal(r.to, to);
+});
+
+test('DST padding: at most three provider calls for any range up to 24 h around a changeover, every flight returned', () => {
+  let seed = 4711;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  let max = 0;
+  for (const c of CHANGES) {
+    const flights = every(c.change - 40 * H, c.change + 40 * H, 5);
+    for (let k = 0; k < 14; k++) {
+      const fromOffset = Math.floor(rnd() * 26 * 60) - 13 * 60;                       // minutes from the change
+      const length = k < 3 ? 24 * 60 : 1 + Math.floor(rnd() * 24 * 60);               // some full 24 h ranges
+      const from = c.change + fromOffset * MIN + (k % 4 === 0 ? Math.floor(rnd() * MIN) : 0);   // some off the minute
+      const to = Math.min(from + length * MIN, from + 24 * H);
+      const s = setup({ providerFetch: windowProvider(c.tz, flights) });
+      const r = s.direct({ airport: c.airport, from, to }, c.change);
+      assert.equal(r.ok, true);
+      const expected = flights.filter((f) => f.t >= from && f.t < to).map((f) => f.number);
+      assert.deepEqual(r.flights.map((f) => f.flightNumber), expected, `${c.name} from ${new Date(from).toISOString()} to ${new Date(to).toISOString()}`);
+      max = Math.max(max, s.calls.provider.length);
+    }
+  }
+  assert.ok(max <= 3, `max provider calls ${max}`);
+});
+
+// --- dropped counted once per request (L6) ----------------------------------------
+
+test('dropped: a provider entry returned by two overlapping chunks is counted once; repeats inside one response still count', () => {
+  const junkNoTime = { number: 'DE9801', movement: { scheduledTime: { local: '2026-10-06 22:00+02:00' } } };
+  const junkBadUtc = { number: 'DE9802', movement: { scheduledTime: { utc: 'garbage' } } };
+  const junkNoNumber = { movement: { scheduledTime: { utc: '2026-10-06 22:00Z' } } };
+  const onlyChunk2 = { callSign: 'DLH9803', movement: { scheduledTime: {} } };
+  const twin = { number: 'DE9804' };
+  const s = setup({
+    providerFetch: (_u, _k, n) => ok(adb(
+      junkNoTime, junkBadUtc, junkNoNumber, null, 'junk', twin, twin,    // returned by every chunk
+      ...(n === 2 ? [onlyChunk2] : []), entry('DE9800', '2026-10-06 21:30Z'))),
+  });
+  const r = s.post(range(20));
+  assert.equal(s.calls.provider.length, 2);
+  assert.equal(r.dropped, 8, '7 distinct dropped entries (the twin counts twice) + 1 only in the second chunk; not 15');
+  assert.deepEqual(r.flights.map((f) => f.flightNumber), ['DE9800'], 'the real flight is kept once');
+  assert.equal(s.post(range(20)).dropped, 8, 'same count when both chunks come from the cache');
+  const single = setup({ providerFetch: () => ok(adb(junkNoTime, junkNoTime)) });
+  assert.equal(single.post(range(3)).dropped, 2);
+  // Normalization exposes the keys the handler dedupes by (flight number / call sign + raw scheduled utc).
+  const keys = normalize({ departures: [junkBadUtc, junkNoTime, twin, twin] }).droppedKeys;
+  assert.equal(keys.length, 4);
+  assert.equal(new Set(keys).size, 4);
+  assert.ok(keys[0].includes('DE9802') && keys[0].includes('garbage'));
+  assert.deepEqual(normalize({ departures: [junkBadUtc] }).droppedKeys, normalize({ departures: [junkBadUtc] }).droppedKeys, 'stable');
+});
+
+// --- the newest fetch wins a duplicate flight id (L8) -----------------------------
+
+test('dedupe: the same flight in two chunks keeps the copy from the chunk fetched last (ties: the later chunk)', () => {
+  const when = '2026-10-06 21:30Z';                      // inside the overlap of chunk 1 (10:00-22:00Z) and chunk 2 (21:00Z-)
+  const statuses = { current: { 1: 'Expected', 2: 'Expected' } };
+  const provider = (url) => {
+    const call = url.includes('T12:00/') ? 1 : 2;         // 1 = first chunk of the request (12:00 local), 2 = second
+    return ok(adb(entry('DE9900', when, { status: statuses.current[call] })));
+  };
+  const chunkKeys = (s) => [...s.cache.keys()].sort();
+  const statusOf = (r) => r.flights.find((f) => f.flightNumber === 'DE9900').status;
+
+  // Older cached chunk 1 (Expected) + fresh chunk 2 (Delayed): the newer fetch wins although it is the later chunk.
+  const s = setup({ providerFetch: provider });
+  assert.equal(statusOf(s.direct(range(20), NOW)), 'scheduled');
+  statuses.current = { 1: 'Expected', 2: 'Delayed' };
+  s.cache.delete(chunkKeys(s)[1]);
+  s.calls.provider.length = 0;
+  const later = s.direct(range(20), NOW + 5 * 60000);
+  assert.equal(s.calls.provider.length, 1, 'only the second chunk was fetched again');
+  assert.equal(statusOf(later), 'delayed', 'fresh later chunk beats the older cached one');
+  assert.equal(later.fetchedAt, NOW, 'fetchedAt is still the oldest fetch among the chunks used');
+
+  // Fresh chunk 1 (Boarding) + older cached chunk 2 (Delayed): now the EARLIER chunk is the newer copy.
+  statuses.current = { 1: 'Boarding', 2: 'Expected' };
+  s.cache.delete(chunkKeys(s)[0]);
+  s.calls.provider.length = 0;
+  const earlier = s.direct(range(20), NOW + 10 * 60000);
+  assert.equal(s.calls.provider.length, 1);
+  assert.equal(statusOf(earlier), 'boarding', 'fresh earlier chunk beats the older cached later chunk');
+
+  // Equal fetchedAt: the later chunk wins.
+  const t = setup({ providerFetch: (_u, _k, n) => ok(adb(entry('DE9900', when, { status: n === 1 ? 'Expected' : 'Delayed' }))) });
+  assert.equal(statusOf(t.direct(range(20), NOW)), 'delayed');
+  assert.equal(new Set(t.direct(range(20), NOW).flights.map((f) => f.id)).size, 1);
+});
+
+// --- partial deploy: RosterApiV2.gs without DeparturesV2.gs (L5) ------------------
+
+test('partial deploy: without DeparturesV2.gs, departures is not offered and answers departures-not-configured even with the key set', () => {
+  const partial = loadGs(GS_FILES.filter((f) => f !== 'DeparturesV2.gs'));
+  assert.equal(partial.fcv2HandleDepartures_, undefined, 'the departures handler is really absent in this sandbox');
+  const run = (g, opts, body) => {
+    const f = fakeEnv(g, { now: ROSTER_NOW, feed: feedEvents(), synced: syncedEvents(), rows: hotelRows(feedEvents()), ...opts });
+    return { f, res: plain(g.fcv2HandlePost_(JSON.stringify({ contract: 'fc.roster', version: 2, token: TOKEN, ...body }), f.env)) };
+  };
+  const live = { departuresKey: KEY, providerFetch: () => { throw new Error('provider must not be called'); } };
+  const req = { action: 'departures', airport: 'FRA', from: ROSTER_NOW + H, to: ROSTER_NOW + 2 * H };
+  const { f, res } = run(partial, live, req);
+  assert.deepEqual(res, { ok: false, error: 'departures-not-configured' });
+  assert.equal(f.calls.provider.length, 0);
+  assert.equal(f.calls.sleeps.length, 0);
+  const caps = run(partial, live, { action: 'capabilities' }).res;
+  assert.deepEqual(caps.actions, ['capabilities', 'roster', 'history', 'stats']);
+  assert.equal(caps.limits.departuresMaxHours, 24, 'limits are unchanged');
+  // With the file present and the key set, nothing changes for a full deployment.
+  assert.deepEqual(run(gs, { departuresKey: KEY }, { action: 'capabilities' }).res.actions, ['capabilities', 'roster', 'history', 'stats', 'departures']);
+  // Existing actions answer exactly as with the full deployment.
+  for (const body of [{ action: 'roster' }, { action: 'history', to: '2026-10-03' }, { action: 'stats' }, { action: 'nope' }]) {
+    assert.deepEqual(run(partial, live, body).res, run(gs, {}, body).res, JSON.stringify(body));
+  }
+  // Auth still comes first.
+  assert.equal(plain(partial.fcv2HandlePost_(JSON.stringify({ contract: 'fc.roster', version: 2, token: 'wrong', ...req }), fakeEnv(partial, { now: ROSTER_NOW, ...live }).env)).error, 'unauthorized');
 });
 
 // --- Secrecy ----------------------------------------------------------------------
