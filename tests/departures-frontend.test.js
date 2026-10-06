@@ -597,3 +597,33 @@ test('provider isolation: the browser only calls the backend endpoint, never a p
     assert.doesNotMatch(src, /\bfetch\s*\(/, `${f} calls fetch directly`);
   }
 });
+
+// ---------- force (Radar manual refresh) ----------
+
+test('force skips the device-cache read but still writes the cache; a normal call still hits it', async () => {
+  const b = backend();
+  const store = freshStore();
+  await loadDepartures(Q, { api: b.api, store });
+  assert.equal(b.calls.length, 1);
+  const hit = await loadDepartures(Q, { api: b.api, store });
+  assert.equal(b.calls.length, 1, 'normal call served from the cache');
+  assert.equal(hit.fromCache, true);
+  const forced = await loadDepartures(Q, { api: b.api, store, force: true });
+  assert.equal(b.calls.length, 2, 'force asks the backend again');
+  assert.equal(forced.fromCache, false);
+  const key = Object.keys(store.getJSON(DEPARTURES_CACHE_KEY).entries)[0];
+  const before = store.getJSON(DEPARTURES_CACHE_KEY).entries[key].storedAt;
+  await loadDepartures(Q, { api: b.api, store, force: true, now: () => before + 1000 });
+  assert.equal(store.getJSON(DEPARTURES_CACHE_KEY).entries[key].storedAt, before + 1000, 'the fresh answer is written');
+  const after = await loadDepartures(Q, { api: b.api, store, now: () => before + 2000 });
+  assert.equal(after.fromCache, true, 'and is served to the next normal call');
+  assert.equal(b.calls.length, 3);
+});
+
+test('force does not bypass validation or error handling', async () => {
+  const store = freshStore();
+  await assert.rejects(loadDepartures({ ...Q, token: '' }, { api: backend().api, store, force: true }), (e) => e.code === 'bad-request');
+  const failing = { postContract: async () => { throw new ApiError('timeout', 'slow'); } };
+  await assert.rejects(loadDepartures(Q, { api: failing, store, force: true }), (e) => e.code === 'timeout');
+  assert.equal(store.getJSON(DEPARTURES_CACHE_KEY, null), null, 'failures are never cached');
+});

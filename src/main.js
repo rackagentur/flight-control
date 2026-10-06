@@ -10,7 +10,8 @@ import { render } from './lib/html.js';
 import { formatTime, countdown, addDays, localDateKey } from './lib/time.js';
 import { airport } from './data/airports.js';
 import { loadProfile } from './config/profile.js';
-import { createController, TOKEN_KEY } from './controller.js';
+import { createController, TOKEN_KEY, ENDPOINT_KEY } from './controller.js';
+import { loadDepartures } from './sources/departures-service.js';
 import { mountShell } from './ui/shell.js';
 import { mountReviewDock, reviewMode } from './ui/review.js';
 import { today } from './ui/screens/today.js';
@@ -19,12 +20,13 @@ import { controls } from './ui/screens/controls.js';
 import { settings } from './ui/screens/settings.js';
 import { calendar, focusCalendar } from './ui/screens/calendar.js';
 import { flights } from './ui/screens/flights.js';
+import { radar } from './ui/screens/radar.js';
 import { map, weather, statistics } from './ui/screens/upcoming.js';
 import { createWeather } from './sources/weather-openmeteo.js';
 import { sampleWeather } from './sources/sample.js';
 import { buildFlights } from './model/flights.js';
 
-const SCREENS = { today, calendar, flights, map, more, weather, statistics, controls, settings };
+const SCREENS = { today, calendar, flights, radar, map, more, weather, statistics, controls, settings };
 
 store.ensureSchema();
 applyTheme();
@@ -101,6 +103,10 @@ const ctx = {
   param: () => currentParam,
   weather: (query) => (review.current() ? sampleWeather(query) : liveWeather.lookup(query)),
   rerender: () => currentRoute && show(currentRoute, { quiet: true, param: currentParam }),
+  // Departures (Radar): the screen never reads storage or the token; it only asks. Called on mount of
+  // #/radar and on Refresh / Retry, never on a timer. `force` skips the 5-minute device cache read.
+  departuresAccess: () => (!store.get(ENDPOINT_KEY) ? 'no-endpoint' : !store.get(TOKEN_KEY) ? 'no-token' : 'ready'),
+  loadDepartures: (query, { force = false } = {}) => loadDepartures({ ...query, endpoint: store.get(ENDPOINT_KEY), token: store.get(TOKEN_KEY) }, { store, force }),
 };
 
 // --- Theme controls (sidebar quick switch + Settings) share one behaviour ----------

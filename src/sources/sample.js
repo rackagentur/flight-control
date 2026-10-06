@@ -207,3 +207,56 @@ export function sampleSnapshot(state, tone, now, profile, variant = null) {
       return snapshot_({});
   }
 }
+
+/**
+ * Review-only departures for the Radar: a SYNTHETIC list in the shape of a loaded DeparturesResult
+ * (the review profile's base is HOME; places are HOME/AWAY/EAST/WEST, flights SAMPLE 1xx, carrier
+ * codes fictional). It covers each presentation case: past and upcoming flights, a delay, an early
+ * revision, a cancellation, a departed flight, a provider status that must show no state, an
+ * unknown status and a flight without a destination. Never touches the network.
+ * `ownCarrier` is the profile airline's designator (or null): one flight in three carries it so the
+ * emphasis can be reviewed; it is passed in, not named here.
+ * @param {{airport:string, from:number, to:number, now:number, ownCarrier?:string|null, airportTz:string}} q
+ * @returns {import('../model/types.js').DeparturesResult}
+ */
+export function sampleDepartures({ airport, from, to, now, ownCarrier = null, airportTz }) {
+  const anchor = Math.min(Math.max(now, from), to);
+  const five = 5 * M;
+  const t = (offsetMin) => Math.round((anchor + offsetMin * M) / five) * five;
+  const own = ownCarrier ?? 'ZA';
+  const spec = [
+    // [n, offset (min), destination, destinationName, status, revised offset (min) | null, carrier, model]
+    [101, -150, 'EAST', 'East Sample', 'departed', null, own, 'A320'],
+    [102, -95, 'WEST', 'West Sample', 'cancelled', null, 'ZB', 'B738'],
+    [103, -40, SAMPLE_AWAY, 'Away Sample', 'departed', -25, 'ZB', 'A321'],
+    [104, 20, 'EAST', 'East Sample', 'boarding', null, own, 'A320'],
+    [105, 45, SAMPLE_AWAY, 'Away Sample', 'delayed', 70, 'ZB', 'B788'],
+    [106, 70, 'WEST', 'West Sample', 'scheduled', 65, 'ZC', 'A333'],
+    [107, 120, null, null, 'scheduled', null, own, null],
+    [108, 190, SAMPLE_AWAY, 'Away Sample', 'cancelled', null, 'ZC', 'B738'],
+    [109, 270, 'WEST', 'West Sample', 'unknown', null, 'ZB', 'A320'],
+    [110, 350, 'EAST', 'East Sample', 'scheduled', null, own, 'A321'],
+  ];
+  const flights = spec.map(([n, off, destination, destinationName, status, revisedOff, carrier, model]) => {
+    const scheduledDep = t(off);
+    return Object.freeze({
+      id: `f_sample${String(n).padStart(11, '0')}`,
+      flightNumber: `SAMPLE ${n}`,
+      carrier,
+      origin: airport,
+      destination,
+      destinationName,
+      scheduledDep,
+      revisedDep: revisedOff === null ? null : t(revisedOff),
+      status,
+      aircraft: model ? Object.freeze({ model, registration: null }) : null,
+      originTz: airportTz,
+      destTz: null,
+      provenance: 'provider',
+    });
+  }).filter((f) => f.scheduledDep >= from && f.scheduledDep < to);
+  return Object.freeze({
+    airport, airportTz, from, to, carriers: null, provider: 'sample', fetchedAt: now, generatedAt: now, dropped: 0,
+    flights: Object.freeze(flights), fromCache: false,
+  });
+}

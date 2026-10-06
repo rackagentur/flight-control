@@ -42,3 +42,15 @@ test('flights detail: one sub-path, decoded; other routes ignore sub-paths', asy
   assert.equal(parseParam('#/today/x'), null);
   assert.equal(parseParam('#/flights/%E0%A4%A'), null, 'malformed encoding is ignored');
 });
+
+test('radar: a hidden detail route under Today (not a tab, not in the sidebar); #/radar/<window start> keeps its param', async () => {
+  const { routeById, parseParam, hrefFor, parseHash, activeTabFor } = await import('../src/router.js');
+  const route = routeById('radar');
+  assert.deepEqual({ title: route.title, group: route.group, parent: route.parent, detail: route.detail, tab: route.tab ?? false },
+    { title: 'Flights in standby window', group: 'hidden', parent: 'today', detail: true, tab: false });
+  assert.equal(activeTabFor('radar'), 'today');
+  assert.equal(parseHash('#/radar/1791300000000'), 'radar');
+  assert.equal(parseParam('#/radar/1791300000000'), '1791300000000');
+  assert.equal(parseParam('#/radar'), null);
+  assert.equal(hrefFor('radar', String(1791300000000)), '#/radar/1791300000000');
+});

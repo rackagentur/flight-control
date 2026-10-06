@@ -101,6 +101,7 @@ function statusPass(view) {
           ${kicker(`${word} · armed`, state, review)}
           <h2 class="pass-state t-display" id="status-title">${word}</h2>
           <p class="pass-lede">Window ${clock(w.start, tz)} – ${clock(w.end, tz)}</p>
+          ${state.status === 'standby' ? html`<p><a class="btn btn-quiet" href="${hrefFor('radar', String(w.start))}">Flights in standby window →</a></p>` : ''}
         </div>
         ${nextEventBlock(state, now, tz)}
         ${duty ? html`<dl class="pass-fields">

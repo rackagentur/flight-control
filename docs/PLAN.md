@@ -43,6 +43,15 @@ Contract: `docs/CONTRACT-V2.md`. Status: steps 1–2 (local implementation and t
 
 ---
 
+## Radar (read-only, slice 1)
+
+Screen "Flights in standby window" (`#/radar`, `#/radar/<window start epoch ms>`): scheduled departures from the profile base during a rostered STANDBY window, as factual provider data. Frontend only; code in `src/model/radar.js` (pure), `src/ui/screens/radar.js`, tests `tests/radar-model.test.js`, `tests/radar-screen.test.js`.
+
+- **Scope.** A hidden detail route under Today (not a tab, not in the sidebar). Entry links: the Today standby card, and the Calendar day detail of a standby day whose window has not ended and starts within 14 days. All carriers are listed; the profile airline's designators (from its pack, never hard-coded) get a small mark only. Windows up to 24 h; times are shown in the airport's zone. Review mode shows a fictional list (`sampleDepartures`) and never calls the network.
+- **Status rule.** Only factual states are shown: *Cancelled* (provider status cancelled) and *Departed* (provider status departed **and** the revised, else scheduled, time has passed). Every other provider status (including the coarse boarding/gate labels) produces no state. A delay is derived from scheduled versus revised time (`→ 14:35 · +25 min`, `−5 min` when early), never from the status. Follows the 2026-10-06 decision in `CONTRACT-V2.md`.
+- **Quota behaviour.** A request happens only when the Radar route is opened and when the user presses Refresh or Retry. No polling, no prefetch from Today or Calendar, and the periodic roster refresh and `update()` never request (the loaded result is kept in memory for the window on screen). Refresh passes `force` (skips the 5-minute device-cache read, still writes it; the backend cache and its limits still apply) and is disabled for 30 s afterwards and while a request runs. Ended, too-far (more than 14 days ahead, the screen says from which date schedules are available), too-long and no-window cases make no request. Failures are never cached and never shown as partial data; a failed refresh keeps the list and says so.
+- **Deferred.** Reserve windows (one constant, `RADAR_WINDOW_KINDS`, to extend), polling or auto-refresh, filters (carrier, destination, aircraft type), any notice, eligibility or legality reasoning, assignment prediction, notifications, and a watchlist or log.
+
 ## A. File structure
 
 ```

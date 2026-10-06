@@ -415,3 +415,78 @@
 .jr-tag { display: inline-block; padding: 0 6px; font-size: 10.5px; vertical-align: 1px; }
 .jr-stay.kind-gap::before { background: repeating-linear-gradient(180deg, color-mix(in oklab, var(--fg-2) 60%, transparent) 0 2px, transparent 2px 9px); opacity: 1; }
 .jr-stay.kind-gap .jr-stay-text { color: var(--fg-2); }
+
+/* --- Radar: flights in standby window (read-only) -----------------------------------------
+   Built from the Flights/Calendar idiom: hairline rows, eyebrow headings, tag-like chips.
+   Scan order inside a row: departure time → flight → destination → revised/delay → state.
+   Meaning never rests on colour alone: the state chip carries text, Cancelled adds a dashed
+   outline and a struck time, Departed rows are dimmed, and the user's airline gets a small mark. */
+.rd { max-width: 720px; display: grid; gap: var(--space-4); align-content: start; }
+.rd .page-header { margin-bottom: 0; }
+.rd-back { justify-self: start; display: inline-flex; align-items: center; gap: 4px; min-height: var(--touch-min); margin: calc(-1 * var(--space-3)) 0 calc(-1 * var(--space-4)); color: var(--accent); text-decoration: none; font-weight: var(--weight-semibold); }
+.rd-boundary { max-width: 60ch; }
+.rd-tz, .rd-rest { margin: 0; }
+
+.rd-source { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; padding-bottom: var(--space-3); border-bottom: 0.5px solid var(--line); }
+.rd-source-text { display: grid; gap: 2px; min-width: 0; flex: 1 1 200px; }
+.rd-failed { color: var(--critical); font-weight: var(--weight-semibold); }
+.rd-refresh { border-radius: var(--radius-pill); }
+
+.rd-flow { display: grid; align-content: start; }
+.rd-group { display: grid; gap: 2px; }
+.rd-group + .rd-group { margin-top: var(--space-2); }
+.rd-hour, .rd-day { margin: var(--space-3) 0 0; color: var(--fg-2); }
+.rd-day { margin-top: var(--space-4); color: var(--fg-1); }
+.rd-list { display: grid; padding: 0; margin: 0; list-style: none; }
+.rd-list > .rd-row + .rd-row { box-shadow: inset 0 0.5px 0 var(--line); }
+
+.rd-row {
+  display: grid;
+  grid-template-columns: 4.1rem minmax(0, 1fr) auto;
+  grid-template-areas: "time flight chip" "time dest ac" "time rev rev";
+  align-items: baseline;
+  gap: 1px var(--space-3);
+  padding: 10px 0;
+  min-width: 0;
+}
+.rd-time { grid-area: time; align-self: start; font-size: var(--text-title-2); font-weight: var(--weight-semibold); letter-spacing: -0.01em; line-height: 1.15; }
+.rd-flight { grid-area: flight; display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-body); min-width: 0; overflow-wrap: anywhere; }
+.rd-dest { grid-area: dest; font-size: var(--text-callout); color: var(--fg-1); overflow-wrap: anywhere; }
+.rd-iata { color: var(--fg-2); font-size: var(--text-caption); font-weight: var(--weight-semibold); letter-spacing: 0.02em; }
+.rd-rev { grid-area: rev; font-size: var(--text-caption); font-weight: var(--weight-semibold); color: var(--fg-1); }
+.rd-ac { grid-area: ac; justify-self: end; align-self: center; font-size: var(--text-micro); color: var(--fg-2); letter-spacing: 0.02em; }
+.rd-chip { grid-area: chip; justify-self: end; align-self: center; padding: 2px 8px; border-radius: var(--radius-pill); font-size: 11px; font-weight: var(--weight-semibold); letter-spacing: 0.02em; white-space: nowrap; color: var(--fg-1); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--fg-1) 45%, transparent); }
+.rd-chip.is-cancelled { color: var(--critical); box-shadow: none; border: 1px dashed var(--critical); }
+
+/* The user's own airline: a small accent mark before the flight number, nothing louder. */
+.rd-mark { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent); }
+
+.rd-row.is-departed .rd-time, .rd-row.is-departed .rd-flight, .rd-row.is-departed .rd-dest, .rd-row.is-departed .rd-rev { opacity: 0.62; }
+.rd-row.is-cancelled .rd-time { text-decoration: line-through; text-decoration-thickness: 1.5px; color: var(--fg-2); }
+.rd-row.is-cancelled .rd-flight, .rd-row.is-cancelled .rd-dest { color: var(--fg-2); }
+
+/* "Now": a calm divider, not an alert. */
+.rd-now { display: flex; align-items: center; gap: var(--space-3); margin: var(--space-3) 0 var(--space-1); color: var(--accent); font-size: var(--text-caption); font-weight: var(--weight-semibold); letter-spacing: 0.04em; text-transform: uppercase; }
+.rd-now::before, .rd-now::after { content: ""; height: 1.5px; border-radius: 1px; background: color-mix(in oklab, var(--accent) 55%, transparent); }
+.rd-now::before { width: 12px; flex: none; }
+.rd-now::after { flex: 1; }
+
+.rd-earlier { border-radius: var(--radius-row); }
+.rd-earlier > summary { display: flex; align-items: center; gap: var(--space-2); min-height: var(--touch-min); padding: 0 var(--space-1); cursor: pointer; list-style: none; color: var(--fg-2); font-size: var(--text-callout); font-weight: var(--weight-semibold); }
+.rd-earlier > summary::-webkit-details-marker { display: none; }
+.rd-earlier > summary::before { content: "›"; display: inline-block; width: 1ch; transition: transform var(--dur-instant) var(--ease-standard); }
+.rd-earlier[open] > summary::before { transform: rotate(90deg); }
+
+.rd-empty { max-width: 560px; }
+.rd-loading { display: grid; gap: var(--space-2); }
+.rd-skel-bar { display: block; height: 14px; border-radius: 7px; background: var(--fill-hover); animation: rd-pulse 1.4s ease-in-out infinite; }
+.rd-skel { grid-template-areas: "time flight ." "time dest ."; }
+.rd-skel-time { grid-area: time; height: 22px; width: 3.2rem; }
+.rd-skel-flight { grid-area: flight; width: 40%; }
+.rd-skel-dest { grid-area: dest; width: 65%; margin-top: 6px; }
+@keyframes rd-pulse { 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) { .rd-skel-bar { animation: none; } }
+
+@media (min-width: 1200px) {
+  .rd-row { grid-template-columns: 4.6rem minmax(0, 1fr) auto; padding: 12px 0; }
+}

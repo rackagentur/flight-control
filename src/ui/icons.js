@@ -33,6 +33,7 @@ const PATHS = {
   hotel: '<path d="M3.5 18.5v-11M3.5 14h17v4.5M20.5 14v-2.5a3 3 0 0 0-3-3H11V14"/><circle cx="7.5" cy="11" r="1.8"/>',
   reset: '<path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13"/>',
   info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/>',
+  radar: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><path d="M12 12 18.2 5.8"/><path d="M12 12h.01" stroke-width="2.4"/>',
   horizon: '<path d="M3 15h18" stroke-dasharray="1.5 3"/><circle cx="8" cy="15" r="1.6"/><circle cx="16" cy="15" r="1.6"/><path d="M8 15h8"/>',
 };
 

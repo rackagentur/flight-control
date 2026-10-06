@@ -74,17 +74,19 @@ function usable(payload, airport, from, to, carriers) {
 
 /**
  * @param {{endpoint:string, token:string, airport:string, from:number, to:number, carriers?:string[]|null}} query
- * @param {{api?:{postContract:Function}, store?:object|null, now?:()=>number, ttlMs?:number}} [deps]
+ * @param {{api?:{postContract:Function}, store?:object|null, now?:()=>number, ttlMs?:number, force?:boolean}} [deps]
+ *   `force` skips the device-cache READ only (a manual refresh); the fresh answer is still written
+ *   to the cache, and the backend's own cache and quota protections still apply.
  * @returns {Promise<import('../model/types.js').DeparturesResult>}
  * @throws {DeparturesError|ApiError}
  */
-export async function loadDepartures(query, { api = { postContract }, store = defaultStore, now = Date.now, ttlMs = DEPARTURES_TTL_MS } = {}) {
+export async function loadDepartures(query, { api = { postContract }, store = defaultStore, now = Date.now, ttlMs = DEPARTURES_TTL_MS, force = false } = {}) {
   const carriers = checkInput(query);
   const { endpoint, token, airport, from, to } = query;
   const key = requestKey(airport, from, to, carriers);
   const at = now();
 
-  const hit = readEntries(store)[key];
+  const hit = force ? undefined : readEntries(store)[key];
   if (hit && Number.isFinite(hit.storedAt) && at - hit.storedAt >= 0 && at - hit.storedAt < ttlMs && usable(hit.payload, airport, from, to, carriers)) {
     return Object.freeze({ ...adaptDepartures(hit.payload), fromCache: true });
   }

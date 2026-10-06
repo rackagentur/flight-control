@@ -14,6 +14,8 @@ import { airlineOf } from '../../airlines/index.js';
 import { horizonView } from '../horizon.js';
 import { clock, city } from '../duty.js';
 import { airport } from '../../data/airports.js';
+import { hrefFor } from '../../router.js';
+import { radarLinkable } from '../../model/radar.js';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 // 'unassigned' has no entry here on purpose: its wording is the airline's (term.unassigned).
@@ -313,6 +315,7 @@ function detailView(day, view) {
         <section class="cal-detail-section">
           <p class="t-eyebrow">${day.window.kind === 'off' && term.offSubtype[day.window.subtype] ? term.offSubtype[day.window.subtype].name : day.window.kind === 'unassigned' ? term.unassigned.name : STATUS_NAME[day.window.kind] ?? day.window.kind} · from roster</p>
           <p class="t-callout t-tabular">${windowText(day.window, day, tz)}${day.window.label && day.window.kind !== 'off' && day.window.kind !== 'layover' && day.window.kind !== 'unassigned' ? ` · ${day.window.label}` : ''}</p>
+          ${radarLinkable(day.window, now) ? html`<p class="t-callout"><a class="dest-link" href="${hrefFor('radar', String(day.window.start))}" data-cal-radar>Flights in standby window →</a></p>` : ''}
         </section>` : ''}
 
       ${day.layover && day.window?.kind !== 'layover' ? html`

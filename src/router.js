@@ -8,6 +8,8 @@ export const ROUTES = [
   { id: 'flights', title: 'Flights', icon: 'flights', group: 'primary', tab: true, detail: true },
   { id: 'map', title: 'Map', icon: 'map', group: 'primary', tab: true },
   { id: 'more', title: 'More', icon: 'more', group: 'hidden', tab: true },
+  // Radar (slice 1): reached from Today / Calendar only; Today stays the active tab. Detail = the window start (epoch ms).
+  { id: 'radar', title: 'Flights in standby window', icon: 'radar', group: 'hidden', parent: 'today', detail: true },
   { id: 'weather', title: 'Weather', icon: 'weather', group: 'insight', parent: 'more' },
   { id: 'statistics', title: 'Statistics', icon: 'statistics', group: 'insight', parent: 'more' },
   { id: 'controls', title: 'Controls', icon: 'controls', group: 'system', parent: 'more' },
