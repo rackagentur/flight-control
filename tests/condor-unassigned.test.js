@@ -389,6 +389,8 @@ test('CSS: the compact code needs no shrink rule; the unassigned marks are outli
   for (const prop of ['min-width: 30px', 'border-radius: 9px', 'font-size: 10.5px', 'letter-spacing: 0.06em']) {
     assert.ok(shared.includes(prop), `shared capsule has ${prop}`);
     assert.ok(token.includes(prop), `unassigned capsule has ${prop}`);
+    const name = prop.split(':')[0];
+    assert.equal(token.split(`${name}:`).length - 1, 1, `unassigned capsule declares ${name} exactly once (no override)`);
   }
   assert.doesNotMatch(token, /text-overflow|ellipsis/);
   assert.doesNotMatch(screens, /\.week-day\.is-unassigned \.week-code/);
