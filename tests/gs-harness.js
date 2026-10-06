@@ -36,7 +36,7 @@ const Utilities = {
   },
 };
 
-const GS_EXPORTS = ['FCV2_CONDOR_CONFIG_', 'FCV2_CONDOR_CODES_', 'FCV2_AIRPORT_TZ_', 'fcv2ClassifyEvent_', 'fcv2ParseDescription_', 'fcv2BuildRoster_', 'fcv2BuildHistory_', 'fcv2HandlePost_', 'fcv2SafeEqual_', 'fcv2StartOfDay_', 'fcv2LocalIso_', 'fcv2Range_', 'FCV2_HISTORY_MAX_SECTORS_', 'fcv2HandleGet_', 'FCV2_GET_REFUSED_', 'fcv2HandleDepartures_', 'fcv2DepartureChunks_', 'fcv2ProviderRange_', 'fcv2DepartureUrl_', 'fcv2DepartureRequest_', 'fcv2DepartureCarriers_', 'fcv2MapDepartureStatus_', 'fcv2ParseProviderUtc_', 'fcv2NormalizeAdb_', 'fcv2FilterCarriers_', 'FCV2_DEP_STATUS_', 'FCV2_DEP_KEY_PROPERTY_'];
+const GS_EXPORTS = ['FCV2_CONDOR_CONFIG_', 'FCV2_CONDOR_CODES_', 'FCV2_AIRPORT_TZ_', 'fcv2ClassifyEvent_', 'fcv2ParseDescription_', 'fcv2BuildRoster_', 'fcv2BuildHistory_', 'fcv2HandlePost_', 'fcv2SafeEqual_', 'fcv2StartOfDay_', 'fcv2LocalIso_', 'fcv2Range_', 'FCV2_HISTORY_MAX_SECTORS_', 'fcv2HandleGet_', 'FCV2_GET_REFUSED_', 'fcv2HandleDepartures_', 'fcv2DepartureChunks_', 'fcv2ProviderRange_', 'fcv2DepartureUrl_', 'fcv2DepartureRequest_', 'fcv2DepartureCarriers_', 'fcv2MapDepartureStatus_', 'fcv2ParseProviderUtc_', 'fcv2NormalizeAdb_', 'fcv2ValidWireFlight_', 'fcv2ValidChunkCache_', 'fcv2FilterCarriers_', 'FCV2_DEP_STATUS_', 'FCV2_DEP_KEY_PROPERTY_'];
 
 /** Loads the sources into one sandbox; `files` lets a test leave one out (a partial deploy). Names a file does not define stay undefined. */
 export function loadGs(files = GS_FILES) {

@@ -82,23 +82,39 @@ function fcv2LocalMinutes_(a, b) {
  * min(start + 12 h, to); chunks stop once the previous chunk's end reaches `to` (so a
  * range of at most 12 h is one call, up to 23 h two, up to 34 h three; the handler never
  * asks for more than 26 h). The 1 h overlap is removed by filtering on the instant and
- * deduplicating. Each chunk also carries its
- * airport-local strings; if a spring-forward gap makes a 12 h window span 13 local hours
- * (AeroDataBox counts local time), the end is pulled back to 12 local hours, which is
- * exactly the next chunk's start, so there is still no gap.
+ * deduplicating. Each chunk also carries its airport-local strings.
+ *
+ * Whole-minute boundaries: the provider takes minute-resolution local times and may treat
+ * the window end as exclusive, so the start is floored and the end CEILED to the whole
+ * minute before formatting (a flight at 10:30:00 is still inside a range ending 10:30:20).
+ * AeroDataBox counts local time, so a window must stay within 12 local hours: if the
+ * rounding (a 12 h window from an off-minute start spans 12 h + 1 min) or a spring-forward gap
+ * (a 12 h window spans 13 local hours) makes it longer, the end is pulled back in whole
+ * minutes (never past the next chunk's whole-minute start, which keeps the chunks contiguous
+ * even for an exclusive end; the next chunk then covers the rest), so there is still no gap.
  */
 function fcv2DepartureChunks_(from, to, tz, deps) {
+  const MINUTE = 60000;
+  const floorMin = function (ms) { return Math.floor(ms / MINUTE) * MINUTE; };
+  const ceilMin = function (ms) { return Math.ceil(ms / MINUTE) * MINUTE; };
   const chunks = [];
   let previousEnd = -Infinity;
   for (let start = from; start < to && previousEnd < to; start += FCV2_DEP_CHUNK_STEP_MS_) {
     let end = Math.min(start + FCV2_DEP_CHUNK_SPAN_MS_, to);
-    const fromLocal = deps.localIso(start, tz).slice(0, 16);
-    let toLocal = deps.localIso(end, tz).slice(0, 16);
-    const span = fcv2LocalMinutes_(fromLocal, toLocal);
+    const askStart = floorMin(start);
+    let askEnd = ceilMin(end);
+    const fromLocal = deps.localIso(askStart, tz).slice(0, 16);
+    let toLocal = deps.localIso(askEnd, tz).slice(0, 16);
+    let span = fcv2LocalMinutes_(fromLocal, toLocal);
     if (span > 720) {
-      // Never pull back past the next chunk's start (a `to` off the minute would leave a few seconds uncovered).
-      end = Math.max(end - (span - 720) * 60000, start + FCV2_DEP_CHUNK_STEP_MS_);
-      toLocal = deps.localIso(end, tz).slice(0, 16);
+      // Never pull back past the next chunk's whole-minute start: the window then still reaches it, also for an exclusive end.
+      const lowest = floorMin(start + FCV2_DEP_CHUNK_STEP_MS_);
+      for (let guard = 0; span > 720 && askEnd > lowest && guard < 4; guard++) {
+        askEnd = Math.max(askEnd - (span - 720) * MINUTE, lowest);
+        toLocal = deps.localIso(askEnd, tz).slice(0, 16);
+        span = fcv2LocalMinutes_(fromLocal, toLocal);
+      }
+      end = askEnd;
     }
     chunks.push({ start: start, end: end, fromLocal: fromLocal, toLocal: toLocal });
     previousEnd = end;
@@ -267,11 +283,53 @@ function fcv2ProviderGet_(url, key, env) {
   return { body: parsed };
 }
 
-function fcv2ValidChunkCache_(value) {
-  return !!value && typeof value === 'object' && Array.isArray(value.flights)
-    && typeof value.fetchedAt === 'number' && isFinite(value.fetchedAt)
-    && typeof value.dropped === 'number' && isFinite(value.dropped)
-    && Array.isArray(value.droppedKeys);
+const FCV2_DEP_WIRE_KEYS_ = ['id', 'flightNumber', 'carrier', 'origin', 'destination', 'destinationName', 'scheduledDep', 'revisedDep', 'status', 'aircraft', 'provenance'];
+const FCV2_DEP_WIRE_STATUS_ = ['scheduled', 'delayed', 'boarding', 'departed', 'cancelled', 'unknown'];
+
+function fcv2IsPlainObject_(value) {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function fcv2SameKeys_(value, keys) {
+  const own = Object.keys(value);
+  return own.length === keys.length && keys.every(function (k) { return Object.prototype.hasOwnProperty.call(value, k); });
+}
+
+function fcv2NullOrText_(value) {
+  return value === null || (typeof value === 'string' && value.length <= FCV2_DEP_TEXT_MAX_);
+}
+
+/**
+ * True when `f` has exactly the ScheduledFlightWire shape fcv2NormalizeDeparture_ produces, for the
+ * requested airport. Pure; used on cache reads only (a freshly normalized record is already well-formed).
+ */
+function fcv2ValidWireFlight_(f, airport) {
+  if (!fcv2IsPlainObject_(f) || !fcv2SameKeys_(f, FCV2_DEP_WIRE_KEYS_)) return false;
+  if (typeof f.id !== 'string' || !/^f_[0-9a-f]{16}$/.test(f.id)) return false;
+  if (typeof f.flightNumber !== 'string' || f.flightNumber.length < 1 || f.flightNumber.length > 16) return false;
+  if (f.carrier !== null && (typeof f.carrier !== 'string' || !/^[A-Z0-9]{2}$/.test(f.carrier))) return false;
+  if (f.origin !== airport) return false;
+  if (f.destination !== null && (typeof f.destination !== 'string' || !/^[A-Z]{3}$/.test(f.destination))) return false;
+  if (!fcv2NullOrText_(f.destinationName)) return false;
+  if (typeof f.scheduledDep !== 'number' || !Number.isSafeInteger(f.scheduledDep)) return false;
+  if (f.revisedDep !== null && (typeof f.revisedDep !== 'number' || !Number.isSafeInteger(f.revisedDep))) return false;
+  if (typeof f.status !== 'string' || FCV2_DEP_WIRE_STATUS_.indexOf(f.status) < 0) return false;
+  if (f.aircraft !== null) {
+    if (!fcv2IsPlainObject_(f.aircraft) || !fcv2SameKeys_(f.aircraft, ['model', 'registration'])) return false;
+    if (!fcv2NullOrText_(f.aircraft.model) || !fcv2NullOrText_(f.aircraft.registration)) return false;
+  }
+  return f.provenance === 'provider';
+}
+
+/** A server-cache chunk entry is usable only if its envelope and EVERY cached flight are well-formed. */
+function fcv2ValidChunkCache_(value, airport) {
+  if (!fcv2IsPlainObject_(value) || !Array.isArray(value.flights)) return false;
+  if (typeof value.fetchedAt !== 'number' || !isFinite(value.fetchedAt)) return false;
+  if (typeof value.dropped !== 'number' || !Number.isInteger(value.dropped) || value.dropped < 0) return false;
+  if (!Array.isArray(value.droppedKeys)) return false;
+  for (let i = 0; i < value.droppedKeys.length; i++) if (typeof value.droppedKeys[i] !== 'string') return false;
+  for (let i = 0; i < value.flights.length; i++) if (!fcv2ValidWireFlight_(value.flights[i], airport)) return false;
+  return true;
 }
 
 /**
@@ -296,7 +354,7 @@ function fcv2HandleDepartures_(req, env, now) {
     const cacheKey = fcv2DepartureCacheKey_(checked.airport, chunk, checked.carriers);
     let entry = null;
     try { entry = env.cacheGet(cacheKey); } catch (err) { entry = null; }
-    if (!fcv2ValidChunkCache_(entry)) {
+    if (!fcv2ValidChunkCache_(entry, checked.airport)) {
       if (calls > 0) env.sleep(FCV2_DEP_SPACING_MS_);
       calls += 1;
       const got = fcv2ProviderGet_(fcv2DepartureUrl_(checked.airport, chunk.fromLocal, chunk.toLocal), key, env);
