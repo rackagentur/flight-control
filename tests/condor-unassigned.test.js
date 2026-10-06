@@ -416,10 +416,12 @@ test('core carries no Strichtag wording and no dash roster-code literal used for
   const classify = /(?:[!=]==?|\bcase|\bexact\s*:|\.includes\(|\.has\(|\bindexOf\()\s*(['"`])-{1,2}\1|(['"`])--\2/;
   const strichtag = [];
   const literal = [];
-  for (const dir of ['src/model', 'src/ui', 'src/sources', 'src/lib']) {
-    walk(join(ROOT, dir), strichtag, (t) => /strichtag/i.test(t));
-    walk(join(ROOT, dir), literal, (t) => classify.test(t));
-  }
+  // All of src/ is core except the airline packs (src/airlines/), which own codes and wording.
+  walk(join(ROOT, 'src'), strichtag, (t) => /strichtag/i.test(t));
+  walk(join(ROOT, 'src'), literal, (t) => classify.test(t));
+  const inPack = (p) => p.startsWith('src/airlines/');
+  strichtag.splice(0, strichtag.length, ...strichtag.filter((p) => !inPack(p)));
+  literal.splice(0, literal.length, ...literal.filter((p) => !inPack(p)));
   const backend = join(ROOT, 'backend/apps-script/RosterModelV2.gs');
   const bt = readFileSync(backend, 'utf8');
   if (/strichtag/i.test(bt)) strichtag.push('backend/apps-script/RosterModelV2.gs');
