@@ -49,8 +49,8 @@
 /**
  * @typedef {Object} Window   a standby/reserve/off window stated by the source
  * @property {'standby'|'reserve'|'off'|'layover'} kind
- * @property {'off'|'free'|'leave'|'ort'} [subtype]  rest family (v2): ORT = protected free day
- * @property {boolean} [protected]  ORT: assigned by the company, not reassignable
+ * @property {'off'|'free'|'leave'|'ort'} [subtype]  rest family (v2): 'ort' = protected free day
+ * @property {boolean} [protected]  protected free day: assigned by the company, not reassignable
  * @property {object|null} [hotel]  roster hotel for a stated layover (v2)
  * @property {number} start
  * @property {number} end

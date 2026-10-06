@@ -137,7 +137,7 @@ OperationalState { status, confidence, provenance, headline, location?, since?, 
 | `alarmShortcutName` | `AddAlarm` |
 | `hotelListUrl` | empty |
 | `kmPerBlockHour` | `850` |
-| `airlineAdapter` | `condor` |
+| `airlineId` | `condor` |
 | `name` | empty |
 
 **v5 adapter rules:**

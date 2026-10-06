@@ -1,0 +1,122 @@
+// Airline registry: Condor pack, generic fallback, profile migration, and the guarantee that
+// core (model/ui) carries no airline terminology.
+
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { getAirline, airlineOf } from '../src/airlines/index.js';
+import { normalizeProfile } from '../src/config/profile.js';
+import { loadGs, fakeEnv } from './gs-harness.js';
+import { NOW, feedEvents, syncedEvents, hotelRows } from './fixtures/condor-feed.synthetic.mjs';
+import { request } from '../src/sources/contract-v2.js';
+import { adaptV2 } from '../src/sources/fc-appscript-v2.js';
+import { buildRoster } from '../src/model/roster.js';
+import { deriveState } from '../src/model/state.js';
+import { calendar, resetCalendarUi } from '../src/ui/screens/calendar.js';
+import { today as todayScreen } from '../src/ui/screens/today.js';
+import { PROFILE } from './helpers.js';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+
+test('getAirline: Condor by id, generic for unknown or missing ids', () => {
+  const condor = getAirline('condor');
+  assert.equal(condor.id, 'condor');
+  assert.equal(condor.iata, 'DE');
+  assert.equal(getAirline('nope').id, 'generic');
+  assert.equal(getAirline(undefined).id, 'generic');
+  assert.equal(getAirline(null).id, 'generic');
+  assert.equal(getAirline('toString').id, 'generic', 'prototype keys are not airlines');
+  assert.equal(getAirline('generic').iata, null);
+});
+
+test('profiles are deep-frozen', () => {
+  for (const id of ['condor', 'nope']) {
+    const a = getAirline(id);
+    assert.ok(Object.isFrozen(a) && Object.isFrozen(a.terminology) && Object.isFrozen(a.terminology.offSubtype));
+    assert.ok(Object.isFrozen(a.terminology.offSubtype.ort));
+    assert.throws(() => { a.name = 'x'; }, TypeError);
+    assert.throws(() => { a.terminology.offSubtype.ort.short = 'x'; }, TypeError);
+  }
+});
+
+test('generic terminology carries no ORT; Condor keeps its own wording', () => {
+  assert.doesNotMatch(JSON.stringify(getAirline('generic')), /ORT/);
+  assert.equal(getAirline('generic').terminology.offSubtype.ort.short, 'PROT');
+  const t = getAirline('condor').terminology;
+  assert.equal(t.offSubtype.ort.short, 'ORT');
+  assert.equal(t.offSubtype.ort.name, 'Protected free day');
+});
+
+test('profile: Condor by default, legacy airlineAdapter migrates, invalid ids fall back', () => {
+  assert.equal(airlineOf(normalizeProfile({})).id, 'condor');
+  assert.equal(normalizeProfile({}).airlineId, 'condor');
+  assert.equal(normalizeProfile({ airlineAdapter: 'condor' }).airlineId, 'condor');
+  assert.equal('airlineAdapter' in normalizeProfile({ airlineAdapter: 'condor' }), false);
+  assert.equal(normalizeProfile({ airlineId: 'eurowings' }).airlineId, 'eurowings');
+  assert.equal(airlineOf(normalizeProfile({ airlineId: 'eurowings' })).id, 'generic');
+  for (const bad of ['Condor', 'a b', '', 'x'.repeat(33), 7, {}]) {
+    assert.equal(normalizeProfile({ airlineId: bad }).airlineId, 'condor', `invalid: ${String(bad)}`);
+  }
+  assert.equal(airlineOf(undefined).id, 'generic');
+});
+
+test('core carries no ORT terminology (src/model and src/ui, comments included)', () => {
+  const offenders = [];
+  const walk = (dir) => {
+    for (const name of readdirSync(dir)) {
+      const p = join(dir, name);
+      if (statSync(p).isDirectory()) walk(p);
+      else if (/\.(js|mjs)$/.test(name) && /\bORT\b/.test(readFileSync(p, 'utf8'))) offenders.push(p.slice(ROOT.length + 1));
+    }
+  };
+  walk(join(ROOT, 'src/model'));
+  walk(join(ROOT, 'src/ui'));
+  assert.deepEqual(offenders, []);
+});
+
+// --- Rendering: the airline profile decides the wording ---------------------------------
+
+const gs = loadGs();
+const feed = feedEvents();
+const { env } = fakeEnv(gs, { now: NOW, feed, synced: syncedEvents(), rows: hotelRows(feed) });
+const payload = JSON.parse(JSON.stringify(gs.fcv2HandlePost_(JSON.stringify(request('roster', 'test-token-0123456789abcdef', { action: 'roster' })), env)));
+const GENERIC_PROFILE = normalizeProfile({ ...PROFILE, airlineId: 'generic' });
+
+function views(profile) {
+  const snapshot = adaptV2(payload, { profile, fetchedAt: NOW });
+  const roster = buildRoster(snapshot, profile, NOW);
+  const state = deriveState(snapshot, roster, profile, NOW);
+  return { roster, state, snapshot, profile, now: NOW, review: false, loading: false, warnings: [], toneOverride: null, mode: { kind: 'production' } };
+}
+function renderCalendar(profile) {
+  resetCalendarUi('2026-10', '2026-10-04');
+  const view = views(profile);
+  return calendar.render({ view: () => view }).toString();
+}
+
+test('Condor profile renders ORT in calendar, key, detail and Today', () => {
+  const cal = renderCalendar(PROFILE);
+  assert.match(cal, /cal-code tok-off tok-ort" aria-hidden="true">ORT</);
+  assert.match(cal, /Protected free day \(ORT, protected\)/);
+  assert.match(cal, /ORT · protected free day/);
+  assert.match(cal, /ORT · from roster/);
+  const view = views(PROFILE);
+  assert.match(view.state.reasons[0], /protected free day \(ORT\)/);
+  const html = todayScreen.render({ view: () => view }).toString();
+  assert.match(html, /Protected free day[\s\S]*>ORT</);
+});
+
+test('generic profile renders PROT and no ORT anywhere', () => {
+  const cal = renderCalendar(GENERIC_PROFILE);
+  assert.match(cal, /cal-code tok-off tok-ort" aria-hidden="true">PROT</);
+  assert.match(cal, /PROT · protected free day/);
+  assert.doesNotMatch(cal, /\bORT\b/);
+  const view = views(GENERIC_PROFILE);
+  assert.doesNotMatch(view.state.reasons[0], /ORT/);
+  assert.match(view.state.reasons[0], /protected free day/);
+  const html = todayScreen.render({ view: () => view }).toString();
+  assert.match(html, /Protected free day[\s\S]*>PROT</);
+  assert.doesNotMatch(html, /\bORT\b/);
+});
