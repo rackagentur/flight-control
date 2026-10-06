@@ -93,6 +93,15 @@ Owner-approved, deployed manually by the owner one step at a time.
 - **Verification (read-only, aggregates only):** with the URL alone, no request variant returns roster data; with the token, `stats` returns the unchanged payload (16/16 fields, identical to the former GET answer); missing, wrong or wrong-version requests are refused without data; after repeated failures, wrong tokens are rate-limited while the correct token is still accepted; contract v2 auth, roster, history and the full Step H suite unchanged (the only differences are the intended ones: `stats` listed, unauthenticated GET closed); the app reads through the token; the first scheduled trigger run on the edited code completed normally.
 - **Rollback:** set Script Property `FC_V5_GET` = `open` (instant), or Manage deployments → Version 25.
 
+## Phase 1b + 2: Condor roster-code table and the unassigned day (Version 27, 2026-10-06)
+
+Owner-approved, deployed manually by the owner after the frontend (GitHub Pages from `main` at `2a49c63`) was live and checked.
+
+- **Change:** three files in one version. `CondorAdapterV2.gs` (Phase 1b: codes moved out of the adapter, read from the table at call time), `CondorCodesV2.gs` (new file, generated from `src/airlines/condor/roster-codes.js`) and `RosterModelV2.gs` (`unassigned` day codes, `capabilities.unassigned`). No other file, trigger, Script Property or deployment touched.
+- **Behaviour change (intended):** Condor `-` (Strichtag) is now the `unassigned` day instead of `off`/`free`; `SB90S`, `SB90_I`, `SBH30`, `SBAUS`, `SB90KO` are `standby`. All other classifications unchanged; unrecognised codes stay `unknown`.
+- **Verification (read-only, aggregates only):** `capabilities` and `roster` answer contract v2 and validate; `capabilities.unassigned` is true; across three ranges every `-` event is `unassigned`, the real `SB90S` and `SBH30` events are `standby`, and the observed unrecognised codes stay `unknown`; OFF, ORT, U, C/I, P/U, SB90 and RE10 unchanged. Production smoke test in the owner's browser on the real roster: Today, Calendar and Flights load without console errors; aircraft start markers, rotation lines and end markers correct; Strichtag shown as STR / STRICHTAG, not counted as off and excluded from Rest; unknown codes shown as unknown.
+- **Rollback:** Manage deployments → Version 26 (same URL). Rolling back only the backend is safe: the frontend handles both versions.
+
 ## Deployment log
 
 | Date | Step | Version | Verified by | Rollback version |
@@ -101,3 +110,4 @@ Owner-approved, deployed manually by the owner one step at a time.
 | 2026-10-05 | `AirportsV2.gs` with PDX/SYX zones ("fc.roster v2 + PDX/SYX zones") | 24 | Owner (byte-identical file) + read-only checks above | 23 (pre-v2: 22) |
 | 2026-10-05 | BH-1: single GET router ("BH-1: GET router (getStats only)"); unused older deployment archived | 25 | Owner (byte-identical edits) + read-only checks above | 24 |
 | 2026-10-05 | BH-2: token-protected roster reads ("BH-2: token-protected reads (FC_V5_GET window)"); migration switch removed afterwards | 26 | Owner (byte-identical edits) + read-only checks above | 25 (then 24) |
+| 2026-10-06 | Phase 1b + 2: Condor roster-code table (`CondorCodesV2.gs`, new), adapter and model updated; `-` → `unassigned`, five standby symbols ("Phase 1b+2: Condor code table, unassigned day") | 27 | Owner (three files) + read-only checks and production smoke test above | 26 |

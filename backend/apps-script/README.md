@@ -1,6 +1,6 @@
 # fc.roster v2 backend (Apps Script sources)
 
-Status: **installed (private).** `CondorAdapterV2.gs` (pre-Phase-1b version), `RosterModelV2.gs`, `AirportsV2.gs`, `RosterApiV2.gs` and `RouterV2.gs` are installed unchanged in the existing Apps Script project and served by the existing *untitled* ("Unbenannt") deployment, now **Version 26** (v2 with the PDX/SYX zones, the BH-1 router `RouterV2.gs`, and BH-2 token-protected roster reads); the /exec URL is unchanged. Script Property `FC_V2_TOKEN` is set (the token lives only in a private local file and Script Properties). The five original project files, the triggers and `PLACES_API_KEY` are unchanged, and v5 `getStats` remains operational as the fallback. **Rollback target: Version 25** (then 24); Version 22 is the pre-v2 baseline. Step H (auth and contract verification) passed on 2026-10-05 and was repeated on Version 24; see `docs/BACKEND-HARDENING.md`. The app does not use v2 until the token is entered in Settings (not done yet). **Not yet deployed:** Phase 1b (the updated `CondorAdapterV2.gs` plus the new `CondorCodesV2.gs`; no behaviour change) and Phase 2 (recognised codes `-` (Strichtag, `unassigned`) and five standby symbols; changes `CondorCodesV2.gs` and `RosterModelV2.gs`). Once they ship, Version 26 becomes the rollback target.
+Status: **installed (private).** All six v2 files (`CondorAdapterV2.gs`, `CondorCodesV2.gs`, `RosterModelV2.gs`, `AirportsV2.gs`, `RosterApiV2.gs`, `RouterV2.gs`) are installed unchanged in the existing Apps Script project and served by the existing *untitled* ("Unbenannt") deployment, now **Version 27** (Phase 1b + 2: Condor roster-code table, `-` → `unassigned`, five standby symbols; on top of the PDX/SYX zones, the BH-1 router and BH-2 token-protected reads); the /exec URL is unchanged. Script Property `FC_V2_TOKEN` is set (the token lives only in a private local file and Script Properties). The five original project files, the triggers and `PLACES_API_KEY` are unchanged. **Rollback target: Version 26** (then 25, 24); Version 22 is the pre-v2 baseline. Deployment log and verification: `docs/BACKEND-HARDENING.md`.
 
 | File | Role |
 |---|---|
@@ -60,11 +60,11 @@ Phase 1b and Phase 2 ship **together in one new version**, three files: `CondorA
 - New consequence of the corrected mapping: the **currently deployed** backend reports a `-` day as `off` / subtype `free`. With the new backend those days become `unassigned` (Strichtag) and stop counting as off days. Frontend first, so the app already has the wording and the day kind when the first Strichtag arrives.
 - `--` never occurs in the feed (live trace 2026-10-06); it stays `unknown`.
 
-Rollback is the previous version (Version 26 until Phase 1b/2 ship).
+Rollback is the previous version: Version 26 (Phase 1b + 2 shipped as Version 27 on 2026-10-06).
 
 ## Rollback
 
-- Deployment: Manage deployments → untitled → Edit → the previous version (Version 26 once Phase 1b ships; then 25, 24, 23) or Version 22 (pre-v2 baseline) → Deploy (instant; same URL).
+- Deployment: Manage deployments → untitled → Edit → the previous version (Version 26; then 25, 24, 23) or Version 22 (pre-v2 baseline) → Deploy (instant; same URL).
 - Kill switch: delete Script Property `FC_V2_TOKEN` (every v2 call is refused; the app falls back to v5).
 - BH-2 GET switch: Script Property `FC_V5_GET` = `open` serves the unauthenticated `getStats` again (instant, no redeploy); deleting it requires the token for every roster read.
 - Code: delete the six v2 files listed above (triggers run the current code, so this is the rollback for them).
