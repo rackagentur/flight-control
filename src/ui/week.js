@@ -15,7 +15,7 @@ const EVIDENCE_TEXT = {
 
 function dayLabel(day, term) {
   if (day.status === 'off') return 'OFF';
-  if (day.status === 'unassigned') return term.unassigned.short;
+  if (day.status === 'unassigned') return term.unassigned.cell;
   if (day.status === 'standby') return 'SB';
   if (day.status === 'reserve') return 'RE';
   if (day.label) return day.label;

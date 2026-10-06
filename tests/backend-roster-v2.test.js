@@ -33,9 +33,9 @@ test('ORT is an explicit, protected free day: kind off, subtype ort, source', ()
   assert.deepEqual(day.codes.map((c) => [c.subtype, c.protected, c.provenance]), [['ort', true, 'source']]);
 });
 
-test('ORT vs ordinary OFF, free day and leave stay distinct subtypes of the free family', () => {
+test('ORT vs ordinary OFF and leave stay distinct subtypes of the free family; a single dash is the unassigned day, not a free day', () => {
   assert.deepEqual(['OFF', '-', 'U', 'ORT'].map((t) => { const e = classify(t); return [e.kind, e.subtype, e.protected]; }),
-    [['off', 'off', false], ['off', 'free', false], ['off', 'leave', false], ['off', 'ort', true]]);
+    [['off', 'off', false], ['unassigned', null, false], ['off', 'leave', false], ['off', 'ort', true]]);
 });
 
 test('ORT is never inferred: only the exact code counts; empty days carry no code', () => {
@@ -52,8 +52,9 @@ test('a rostered day needs no rest code: duty-only days are rostered with codes 
   const r = roster();
   const tz = r.source.baseTimeZone;
   const datesOf = (e) => { const s = new Set([localDate(e.start, tz)]); for (let t = e.start; t < e.end; t += 3600000) s.add(localDate(t, tz)); return s; };
-  const restDays = new Set(r.events.filter((e) => e.kind === 'off').flatMap((e) => [...datesOf(e)]));
-  const dutyDays = new Set(r.events.filter((e) => e.kind !== 'off').flatMap((e) => [...datesOf(e)]));
+  const isDayCode = (e) => e.kind === 'off' || e.kind === 'unassigned';   // explicit day codes: rest family and the unassigned day
+  const restDays = new Set(r.events.filter(isDayCode).flatMap((e) => [...datesOf(e)]));
+  const dutyDays = new Set(r.events.filter((e) => !isDayCode(e)).flatMap((e) => [...datesOf(e)]));
   const dutyOnly = r.coverage.days.filter((d) => dutyDays.has(d.date) && !restDays.has(d.date));
   assert.ok(dutyOnly.length >= 3, 'the fixture has flight/standby/reserve days without a rest code');
   assert.ok(dutyOnly.every((d) => d.state === 'rostered' && d.codes.length === 0));

@@ -44,9 +44,10 @@ test('profiles are deep-frozen', () => {
 test('unassigned wording: Condor says Strichtag, generic stays neutral, neither claims the day can be assigned or mentions hours', () => {
   const c = getAirline('condor').terminology.unassigned;
   const g = getAirline('generic').terminology.unassigned;
-  assert.deepEqual({ ...c }, { short: 'STRICHTAG', name: 'Strichtag', legend: 'STRICHTAG · unassigned day, not off', reason: 'The roster lists today as STRICHTAG: no duty is assigned. This is not a day off.', summary: 'Strichtag' });
-  assert.deepEqual({ ...g }, { short: 'UNASG', name: 'Unassigned day', legend: 'Unassigned · no duty yet, not off', reason: 'The roster lists today as unassigned: no duty is assigned. This is not a day off.', summary: 'unassigned' });
-  assert.doesNotMatch(JSON.stringify(g), /strichtag/i);
+  assert.deepEqual({ ...c }, { short: 'STRICHTAG', cell: 'STR', name: 'Strichtag', legend: 'STR · STRICHTAG · unassigned day, not off', reason: 'The roster lists today as STRICHTAG: no duty is assigned. This is not a day off.', summary: 'Strichtage' });
+  assert.deepEqual({ ...g }, { short: 'UNASG', cell: 'UNAS', name: 'Unassigned day', legend: 'UNAS · unassigned day, not off', reason: 'The roster lists today as unassigned: no duty is assigned. This is not a day off.', summary: 'unassigned' });
+  assert.doesNotMatch(JSON.stringify(g), /strichtag|\bSTR\b/i);
+  for (const t of [c, g]) assert.match(t.cell, /^[A-Z]{3,4}$/, 'the compact code is short enough for a 7-column cell at the normal code size');
   for (const t of [c, g]) assert.doesNotMatch(JSON.stringify(t), /\b48\b|hours?\b|can still|convert/i);
   assert.ok(Object.isFrozen(c) && Object.isFrozen(g));
 });
@@ -76,8 +77,8 @@ test('every pack and the generic fallback supply all terminology the Today/Calen
     text(t.protectedLegend, `${id}: protectedLegend`);
     text(t.protectedEyebrow, `${id}: protectedEyebrow`);
     text(t.protectedReason, `${id}: protectedReason`);
-    // today.js, calendar.js, week.js and the state engine read all five for an unassigned day.
-    for (const field of ['short', 'name', 'legend', 'reason', 'summary']) text(t.unassigned?.[field], `${id}: unassigned.${field}`);
+    // today.js, calendar.js, week.js and the state engine read all six for an unassigned day.
+    for (const field of ['short', 'cell', 'name', 'legend', 'reason', 'summary']) text(t.unassigned?.[field], `${id}: unassigned.${field}`);
   }
 });
 

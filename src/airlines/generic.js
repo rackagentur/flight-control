@@ -18,8 +18,9 @@ export const GENERIC = {
     protectedReason: 'The roster lists today as a protected free day: assigned by the company and not reassignable.',
     unassigned: {
       short: 'UNASG',
+      cell: 'UNAS',
       name: 'Unassigned day',
-      legend: 'Unassigned · no duty yet, not off',
+      legend: 'UNAS · unassigned day, not off',
       reason: 'The roster lists today as unassigned: no duty is assigned. This is not a day off.',
       summary: 'unassigned',
     },

@@ -39,7 +39,7 @@ export function feedEvents() {
   return [
     ev('airline-feed', 'ORT', ...Object.values(day('2026-10-03T22:00:00Z', '2026-10-04T22:00:00Z')), { location: 'FRA', description: 'FRA SAMPLE AIRPORT FRA\n\nORTSTAG' }),
     ev('airline-feed', 'OFF', ...Object.values(day('2026-10-04T22:00:00Z', '2026-10-05T22:00:00Z')), { location: 'FRA', description: 'FRA SAMPLE AIRPORT FRA\n\nOff Day (sample)' }),
-    ev('airline-feed', '-', ...Object.values(day('2026-10-05T22:00:00Z', '2026-10-06T22:00:00Z')), { location: 'FRA', description: 'FRA SAMPLE AIRPORT FRA\n\nFreier Tag' }),
+    ev('airline-feed', '-', ...Object.values(day('2026-10-05T22:00:00Z', '2026-10-06T22:00:00Z')), { location: 'FRA', description: 'FRA SAMPLE AIRPORT FRA\n\nSample day without duty' }),
     // Long-haul out with a hotel block and aircraft; return two days later with an outstation pickup.
     ev('airline-feed', 'C/I', z('2026-10-08T06:30:00Z'), z('2026-10-08T08:00:00Z'), { location: 'FRA', description: 'FRA SAMPLE AIRPORT FRA\n\nCheck-in' }),
     ev('airline-feed', 'DE9201 FRA-BKK', z('2026-10-08T08:00:00Z'), z('2026-10-08T19:00:00Z'), {

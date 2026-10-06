@@ -35,7 +35,7 @@ function noData(day) {
 /** Short text shown in the cell. Text, not colour, carries the meaning. */
 function cellCode(day, term) {
   if (day.status === 'off') return term.offSubtype[day.offSubtype]?.short ?? 'OFF';
-  if (day.status === 'unassigned') return term.unassigned.short;
+  if (day.status === 'unassigned') return term.unassigned.cell;
   if (day.status === 'standby') return 'SB';
   if (day.status === 'reserve') return 'RE';
   if (day.label) return day.label;
@@ -118,7 +118,7 @@ const keyRows = (term) => [
   ['key-off', 'Off · stated by roster', term.offSubtype.off.short],
   ['key-ort', term.protectedLegend, term.offSubtype.ort.short],
   ['key-leave', 'Leave', term.offSubtype.leave.short],
-  ['key-unassigned', term.unassigned.legend, term.unassigned.short],
+  ['key-unassigned', term.unassigned.legend, term.unassigned.cell],
   ['key-duty', 'Duty · type not given', 'Duty'],
   ['key-unknown', 'Unknown', '?'],
   ['key-nodata', 'No data'],

@@ -6,7 +6,7 @@
 // a code that is not listed is 'unknown' and stays visible as such.
 
 const SOURCE = 'docs/CONTRACT-V2.md source inventory (2026-10-04)';
-const SOURCE_STRICHTAG = 'Condor MTV Fibel p.10 (Strichtage "--"); owner decision 2026-10-06';
+const SOURCE_STRICHTAG = 'Owner statement + live-feed trace 2026-10-06 ("-" 30×, "--" 0×); Condor MTV Fibel p.10 (Strichtage)';
 const SOURCE_STANDBY_SYMBOL = 'Condor MTV Fibel (Verdi) p.17, Symbol Dienstplan';
 
 /**
@@ -20,11 +20,11 @@ export const CONDOR_ROSTER_CODES = Object.freeze([
   { id: 'standby-sb', match: { pattern: '^SB\\d{0,3}$' }, kind: 'standby', source: SOURCE },
   { id: 'reserve-re', match: { pattern: '^RE\\d{0,3}$' }, kind: 'reserve', source: SOURCE },
   { id: 'day-off', match: { exact: 'OFF' }, kind: 'off', subtype: 'off', source: SOURCE },
-  { id: 'day-free', match: { exact: '-' }, kind: 'off', subtype: 'free', source: SOURCE },
+  // A single dash is the Strichtag: an unassigned day, NOT a free day. '--' never occurs in the feed (unknown).
+  { id: 'day-unassigned', match: { exact: '-' }, kind: 'unassigned', source: SOURCE_STRICHTAG },
   { id: 'day-leave', match: { exact: 'U' }, kind: 'off', subtype: 'leave', source: SOURCE },
   { id: 'day-ort', match: { exact: 'ORT' }, kind: 'off', subtype: 'ort', protected: true, source: SOURCE },
-  // Phase 2: approved by exact symbol only. '--' (Strichtag) is an unassigned day, NOT a free day.
-  { id: 'day-unassigned', match: { exact: '--' }, kind: 'unassigned', source: SOURCE_STRICHTAG },
+  // Phase 2: approved by exact symbol only.
   // Roster symbols of further standby types (the agreement names SBY, SBYHOT, ... are not roster symbols).
   { id: 'standby-sb90s', match: { exact: 'SB90S' }, kind: 'standby', source: SOURCE_STANDBY_SYMBOL },
   { id: 'standby-sb90-i', match: { exact: 'SB90_I' }, kind: 'standby', source: SOURCE_STANDBY_SYMBOL },

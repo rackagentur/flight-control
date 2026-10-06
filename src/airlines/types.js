@@ -23,7 +23,8 @@
 
 /**
  * @typedef {Object} UnassignedTerm
- * @property {string} short    cell / week-strip code
+ * @property {string} short    full uppercase word (Today's status title)
+ * @property {string} cell     compact code for a calendar cell, the calendar key sample and the 7-day strip (fits a 7-column cell at the normal code size)
  * @property {string} name     plain-language name (Today kicker, day detail)
  * @property {string} legend   calendar key text
  * @property {string} reason   state-engine reason
@@ -35,7 +36,7 @@
  * to mean. Raw codes stay separate from canonical concepts (contract v2) and from user-facing
  * terminology.
  * @typedef {Object} RosterCodeDefinition
- * @property {string} id                 stable key inside the pack ('checkin', 'pickup', 'standby-sb', 'reserve-re', 'day-off', 'day-free', 'day-leave', 'day-ort', 'day-unassigned', ...)
+ * @property {string} id                 stable key inside the pack ('checkin', 'pickup', 'standby-sb', 'reserve-re', 'day-off', 'day-leave', 'day-ort', 'day-unassigned', ...)
  * @property {{exact:string}|{pattern:string}} match   raw roster title: exact code, or an anchored regex SOURCE string
  * @property {'checkin'|'pickup'|'standby'|'reserve'|'off'|'unassigned'} kind   canonical Flight Control concept (contract v2)
  * @property {'off'|'free'|'leave'|'ort'|null} [subtype]
