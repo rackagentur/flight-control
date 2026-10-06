@@ -102,6 +102,15 @@ Owner-approved, deployed manually by the owner after the frontend (GitHub Pages 
 - **Verification (read-only, aggregates only):** `capabilities` and `roster` answer contract v2 and validate; `capabilities.unassigned` is true; across three ranges every `-` event is `unassigned`, the real `SB90S` and `SBH30` events are `standby`, and the observed unrecognised codes stay `unknown`; OFF, ORT, U, C/I, P/U, SB90 and RE10 unchanged. Production smoke test in the owner's browser on the real roster: Today, Calendar and Flights load without console errors; aircraft start markers, rotation lines and end markers correct; Strichtag shown as STR / STRICHTAG, not counted as off and excluded from Rest; unknown codes shown as unknown.
 - **Rollback:** Manage deployments → Version 26 (same URL). Rolling back only the backend is safe: the frontend handles both versions.
 
+## Phase 3: `departures` action (Version 29, 2026-10-06)
+
+Owner-approved, deployed manually by the owner. The frontend was not changed for this step (no screen uses the action yet).
+
+- **Change:** `DeparturesV2.gs` added as a new file and `RosterApiV2.gs` replaced, in one version; Script Property `FC_ADB_RAPIDAPI_KEY` set. No other file, trigger or deployment touched. (Version 28 is not part of this record.)
+- **Incident during verification:** every `departures` request first answered `provider-unavailable`; a temporary editor diagnostic (not deployed, then removed) showed RapidAPI gateway errors (HTTP 500, one 429). Cause: the Script Property held a different RapidAPI key from the working one. Compared by SHA-256 fingerprint only (no key displayed), then replaced by the owner; no code change.
+- **Verification (read-only):** `capabilities` lists `departures` with `departuresMaxHours: 24`; roster, history and stats unchanged; a one-hour FRA request returned validated, adapted flights for all carriers and the expected empty result for the airline filter (cross-checked against the airline's published evening schedule); device and server cache hits confirmed; unknown airports refused. One direct provider call checked the raw status values (see `docs/CONTRACT-V2.md`, status semantics).
+- **Rollback:** Manage deployments → Version 27 (same URL). Kill switch without redeploy: delete Script Property `FC_ADB_RAPIDAPI_KEY`.
+
 ## Deployment log
 
 | Date | Step | Version | Verified by | Rollback version |
@@ -111,3 +120,4 @@ Owner-approved, deployed manually by the owner after the frontend (GitHub Pages 
 | 2026-10-05 | BH-1: single GET router ("BH-1: GET router (getStats only)"); unused older deployment archived | 25 | Owner (byte-identical edits) + read-only checks above | 24 |
 | 2026-10-05 | BH-2: token-protected roster reads ("BH-2: token-protected reads (FC_V5_GET window)"); migration switch removed afterwards | 26 | Owner (byte-identical edits) + read-only checks above | 25 (then 24) |
 | 2026-10-06 | Phase 1b + 2: Condor roster-code table (`CondorCodesV2.gs`, new), adapter and model updated; `-` → `unassigned`, five standby symbols ("Phase 1b+2: Condor code table, unassigned day") | 27 | Owner (three files) + read-only checks and production smoke test above | 26 |
+| 2026-10-06 | Phase 3: `departures` action (`DeparturesV2.gs`, new; `RosterApiV2.gs`); Script Property `FC_ADB_RAPIDAPI_KEY` | 29 | Owner (two files) + read-only live checks above | 27 |
