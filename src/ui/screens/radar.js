@@ -5,8 +5,11 @@
 // is tertiary. Nothing here predicts anything about the user.
 //
 // Data: the screen never reads storage or the token. ctx.loadDepartures() (main.js) does the
-// request; ctx.departuresAccess() says whether one can be made. Requests happen only on mount
-// of this route and on Refresh / Retry. Re-renders and update() reuse the in-memory result.
+// request; ctx.departuresAccess() says whether one can be made. Requests happen only when the
+// screen is opened (mount; the 5-minute device cache makes a quick reopen free) and on Refresh /
+// Retry (30 s apart). One more case: when the screen was opened before the roster had loaded, the
+// first update() with a usable roster issues that one initial load. Re-renders reuse the in-memory
+// result and never fetch.
 
 import { html, render as domRender } from '../../lib/html.js';
 import { formatDate } from '../../lib/time.js';
@@ -48,6 +51,8 @@ export function errorText(error) {
 let session = null;
 let mounted = false;
 let lastHtml = '';
+// True from an opening that found no roster yet until the first update() that can choose a window.
+let initialPending = false;
 
 const newSession = (key, window, extra = {}) => ({
   key, window, status: 'loading', result: null, error: null, refreshError: null, busy: false, blockedUntil: 0, earlierOpen: false, ...extra,
@@ -111,10 +116,9 @@ function start(ctx, p, { force }) {
 function refresh(ctx) {
   const p = plan(ctx, { sticky: true });
   if (p.kind !== 'load' || !session || session.key !== p.key || session.busy) return;
-  if (session.result) {
-    if (p.view.now < session.blockedUntil) return;
-    session.blockedUntil = p.view.now + REFRESH_COOLDOWN_MS;
-  }
+  // Refresh and Retry share one 30 s pause (errors are not cached, so rapid retries would reach the provider).
+  if (p.view.now < session.blockedUntil) return;
+  session.blockedUntil = p.view.now + REFRESH_COOLDOWN_MS;
   start(ctx, p, { force: true });
   ctx.rerender?.();
 }
@@ -160,10 +164,10 @@ function rowView(r, ownName) {
     <li class="rd-row ${r.emphasized ? 'is-own' : ''} ${r.state ? `is-${r.state}` : ''}">
       <span class="rd-time t-tabular">${r.timeText}</span>
       <span class="rd-flight t-code">${r.emphasized ? html`<span class="rd-mark" role="img" aria-label="Your airline (${ownName})" title="Your airline (${ownName})"></span>` : ''}${r.flightNumber}</span>
-      <span class="rd-dest"><span class="rd-city">${r.destinationLabel}</span>${r.destinationCode ? html` <span class="rd-iata t-tabular">${r.destinationCode}</span>` : ''}</span>
+      <span class="rd-dest"><span class="rd-city">${r.destinationLabel}</span>${r.destinationCode && r.destinationCode !== r.destinationLabel ? html` <span class="rd-iata t-tabular">${r.destinationCode}</span>` : ''}</span>
       ${r.revisedText ? html`<span class="rd-rev t-tabular"><span class="visually-hidden">Revised departure </span>→ ${r.revisedText} · ${r.delayText}</span>` : ''}
       ${r.state ? html`<span class="rd-chip is-${r.state}">${r.state === 'cancelled' ? 'Cancelled' : 'Departed'}</span>` : ''}
-      ${r.aircraft ? html`<span class="rd-ac">${r.aircraft}</span>` : ''}
+      ${r.aircraft ? html`<span class="rd-ac" title="${r.aircraft}" aria-label="Aircraft ${r.aircraft}">${r.aircraft}</span>` : ''}
     </li>`;
 }
 
@@ -261,7 +265,7 @@ function bodyFor(p) {
       if (s.status === 'error') {
         return frame(view, html`
           <p class="rd-boundary t-callout t-secondary">${TEXT.boundary}</p>
-          ${message({ headline: errorText(s.error), action: html`<button type="button" class="btn btn-quiet" data-rd-retry ${s.busy ? 'disabled' : ''}>Retry</button>` })}`, head);
+          ${message({ headline: errorText(s.error), action: html`<button type="button" class="btn btn-quiet" data-rd-retry ${s.busy || view.now < s.blockedUntil ? 'disabled' : ''}>Retry</button>` })}`, head);
       }
       return frame(view, loadedBody(s, p), head);
     }
@@ -277,12 +281,20 @@ export const radar = {
     return out;
   },
 
-  /** Starts the one request this visit needs (none when the result is already in memory). */
-  mount(root, ctx) {
+  /**
+   * Opening the screen starts the one (non-forced) request this visit needs: the device cache
+   * answers within 5 minutes, otherwise the backend is asked. The previous in-memory list stays on
+   * screen meanwhile. `quiet` marks a redraw of the screen already open (main.js show): it never
+   * requests, except for a window the screen has no session for yet.
+   */
+  mount(root, ctx, { quiet = false } = {}) {
     const p = plan(ctx);
     mounted = true;
+    if (!quiet) initialPending = p.kind === 'no-roster';   // roster still loading: update() issues the load
     if (p.kind === 'load') {
+      initialPending = false;
       if (session?.key !== p.key) { session = newSession(p.key, p.window); start(ctx, p, { force: false }); }
+      else if (!quiet) start(ctx, p, { force: false });
     } else if (p.kind !== 'review') {
       session = null;   // no window, ended, no access: nothing from an earlier visit stays
     }
@@ -302,7 +314,7 @@ export const radar = {
     const remaining = session ? session.blockedUntil - ctx.view().now : 0;
     if (remaining > 0) {
       timer = setTimeout(() => {
-        if (session && !session.busy) root.querySelector?.('[data-rd-refresh]')?.removeAttribute('disabled');
+        if (session && !session.busy) root.querySelector?.('[data-rd-refresh], [data-rd-retry]')?.removeAttribute('disabled');
       }, remaining + 50);
       timer.unref?.();
     }
@@ -314,9 +326,22 @@ export const radar = {
     };
   },
 
-  /** Called on every controller change: redraws from memory (rows move past "now"); never fetches. */
+  /**
+   * Called on every controller change: redraws from memory (rows move past "now"). It never
+   * fetches, with one exception: an opening that found no roster yet gets its single initial load
+   * from the first update() whose roster has a usable window.
+   */
   update(root, ctx) {
-    const p = plan(ctx, { sticky: true });
+    let p;
+    if (initialPending) {
+      p = plan(ctx);
+      if (p.kind !== 'no-roster') {
+        initialPending = false;
+        if (p.kind === 'load') { session = newSession(p.key, p.window); start(ctx, p, { force: false }); }
+      }
+    } else {
+      p = plan(ctx, { sticky: true });
+    }
     if (p.kind !== 'load' && p.kind !== 'review') session = null;
     const previous = lastHtml;
     const next = bodyFor(p);
@@ -330,4 +355,5 @@ export function resetRadarUi() {
   session = null;
   mounted = false;
   lastHtml = '';
+  initialPending = false;
 }

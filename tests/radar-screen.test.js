@@ -8,7 +8,8 @@ import { fileURLToPath } from 'node:url';
 import { radar, resetRadarUi, errorText, TEXT, REFRESH_COOLDOWN_MS } from '../src/ui/screens/radar.js';
 import { today } from '../src/ui/screens/today.js';
 import { calendar, resetCalendarUi } from '../src/ui/screens/calendar.js';
-import { DeparturesError } from '../src/sources/departures-service.js';
+import { DeparturesError, loadDepartures, DEPARTURES_TTL_MS } from '../src/sources/departures-service.js';
+import { createStore } from '../src/store.js';
 import { ApiError } from '../src/api/appscript.js';
 import { sampleSnapshot, sampleProfile, sampleDepartures } from '../src/sources/sample.js';
 import { normalizeProfile } from '../src/config/profile.js';
@@ -72,14 +73,16 @@ function harness({ windows = [ACTIVE], now = NOW, param = null, review = false, 
       if (load) return load(query, opts, calls.length);
       return Promise.resolve(resultFor(query, [flight()]));
     },
-    rerender: () => draw(),
+    rerender: () => draw({ quiet: true }),   // like main.js: show(route, { quiet: true })
   };
-  function draw() {
+  function draw(opts = {}) {
     cleanup?.();
     markup = radar.render(ctx).toString();
-    cleanup = radar.mount(root, ctx);
+    cleanup = radar.mount(root, ctx, opts);
   }
-  return { ctx, calls, root, t, go: () => { draw(); return markup; }, markup: () => markup, draw, update: () => radar.update(root, ctx), setParam: (p) => { param = p; } };
+  // go() / reopen(): the screen is opened (route navigation). draw(): a redraw of the open screen.
+  const open = () => { draw(); return markup; };
+  return { ctx, calls, root, t, go: open, reopen: open, markup: () => markup, draw: () => draw({ quiet: true }), update: () => radar.update(root, ctx), setParam: (p) => { param = p; } };
 }
 
 const rowHtml = (markup, flightNumber) => {
@@ -188,6 +191,183 @@ test('a different base airport is used for the request and the header', async ()
   assert.match(h.markup(), /Departures from MUC/);
 });
 
+// ---------- opening the screen before the roster is there (F1) ----------
+
+const rosterView = (h, over = {}) => { h.ctx.view = () => ({ profile: PROFILE, now: h.t.now, snapshot: { windows: [ACTIVE] }, review: false, loading: false, error: null, ...over }); };
+const loadingView = (h) => { h.ctx.view = () => ({ profile: PROFILE, now: h.t.now, snapshot: null, review: false, loading: true, error: null }); };
+
+test('cold open without a roster: "Loading roster…" (not the departures skeleton), then the first update with a roster issues exactly one request', async () => {
+  const h = harness({ noSnapshot: true });
+  loadingView(h);
+  const first = h.go();
+  assert.match(first, /Loading roster…/);
+  assert.doesNotMatch(first, /Loading scheduled departures…|rd-skel/);
+  assert.equal(h.calls.length, 0);
+  h.update();                                   // roster still loading: nothing
+  assert.equal(h.calls.length, 0);
+  rosterView(h);                                // the roster arrives
+  h.update();
+  assert.equal(h.calls.length, 1);
+  assert.deepEqual(h.calls[0].query, { airport: 'FRA', from: ACTIVE.start, to: ACTIVE.end, carriers: null });
+  assert.equal(h.calls[0].opts.force, false);
+  assert.match(h.root.innerHTML, /Loading scheduled departures…/);
+  await tick();
+  assert.match(h.markup(), /XX100/);            // the completion redraw shows the list
+  assert.equal(h.calls.length, 1, 'the completion redraw does not request again');
+  // Later updates, redraws and clock moves never request again.
+  h.update(); h.draw(); h.t.now += 10 * M; h.update(); h.update();
+  await tick();
+  assert.equal(h.calls.length, 1);
+});
+
+test('cold deep link with a window param: the initial load is for that window', async () => {
+  const other = sb(NOW + 2 * D, NOW + 2 * D + 5 * H, 'SB91');
+  const h = harness({ noSnapshot: true, param: String(other.start) });
+  loadingView(h);
+  h.go();
+  assert.equal(h.calls.length, 0);
+  rosterView(h, { snapshot: { windows: [ACTIVE, other] } });
+  h.update();
+  assert.equal(h.calls.length, 1);
+  assert.deepEqual(h.calls[0].query, { airport: 'FRA', from: other.start, to: other.end, carriers: null });
+  await tick();
+  assert.match(h.root.innerHTML, /SB91/);
+  h.update(); h.update();
+  assert.equal(h.calls.length, 1);
+});
+
+test('cold open: a failed roster keeps the existing states and requests nothing; a later roster still gets its one load', async () => {
+  const h = harness({ noSnapshot: true });
+  h.ctx.view = () => ({ profile: PROFILE, now: h.t.now, snapshot: null, review: false, loading: false, error: { code: 'auth-required' } });
+  assert.match(h.go(), /Access token required[\s\S]*Open Settings/);
+  h.update();
+  assert.match(h.markup(), /Access token required/);
+  assert.equal(h.calls.length, 0);
+  rosterView(h);
+  h.update();
+  assert.equal(h.calls.length, 1);
+  h.update();
+  assert.equal(h.calls.length, 1);
+});
+
+test('cold open: a roster without a usable window or without a token shows that state and requests nothing, now or later', async () => {
+  const none = harness({ noSnapshot: true });
+  loadingView(none);
+  none.go();
+  rosterView(none, { snapshot: { windows: [] } });
+  none.update();
+  assert.match(none.root.innerHTML, /No standby in your roster for the next 14 days\./);
+  rosterView(none);                              // a window shows up later: only the screen opening may request
+  none.update();
+  assert.equal(none.calls.length, 0);
+  const noToken = harness({ noSnapshot: true, access: 'no-token' });
+  loadingView(noToken);
+  noToken.go();
+  rosterView(noToken);
+  noToken.update();
+  assert.match(noToken.root.innerHTML, /Access token required/);
+  assert.equal(noToken.calls.length, 0);
+});
+
+test('cold open in review mode: no request, the fictional list appears once the sample roster is there', () => {
+  const profile = sampleProfile(PROFILE);
+  const snapshot = sampleSnapshot('standby', 'ocean', NOW, profile);
+  const h = harness({ review: true, profile, snapshot, noSnapshot: true, load: () => { throw new Error('review mode must not call the loader'); } });
+  h.ctx.view = () => ({ profile, now: NOW, snapshot: null, review: true, loading: true, error: null });
+  h.go();
+  h.ctx.view = () => ({ profile, now: NOW, snapshot, review: true, loading: false, error: null });
+  h.update();
+  assert.match(h.root.innerHTML, /Sample schedule data/);
+  assert.equal(h.calls.length, 0);
+});
+
+// ---------- reopening the screen (F3) ----------
+
+/** Real loadDepartures with a device cache and a counting fake backend, on the harness clock. */
+function cachedHarness(over = {}) {
+  const fx = JSON.parse(readFileSync(join(ROOT, 'tests/fixtures/departures-v2.synthetic.json'), 'utf8'));
+  const data = new Map();
+  const store = createStore({ getItem: (k) => (data.has(k) ? data.get(k) : null), setItem: (k, v) => data.set(k, String(v)), removeItem: (k) => data.delete(k), key: (i) => [...data.keys()][i] ?? null, get length() { return data.size; } });
+  const net = [];
+  let hold = null;
+  const api = {
+    postContract: async (endpoint, body) => {
+      net.push(body);
+      if (hold) await hold;
+      const p = structuredClone(fx);
+      Object.assign(p, { airport: body.airport, from: body.from, to: body.to, carriers: body.carriers ?? null, fetchedAt: h.t.now, generatedAt: h.t.now });
+      p.flights = [{ ...fx.flights[0], flightNumber: `DE9${net.length}01`, scheduledDep: NOW + H, revisedDep: null }];
+      return { data: p, meta: {} };
+    },
+  };
+  const h = harness({ ...over, load: (q, o) => loadDepartures({ ...q, endpoint: 'https://script.google.com/macros/s/' + 'A'.repeat(30) + '/exec', token: 'test-token-0123456789abcdef' }, { api, store, now: () => h.t.now, force: o.force }) });
+  return { h, net, holdNext: () => { let release; hold = new Promise((r) => { release = () => { hold = null; r(); }; }); return release; } };
+}
+
+test('reopening within 5 minutes costs no network call (device cache); redraws and updates cost none either', async () => {
+  const { h, net } = cachedHarness();
+  h.go();
+  await tick(); await tick();
+  assert.equal(net.length, 1);
+  assert.match(h.markup(), /DE9101/);
+  h.t.now += DEPARTURES_TTL_MS - 1000;
+  h.reopen();
+  await tick(); await tick();
+  assert.equal(net.length, 1, 'device cache hit');
+  assert.match(h.markup(), /\(cached\)/);
+  h.draw(); h.update(); h.t.now += 500; h.update();
+  await tick(); await tick();
+  assert.equal(net.length, 1);
+});
+
+test('reopening after 5 minutes asks the backend once, not forced; the previous list stays visible meanwhile with its fetched time', async () => {
+  const { h, net, holdNext } = cachedHarness();
+  h.go();
+  await tick(); await tick();
+  const firstFetched = formatTime(NOW - 0, HOME_TZ);
+  assert.equal(net.length, 1);
+  h.t.now += DEPARTURES_TTL_MS;
+  const release = holdNext();
+  const opened = h.reopen();
+  await tick();
+  assert.equal(net.length, 2);
+  assert.match(opened, /DE9101/, 'previous list is shown at once');
+  assert.doesNotMatch(opened, /rd-skel|Loading scheduled departures/);
+  assert.ok(opened.includes(`fetched ${firstFetched}`), 'labelled with the time of the data on screen');
+  h.draw(); h.update();                                   // while it runs: no third request
+  assert.equal(net.length, 2);
+  release();
+  await tick(); await tick();
+  assert.match(h.markup(), /DE9201/);
+  assert.equal(net.length, 2);
+  h.draw(); h.update();
+  assert.equal(net.length, 2);
+});
+
+test('a reopen that fails keeps the previous list and says the refresh failed', async () => {
+  const h = harness({ load: (q, o, n) => (n === 1 ? Promise.resolve(resultFor(q, [flight()])) : Promise.reject(new DeparturesError('provider-unavailable'))) });
+  h.go();
+  await tick();
+  h.reopen();
+  await tick();
+  assert.equal(h.calls.length, 2);
+  assert.equal(h.calls[1].opts.force, false);
+  assert.match(h.markup(), /XX100/);
+  assert.match(h.markup(), /Refresh failed · showing data fetched/);
+});
+
+test('reopening for a different window requests that window', async () => {
+  const other = sb(NOW + 2 * D, NOW + 2 * D + 5 * H, 'SB91');
+  const h = harness({ windows: [ACTIVE, other] });
+  h.go();
+  await tick();
+  h.setParam(String(other.start));
+  h.reopen();
+  assert.equal(h.calls.length, 2);
+  assert.equal(h.calls[1].query.from, other.start);
+  assert.equal(h.calls[1].opts.force, false);
+});
+
 // ---------- refresh ----------
 
 test('Refresh calls the loader with force:true and is disabled for 30 s afterwards', async () => {
@@ -273,6 +453,32 @@ test('a synchronous loader failure is handled like a rejected one', async () => 
   h.go();
   await tick();
   assert.match(h.markup(), /The flight-data provider is busy/);
+});
+
+test('Retry after an error shares the 30 s pause: the first retry is immediate, a second one waits', async () => {
+  const h = harness({ load: () => Promise.reject(new DeparturesError('provider-unavailable')) });
+  h.go();
+  await tick();
+  assert.equal(h.calls.length, 1);
+  assert.doesNotMatch(h.markup(), /data-rd-retry\s+disabled/);
+  h.root.press('retry');
+  assert.equal(h.calls.length, 2);
+  assert.equal(h.calls[1].opts.force, true);
+  await tick();
+  assert.match(h.markup(), /data-rd-retry\s+disabled/);
+  h.t.now += 5000;
+  h.root.press('retry');
+  h.draw();
+  assert.equal(h.calls.length, 2, 'a rapid retry reaches nobody');
+  assert.match(h.markup(), /data-rd-retry\s+disabled/);
+  h.t.now += REFRESH_COOLDOWN_MS - 5000 - 1;
+  h.root.press('retry');
+  assert.equal(h.calls.length, 2);
+  h.t.now += 1;
+  h.draw();
+  assert.doesNotMatch(h.markup(), /data-rd-retry\s+disabled/);
+  h.root.press('retry');
+  assert.equal(h.calls.length, 3);
 });
 
 // ---------- no request states ----------
@@ -418,6 +624,45 @@ test('every row reads time, flight number, destination, revised/delay, state, th
   assert.match(row, /→ \d\d:\d\d · \+25 min/);
   assert.match(row, /Departed/);
   assert.match(row, /B788/);
+});
+
+test('a destination that falls back to its IATA code shows it once; a known city keeps its code beside it', async () => {
+  const h = harness({ load: (q) => Promise.resolve(resultFor(q, [
+    flight({ flightNumber: 'XX301', destination: 'ZZZ', destinationName: null, scheduledDep: NOW + H }),
+    flight({ flightNumber: 'XX302', destination: 'ZZZ', destinationName: 'Zed Town', scheduledDep: NOW + 2 * H, id: 'f_0000000000000002' }),
+    flight({ flightNumber: 'XX303', destination: 'LHR', destinationName: 'London Heathrow', scheduledDep: NOW + 3 * H, id: 'f_0000000000000003' }),
+  ])) });
+  h.go();
+  await tick();
+  const count = (text, word) => text.split(word).length - 1;
+  assert.equal(count(rowHtml(h.markup(), 'XX301'), 'ZZZ'), 1);
+  assert.equal(count(rowHtml(h.markup(), 'XX302'), 'ZZZ'), 1);
+  assert.match(rowHtml(h.markup(), 'XX302'), /Zed Town[\s\S]*rd-iata[^>]*>ZZZ/);
+  assert.match(rowHtml(h.markup(), 'XX303'), /rd-iata[^>]*>LHR/);
+});
+
+test('the aircraft is one clipped line with the full text in title and aria-label', async () => {
+  const model = 'De Havilland Canada DHC-8-400 Dash 8Q';
+  const h = harness({ load: (q) => Promise.resolve(resultFor(q, [flight({ aircraft: { model, registration: null } })])) });
+  h.go();
+  await tick();
+  assert.match(h.markup(), new RegExp(`<span class="rd-ac" title="${model}" aria-label="Aircraft ${model}">${model}</span>`));
+});
+
+test('CSS: the aircraft column is capped so time and flight/destination keep their width at phone width', () => {
+  const css = readFileSync(join(ROOT, 'assets/css/screens.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const rule = (sel) => css.match(new RegExp(`(?:^|\\n)${sel.replace(/[.]/g, '\\.')}\\s*\\{([^}]*)\\}`))?.[1] ?? '';
+  const row = rule('.rd-row');
+  const columns = row.match(/grid-template-columns:\s*([^;]+);/)[1];
+  assert.match(columns, /^4\.1rem minmax\(0, 1fr\) minmax\(0, max-content\)$/, 'fixed time column, shrinkable flight/destination, bounded third column');
+  const ac = rule('.rd-ac');
+  assert.match(ac, /max-width:\s*\d+ch/);
+  assert.match(ac, /overflow:\s*hidden/);
+  assert.match(ac, /text-overflow:\s*ellipsis/);
+  assert.match(ac, /white-space:\s*nowrap/);
+  assert.match(ac, /min-width:\s*0/);
+  assert.match(rule('.rd-flight'), /white-space:\s*nowrap/, 'the flight number never wraps');
+  assert.doesNotMatch(css, /\.rd-row\s*\{[^}]*grid-template-columns:[^;]*\bauto\b/, 'no unbounded auto column');
 });
 
 test('emphasis is a small mark with an accessible name from the pack; a foreign carrier gets none', async () => {

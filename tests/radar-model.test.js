@@ -180,8 +180,20 @@ test('the repeated hour on the autumn DST night stays two groups, in instant ord
   const first = berlin('2026-10-24', 22) + 4 * H + 10 * M;     // 02:10 CEST
   const second = first + H;                                      // 02:10 CET
   const v = buildRadarView(result([fl({ scheduledDep: second }), fl({ scheduledDep: first })]), { now: berlin('2026-10-24', 12), window: w, emphasisCarriers: null, homeTz: TZ });
-  assert.deepEqual(v.groups.map((g) => g.label), ['02:00', '02:00']);
+  // Identical headings are told apart by the UTC offset of each hour.
+  assert.deepEqual(v.groups.map((g) => g.label), ['02:00 · UTC+2', '02:00 · UTC+1']);
   assert.deepEqual(rowsOf(v).map((r) => r.scheduledDep), [first, second]);
+  // Headings that do not repeat stay plain (a following hour, and a normal night).
+  const next = berlin('2026-10-24', 22) + 6 * H;
+  const w2 = buildRadarView(result([fl({ scheduledDep: first }), fl({ scheduledDep: second }), fl({ scheduledDep: next })]), { now: berlin('2026-10-24', 12), window: w, emphasisCarriers: null, homeTz: TZ });
+  assert.deepEqual(w2.groups.map((g) => g.label), ['02:00 · UTC+2', '02:00 · UTC+1', '03:00']);
+  assert.ok(view([fl({ scheduledDep: NOW + H }), fl({ scheduledDep: NOW + 2 * H })]).groups.every((g) => /^\d\d:00$/.test(g.label)));
+});
+
+test('the same hour on different days is not a repeat: the day line tells them apart, no offset is added', () => {
+  const w = sb(berlin('2026-10-10', 22), berlin('2026-10-11', 23, 30));
+  const v = buildRadarView(result([fl({ scheduledDep: berlin('2026-10-10', 23, 10) }), fl({ scheduledDep: berlin('2026-10-11', 23, 10) })]), { now: berlin('2026-10-10', 12), window: w, emphasisCarriers: null, homeTz: TZ });
+  assert.deepEqual(v.groups.map((g) => g.label), ['23:00', '23:00']);
 });
 
 test('active window: earlier rows (revised, else scheduled, before now) are split off with a count', () => {
@@ -210,8 +222,8 @@ test('delay is whole minutes between scheduled and revised, signed, and absent w
     fl({ flightNumber: 'L1', scheduledDep: NOW + H, revisedDep: NOW + H + 25 * M, status: 'delayed' }),
     fl({ flightNumber: 'E1', scheduledDep: NOW + 2 * H, revisedDep: NOW + 2 * H - 5 * M }),
     fl({ flightNumber: 'S1', scheduledDep: NOW + 3 * H, revisedDep: NOW + 3 * H }),
-    fl({ flightNumber: 'R1', scheduledDep: NOW + 4 * H, revisedDep: NOW + 4 * H + 90 * 1000 }),         // 1.5 min rounds to 2
-    fl({ flightNumber: 'Z1', scheduledDep: NOW + 5 * H, revisedDep: NOW + 5 * H + 20 * 1000 }),         // rounds to 0: no revision shown
+    fl({ flightNumber: 'R1', scheduledDep: NOW + 4 * H, revisedDep: NOW + 4 * H + 90 * 1000 }),         // shown 22:00 -> 22:01: 1 min
+    fl({ flightNumber: 'Z1', scheduledDep: NOW + 5 * H, revisedDep: NOW + 5 * H + 20 * 1000 }),         // same displayed minute: no revision shown
   ]);
   const by = Object.fromEntries(rowsOf(v).map((r) => [r.flightNumber, r]));
   assert.equal(by.L1.delayMin, 25);
@@ -221,9 +233,35 @@ test('delay is whole minutes between scheduled and revised, signed, and absent w
   assert.equal(by.E1.delayText, '−5 min');
   assert.equal(by.S1.revisedDep, null);
   assert.equal(by.S1.delayMin, null);
-  assert.equal(by.R1.delayMin, 2);
+  assert.equal(by.R1.delayMin, 1);
   assert.equal(by.Z1.revisedDep, null);
   assert.equal(delayText(-12), '−12 min');
+});
+
+test('the delay is computed from the displayed whole-minute times, so the text always equals revised minus scheduled as shown', () => {
+  const base = berlin('2026-10-10', 22);   // 22:00:00 local
+  const rows = rowsOf(view([
+    fl({ flightNumber: 'A1', scheduledDep: base, revisedDep: base + 40 * 1000 }),                 // 22:00 / 22:00 -> no revision
+    fl({ flightNumber: 'A2', scheduledDep: base + 2 * H, revisedDep: base + 2 * H + 70 * 1000 }), // 00:00 -> 00:01 +1 min
+    fl({ flightNumber: 'A3', scheduledDep: base + 3 * H + 50 * 1000, revisedDep: base + 3 * H + 70 * 1000 }), // 01:00 -> 01:01 (20 s apart, shown 1 min)
+    fl({ flightNumber: 'A4', scheduledDep: base + 4 * H + 10 * 1000, revisedDep: base + 4 * H - 20 * 1000 }), // 01:59 shown vs 02:00:10 sched -> earlier
+    fl({ flightNumber: 'A5', scheduledDep: base + 5 * H + 50 * 1000, revisedDep: base + 5 * H + 55 * 1000 }), // same displayed minute -> none
+  ], { window: sb(base - H, base + 12 * H) }));
+  const by = Object.fromEntries(rows.map((r) => [r.flightNumber, r]));
+  assert.equal(by.A1.revisedDep, null);
+  assert.equal(by.A1.revisedText, null);
+  assert.equal(by.A1.delayText, null);
+  assert.deepEqual([by.A2.timeText, by.A2.revisedText, by.A2.delayText], ['00:00', '00:01', '+1 min']);
+  assert.deepEqual([by.A3.timeText, by.A3.revisedText, by.A3.delayText], ['01:00', '01:01', '+1 min']);
+  assert.equal(by.A4.delayMin, -1);
+  assert.equal(by.A5.revisedText, null);
+  // Whatever the instants, a shown revision always differs from the shown time by exactly the shown minutes.
+  for (const r of rows.filter((x) => x.revisedText)) {
+    const hm = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
+    const diff = ((hm(r.revisedText) - hm(r.timeText)) + 1440 + 720) % 1440 - 720;
+    assert.equal(r.delayMin, diff, r.flightNumber);
+    assert.equal(r.delayText, delayText(diff));
+  }
 });
 
 test('states: cancelled always; departed only once its time has passed; every other status shows none', () => {

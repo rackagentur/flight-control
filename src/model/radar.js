@@ -95,7 +95,9 @@ export function buildRadarView(result, { now, window, emphasisCarriers = null, h
   const active = window.start <= now && now < window.end;
 
   const rows = inWindow(result.flights, window).map((f) => {
-    const diff = finite(f.revisedDep) ? Math.round((f.revisedDep - f.scheduledDep) / 60000) : 0;
+    // The delay is computed from the whole-minute clock times the row displays (seconds dropped, as
+    // formatTime does), so the text always equals revised minus scheduled as shown.
+    const diff = finite(f.revisedDep) ? Math.floor(f.revisedDep / 60000) - Math.floor(f.scheduledDep / 60000) : 0;
     const revisedDep = diff !== 0 ? f.revisedDep : null;
     const effective = revisedDep ?? f.scheduledDep;
     const dest = destinationOf(f);
@@ -135,12 +137,18 @@ export function buildRadarView(result, { now, window, emphasisCarriers = null, h
     groups.push({
       key,
       hour: p.hour,
+      date,
       label: `${String(p.hour).padStart(2, '0')}:00`,
       dayLabel: spansDays && date !== lastDate ? formatDate(row.scheduledDep, tz) : null,
       rows: [row],
     });
     lastDate = date;
   }
+
+  // A repeated hour (clocks going back) would give two identical headings on the same day: each
+  // such heading also states its UTC offset. A label repeating on another day is told apart by the day line.
+  const repeated = groups.filter((g) => groups.filter((o) => o.date === g.date && o.label === g.label).length > 1);
+  for (const g of repeated) g.label = `${g.label} · ${formatUtcOffset(g.key, tz)}`;
 
   return Object.freeze({
     airport: result.airport,
@@ -151,7 +159,7 @@ export function buildRadarView(result, { now, window, emphasisCarriers = null, h
     now,
     total: rows.length,
     earlier: Object.freeze(earlier),
-    groups: Object.freeze(groups.map((g) => Object.freeze({ ...g, rows: Object.freeze(g.rows) }))),
+    groups: Object.freeze(groups.map(({ date, ...g }) => Object.freeze({ ...g, rows: Object.freeze(g.rows) }))),
     upcomingCount: upcoming.length,
     fetchedAt: result.fetchedAt,
     fromCache: Boolean(result.fromCache),

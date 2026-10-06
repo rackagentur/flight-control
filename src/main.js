@@ -174,7 +174,7 @@ function show(routeId, { quiet = false, param = null, soft = false } = {}) {
   cleanup?.();
   cleanup = null;
   render(shell.main, screen.render(ctx));
-  cleanup = screen.mount?.(shell.main, ctx) ?? null;
+  cleanup = screen.mount?.(shell.main, ctx, { quiet }) ?? null;
   shell.setActive(routeId);
   syncThemeControls();
   document.title = `${review.current() ? 'Sample · ' : ''}${routeById(routeId)?.title ?? 'Today'} · Flight Control`;
