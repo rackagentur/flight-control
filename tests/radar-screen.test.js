@@ -82,7 +82,7 @@ function harness({ windows = [ACTIVE], now = NOW, param = null, review = false, 
   }
   // go() / reopen(): the screen is opened (route navigation). draw(): a redraw of the open screen.
   const open = () => { draw(); return markup; };
-  return { ctx, calls, root, t, go: open, reopen: open, markup: () => markup, draw: () => draw({ quiet: true }), update: () => radar.update(root, ctx), setParam: (p) => { param = p; } };
+  return { ctx, calls, root, t, go: open, reopen: open, leave: () => { cleanup?.(); cleanup = null; }, markup: () => markup, draw: () => draw({ quiet: true }), update: () => radar.update(root, ctx), setParam: (p) => { param = p; } };
 }
 
 const rowHtml = (markup, flightNumber) => {
@@ -132,7 +132,7 @@ test('re-rendering, re-mounting and update() reuse the loaded result: no further
   assert.equal(slow.calls.length, 1);
 });
 
-test('update() redraws from memory (rows move past now) and never fetches, even if the roster window changes', async () => {
+test('update() redraws from memory (rows move past now); while the key is unchanged it never fetches', async () => {
   const h = harness();
   h.go();
   await tick();
@@ -140,9 +140,6 @@ test('update() redraws from memory (rows move past now) and never fetches, even 
   h.t.now = NOW + 2 * H;
   h.update();
   assert.match(root.innerHTML, /Earlier in this window \(1\)/);
-  // The roster refresh now lists a different standby: the screen keeps the window it shows.
-  h.ctx.view = () => ({ profile: PROFILE, now: h.t.now, snapshot: { windows: [sb(NOW + D, NOW + D + 5 * H, 'SB91')] }, review: false, loading: false, error: null });
-  h.update();
   assert.equal(h.calls.length, 1);
 });
 
@@ -250,16 +247,19 @@ test('cold open: a failed roster keeps the existing states and requests nothing;
   assert.equal(h.calls.length, 1);
 });
 
-test('cold open: a roster without a usable window or without a token shows that state and requests nothing, now or later', async () => {
+test('cold open: a roster without a usable window or without a token shows that state and requests nothing; a window that appears later gets its one load', async () => {
   const none = harness({ noSnapshot: true });
   loadingView(none);
   none.go();
   rosterView(none, { snapshot: { windows: [] } });
   none.update();
   assert.match(none.root.innerHTML, /No standby in your roster for the next 14 days\./);
-  rosterView(none);                              // a window shows up later: only the screen opening may request
-  none.update();
   assert.equal(none.calls.length, 0);
+  rosterView(none);                              // a window shows up later: the key changes from null, one load
+  none.update();
+  assert.equal(none.calls.length, 1);
+  none.update();
+  assert.equal(none.calls.length, 1);
   const noToken = harness({ noSnapshot: true, access: 'no-token' });
   loadingView(noToken);
   noToken.go();
@@ -440,6 +440,7 @@ test('errors: wording per code, each with a manual Retry that asks again', async
     assert.match(h.markup(), /data-rd-retry/);
     assert.doesNotMatch(h.markup(), /rd-row/);
     assert.equal(errorText(error), text);
+    h.t.now += REFRESH_COOLDOWN_MS;               // a failed load rests 30 s before Retry is offered
     h.root.press('retry');
     assert.equal(h.calls.length, 2);
     await tick();
@@ -455,30 +456,243 @@ test('a synchronous loader failure is handled like a rejected one', async () => 
   assert.match(h.markup(), /The flight-data provider is busy/);
 });
 
-test('Retry after an error shares the 30 s pause: the first retry is immediate, a second one waits', async () => {
+test('a failed load starts the 30 s pause: Retry is disabled with the remaining time, then asks once, forced', async () => {
   const h = harness({ load: () => Promise.reject(new DeparturesError('provider-unavailable')) });
   h.go();
   await tick();
   assert.equal(h.calls.length, 1);
-  assert.doesNotMatch(h.markup(), /data-rd-retry\s+disabled/);
+  assert.match(h.markup(), /data-rd-retry\s+disabled>Retry in 30 s</);
+  h.root.press('retry');
+  assert.equal(h.calls.length, 1, 'no request inside the pause');
+  h.t.now += 5000;
+  h.draw();
+  assert.match(h.markup(), /data-rd-retry\s+disabled>Retry in 25 s</);
+  h.t.now += REFRESH_COOLDOWN_MS - 5000 - 1;
+  h.draw();
+  assert.match(h.markup(), /data-rd-retry\s+disabled>Retry in 1 s</);
+  h.root.press('retry');
+  assert.equal(h.calls.length, 1);
+  h.t.now += 1;
+  h.draw();
+  assert.match(h.markup(), /data-rd-retry\s*>Retry</);
   h.root.press('retry');
   assert.equal(h.calls.length, 2);
   assert.equal(h.calls[1].opts.force, true);
-  await tick();
-  assert.match(h.markup(), /data-rd-retry\s+disabled/);
-  h.t.now += 5000;
-  h.root.press('retry');
-  h.draw();
-  assert.equal(h.calls.length, 2, 'a rapid retry reaches nobody');
-  assert.match(h.markup(), /data-rd-retry\s+disabled/);
-  h.t.now += REFRESH_COOLDOWN_MS - 5000 - 1;
+  await tick();                                   // failed again: the pause starts again
+  assert.match(h.markup(), /data-rd-retry\s+disabled>Retry in 30 s</);
+  h.t.now += 29000;
   h.root.press('retry');
   assert.equal(h.calls.length, 2);
-  h.t.now += 1;
-  h.draw();
-  assert.doesNotMatch(h.markup(), /data-rd-retry\s+disabled/);
-  h.root.press('retry');
+});
+
+// ---------- one request rule: plan, key, cooldown ----------
+
+const viewOf = (h, over = {}) => { h.ctx.view = () => ({ profile: PROFILE, now: h.t.now, snapshot: { windows: [ACTIVE] }, review: false, loading: false, error: null, ...over }); };
+const sampleView = (h) => {
+  const profile = sampleProfile(PROFILE);
+  viewOf(h, { review: true, profile, snapshot: sampleSnapshot('standby', 'ocean', NOW, profile) });
+};
+
+for (const cached of [false, true]) {
+  test(`exit review while on Radar (${cached ? 'roster cached' : 'no cached roster'}): the production window under its own label, exactly one request, never the sample; entering review again: none, sample shown`, async () => {
+    const h = harness();
+    sampleView(h);
+    const inReview = h.go();
+    assert.match(inReview, /SAMPLE 10\d/);
+    assert.match(inReview, /Sample data · not your roster/);
+    assert.equal(h.calls.length, 0);
+    // Exit review: controller.setMode only runs update().
+    if (cached) viewOf(h);
+    else {
+      viewOf(h, { snapshot: null, loading: true });
+      h.update();
+      assert.match(h.root.innerHTML, /Loading roster…/);
+      assert.doesNotMatch(h.root.innerHTML, /SAMPLE|Sample data/);
+      assert.equal(h.calls.length, 0);
+      viewOf(h);                                  // the roster arrives
+    }
+    h.update();
+    assert.equal(h.calls.length, 1);
+    assert.deepEqual(h.calls[0].query, { airport: 'FRA', from: ACTIVE.start, to: ACTIVE.end, carriers: null });
+    assert.equal(h.calls[0].opts.force, false);
+    assert.match(h.root.innerHTML, /SB90/);
+    assert.match(h.root.innerHTML, /<p class="t-eyebrow">Standby<\/p>/);
+    assert.match(h.root.innerHTML, /Loading scheduled departures…/);
+    assert.doesNotMatch(h.root.innerHTML, /SAMPLE|Sample data|fictional/);
+    await tick();
+    assert.match(h.markup(), /XX100/);
+    assert.doesNotMatch(h.markup(), /SAMPLE|Sample data|fictional/);
+    assert.match(h.markup(), /data-rd-refresh/);
+    assert.equal(h.calls.length, 1);
+    h.update(); h.update();
+    assert.equal(h.calls.length, 1);
+    // Back into review: no request, the sample list, no leak of the production list.
+    sampleView(h);
+    h.update();
+    assert.equal(h.calls.length, 1);
+    assert.match(h.root.innerHTML, /SAMPLE 10\d/);
+    assert.match(h.root.innerHTML, /Sample data · not your roster/);
+    assert.doesNotMatch(h.root.innerHTML, /XX100/);
+  });
+}
+
+test('error, leave, reopen within 30 s: no request, Retry disabled with the countdown; after 30 s the reopen asks once', async () => {
+  const h = harness({ load: () => Promise.reject(new DeparturesError('provider-unavailable')) });
+  h.go();
+  await tick();
+  assert.equal(h.calls.length, 1);
+  h.leave();
+  h.t.now += 5000;
+  const again = h.reopen();
+  assert.equal(h.calls.length, 1);
+  assert.match(again, /Flight data is unavailable right now\./);
+  assert.match(again, /data-rd-retry\s+disabled>Retry in 25 s</);
+  await tick();
+  h.leave();
+  h.t.now += 24000;
+  h.reopen();
+  assert.equal(h.calls.length, 1, 'still inside the pause');
+  assert.match(h.markup(), /data-rd-retry\s+disabled>Retry in 1 s</);
+  h.leave();
+  h.t.now += 1000;
+  h.reopen();
+  assert.equal(h.calls.length, 2);
+  assert.equal(h.calls[1].opts.force, false);
+});
+
+test('a Retry or Refresh pause also survives leaving and reopening the screen', async () => {
+  const h = harness();
+  h.go();
+  await tick();
+  h.root.press('refresh');
+  await tick();
+  assert.equal(h.calls.length, 2);
+  h.leave();
+  h.t.now += 10000;
+  h.reopen();
+  await tick();
+  assert.equal(h.calls.length, 2, 'the opening does not ask inside the pause');
+  assert.match(h.markup(), /data-rd-refresh\s+disabled/);
+  h.leave();
+  h.t.now += 20000;
+  h.reopen();
+  await tick();
+  assert.equal(h.calls.length, 3, 'after the pause the opening asks once, not forced');
+  assert.equal(h.calls[2].opts.force, false);
+});
+
+test('a window change from a roster update while open: the plan follows, one non-forced load for the new key, none for the old; Refresh then forces the new key only', async () => {
+  const h = harness();
+  h.go();
+  await tick();
+  assert.equal(h.calls.length, 1);
+  const next = sb(ACTIVE.start, ACTIVE.end + H, 'SB90');          // the standby now ends an hour later
+  viewOf(h, { snapshot: { windows: [next] } });
+  h.update();
+  assert.equal(h.calls.length, 2);
+  assert.deepEqual(h.calls[1].query, { airport: 'FRA', from: next.start, to: next.end, carriers: null });
+  assert.equal(h.calls[1].opts.force, false);
+  assert.ok(h.root.innerHTML.includes(formatTime(next.end, HOME_TZ)), 'the new window is shown');
+  assert.match(h.root.innerHTML, /Loading scheduled departures…/, 'the old list is not shown for the new key');
+  h.update(); h.update();
+  assert.equal(h.calls.length, 2, 'while it loads: no second request');
+  await tick();
+  assert.match(h.markup(), /XX100/);
+  h.t.now += 5 * M; h.update(); h.update(); h.draw();
+  assert.equal(h.calls.length, 2);
+  h.root.press('refresh');
   assert.equal(h.calls.length, 3);
+  assert.equal(h.calls[2].opts.force, true);
+  assert.equal(h.calls[2].query.to, next.end);
+  assert.equal(h.calls.filter((c) => c.query.to === ACTIVE.end).length, 1, 'the old window is never asked again');
+});
+
+test('a window change replaces the window shown even with a route param, and a key without a roster change never asks', async () => {
+  const other = sb(NOW + 2 * D, NOW + 2 * D + 5 * H, 'SB91');
+  const h = harness({ windows: [ACTIVE, other], param: String(other.start) });
+  h.go();
+  await tick();
+  assert.equal(h.calls.length, 1);
+  assert.equal(h.calls[0].query.from, other.start);
+  for (let i = 0; i < 20; i += 1) { h.t.now += M; h.update(); }
+  await tick();
+  assert.equal(h.calls.length, 1, 'many ticks, same key: no request');
+  h.setParam(null);                                     // route param gone: the active window is the plan
+  h.update();
+  assert.equal(h.calls.length, 2);
+  assert.equal(h.calls[1].query.from, ACTIVE.start);
+});
+
+test('a token that appears while open changes the key from null: one load, then none', async () => {
+  const h = harness({ access: 'no-token' });
+  assert.match(h.go(), /Access token required/);
+  assert.equal(h.calls.length, 0);
+  h.update();
+  assert.equal(h.calls.length, 0);
+  h.ctx.departuresAccess = () => 'ready';
+  h.update();
+  assert.equal(h.calls.length, 1);
+  await tick();
+  assert.match(h.markup(), /XX100/);
+  h.update();
+  assert.equal(h.calls.length, 1);
+});
+
+test('the pause does not hold back the first load of a window the screen has nothing for', async () => {
+  const h = harness({ load: (q, o, n) => (n === 1 ? Promise.reject(new DeparturesError('provider-unavailable')) : Promise.resolve(resultFor(q, [flight()]))) });
+  h.go();
+  await tick();
+  assert.equal(h.calls.length, 1);
+  viewOf(h, { snapshot: { windows: [] } });             // the window goes away: nothing from before stays
+  h.update();
+  assert.match(h.root.innerHTML, /No standby in your roster/);
+  viewOf(h);                                            // and comes back inside the pause
+  h.update();
+  assert.equal(h.calls.length, 2, 'a key with no session is loaded at once');
+  await tick();
+  assert.match(h.markup(), /XX100/);
+});
+
+test('in-flight dedupe: rapid update()s, redraws, reopens and a window that vanishes and returns while a load runs still make one request, and its result lands', async () => {
+  let release;
+  const h = harness({ load: (q) => new Promise((r) => { release = () => r(resultFor(q, [flight({ flightNumber: 'XX555' })])); }) });
+  h.go();
+  for (let i = 0; i < 5; i += 1) { h.update(); h.draw(); h.t.now += 1000; }
+  h.leave(); h.reopen();
+  assert.equal(h.calls.length, 1);
+  viewOf(h, { snapshot: { windows: [] } });
+  h.update();
+  viewOf(h);
+  h.update();
+  h.update();
+  assert.equal(h.calls.length, 1);
+  assert.match(h.root.innerHTML, /Loading scheduled departures…/);
+  release();
+  await tick();
+  assert.equal(h.calls.length, 1);
+  assert.match(h.markup(), /XX555/);
+});
+
+test('reopen within 5 minutes asks the loader not forced and costs no network; after 5 minutes it costs one request, not forced', async () => {
+  const { h, net } = cachedHarness();
+  h.go();
+  await tick(); await tick();
+  assert.equal(net.length, 1);
+  assert.equal(h.calls[0].opts.force, false);
+  h.leave();
+  h.t.now += DEPARTURES_TTL_MS - 1000;
+  h.reopen();
+  await tick(); await tick();
+  assert.equal(h.calls.length, 2);
+  assert.equal(h.calls[1].opts.force, false);
+  assert.equal(net.length, 1, 'device cache');
+  h.leave();
+  h.t.now += 2000;
+  h.reopen();
+  await tick(); await tick();
+  assert.equal(h.calls.length, 3);
+  assert.equal(h.calls[2].opts.force, false);
+  assert.equal(net.length, 2, 'the cache is older than 5 minutes: the backend is asked once');
 });
 
 // ---------- no request states ----------
@@ -641,12 +855,13 @@ test('a destination that falls back to its IATA code shows it once; a known city
   assert.match(rowHtml(h.markup(), 'XX303'), /rd-iata[^>]*>LHR/);
 });
 
-test('the aircraft is one clipped line with the full text in title and aria-label', async () => {
+test('the aircraft is one clipped line: full text in title, accessible name as visually-hidden text (no aria-label on a plain span)', async () => {
   const model = 'De Havilland Canada DHC-8-400 Dash 8Q';
   const h = harness({ load: (q) => Promise.resolve(resultFor(q, [flight({ aircraft: { model, registration: null } })])) });
   h.go();
   await tick();
-  assert.match(h.markup(), new RegExp(`<span class="rd-ac" title="${model}" aria-label="Aircraft ${model}">${model}</span>`));
+  assert.match(h.markup(), new RegExp(`<span class="rd-ac" title="${model}"><span class="visually-hidden">Aircraft </span>${model}</span>`));
+  assert.doesNotMatch(h.markup(), /aria-label="Aircraft/);
 });
 
 test('CSS: the aircraft column is capped so time and flight/destination keep their width at phone width', () => {
@@ -766,10 +981,10 @@ test('Calendar: no link for a standby beyond 14 days, an ended standby, or reser
 
 const read = (p) => readFileSync(join(ROOT, p), 'utf8');
 
-test('requests only on mount and Refresh/Retry: no timers that fetch, no prefetch from Today/Calendar, no polling', () => {
+test('requests come from one rule only (open, new key, Refresh/Retry): no timers that fetch, no prefetch from Today/Calendar, no polling', () => {
   const screen = read('src/ui/screens/radar.js');
   assert.doesNotMatch(screen, /setInterval/);
-  assert.equal((screen.match(/setTimeout/g) ?? []).length, 1, 'one UI timer (re-enabling Refresh)');
+  assert.equal((screen.match(/setTimeout/g) ?? []).length, 1, 'one UI timer (Retry countdown, re-enabling the buttons)');
   assert.equal((screen.match(/ctx\.loadDepartures\(p\.query/g) ?? []).length, 1, 'one call site');
   for (const file of ['src/ui/screens/today.js', 'src/ui/screens/calendar.js', 'src/controller.js']) {
     assert.doesNotMatch(read(file), /loadDepartures/, `${file} does not fetch departures`);

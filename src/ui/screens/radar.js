@@ -5,11 +5,20 @@
 // is tertiary. Nothing here predicts anything about the user.
 //
 // Data: the screen never reads storage or the token. ctx.loadDepartures() (main.js) does the
-// request; ctx.departuresAccess() says whether one can be made. Requests happen only when the
-// screen is opened (mount; the 5-minute device cache makes a quick reopen free) and on Refresh /
-// Retry (30 s apart). One more case: when the screen was opened before the roster had loaded, the
-// first update() with a usable roster issues that one initial load. Re-renders reuse the in-memory
-// result and never fetch.
+// request; ctx.departuresAccess() says whether one can be made.
+//
+// One rule decides every request (ensure() below). Each render / mount / update first computes a
+// PLAN: {mode, reason, window, key}. `mode` is 'review' or 'production', `window` is chosen again
+// every time (route param first, then the active or next standby), and `key` is
+// `${mode}|${airport}|${from}|${to}` (null when no request is possible: roster not there, no window,
+// no access). A load starts only for a production plan with a key, when that key has no session
+// (data or a recorded error), no request already running and no cooldown. Opening the screen
+// additionally refreshes an existing session for the key, not forced: the 5-minute device cache
+// makes that free. Controller ticks only recompute the plan: same key, no request; a new key (the
+// roster changed the window, review mode ended, a token appeared) gets at most one. Refresh and
+// Retry send one forced load for the current key. A failed load, Refresh and Retry start a 30 s
+// cooldown for that key (module level, so leaving and reopening the screen does not skip it).
+// Nothing polls: the only timer re-enables a button and counts the Retry wait down.
 
 import { html, render as domRender } from '../../lib/html.js';
 import { formatDate } from '../../lib/time.js';
@@ -19,7 +28,7 @@ import { hrefFor } from '../../router.js';
 import { clock } from '../duty.js';
 import { airlineOf } from '../../airlines/index.js';
 import { departuresContext } from '../../model/scheduled-flights.js';
-import { selectStandbyWindow, checkWindow, buildRadarView } from '../../model/radar.js';
+import { selectStandbyWindow, buildRadarView } from '../../model/radar.js';
 import { sampleDepartures } from '../../sources/sample.js';
 
 export const RADAR_TITLE = 'Flights in standby window';
@@ -46,43 +55,52 @@ export function errorText(error) {
   return TEXT.unavailable;
 }
 
-// In-memory session for the window on screen (never persisted).
-//   { key, window, status:'loading'|'ready'|'error', result, error, refreshError, busy, blockedUntil, earlierOpen }
+// In-memory session for the plan on screen (never persisted). It belongs to exactly one key.
+//   { key, status:'loading'|'ready'|'error', result, error, refreshError, busy, earlierOpen, review? }
 let session = null;
 let mounted = false;
 let lastHtml = '';
-// True from an opening that found no roster yet until the first update() that can choose a window.
-let initialPending = false;
+// True from an opening that found no roster yet until the first update() that has one.
+let openPending = false;
+// Module level, so they outlive the screen: key -> instant before which no further load for it starts;
+// key -> the session whose load is running.
+const cooldowns = new Map();
+const inflight = new Map();
 
-const newSession = (key, window, extra = {}) => ({
-  key, window, status: 'loading', result: null, error: null, refreshError: null, busy: false, blockedUntil: 0, earlierOpen: false, ...extra,
+const newSession = (key, extra = {}) => ({
+  key, status: 'loading', result: null, error: null, refreshError: null, busy: false, earlierOpen: false, ...extra,
 });
+const cooldownLeft = (key, now) => Math.max(0, (cooldowns.get(key) ?? 0) - now);
+/** A session has something to show for its key: data (also while reloading) or a recorded error. */
+const hasState = (s) => s.status !== 'loading' || Boolean(s.result);
+const WINDOWLESS = new Set(['none', 'ended', 'too-far', 'too-long']);
 
 /**
- * What the screen is about right now. `sticky` (used by update()) keeps the window the screen
- * already shows instead of choosing again, so a roster refresh can never change the request.
+ * What the screen is about right now: {mode, reason, window, key, ...}. `reason` is 'ok' when a
+ * window can be listed, else why not ('no-roster', 'none', 'ended', 'too-far', 'too-long',
+ * 'access'). `key` is null whenever no request is possible. Nothing is remembered between calls.
  */
-function plan(ctx, { sticky = false } = {}) {
+function plan(ctx) {
   const view = ctx.view();
   const { profile, now, snapshot, review } = view;
-  if (!snapshot) return { kind: 'no-roster', view };
-  const sel = sticky && session?.window ? checkWindow(session.window, now) : selectStandbyWindow(snapshot, now, ctx.param?.() ?? null);
-  if (sel.reason) return { kind: sel.reason, view, sel };
+  const mode = review ? 'review' : 'production';
+  const access = review ? 'ready' : ctx.departuresAccess?.() ?? 'ready';
+  if (!snapshot) return { mode, reason: 'no-roster', view, access, window: null, key: null };
+  const sel = selectStandbyWindow(snapshot, now, ctx.param?.() ?? null);
+  if (sel.reason) return { mode, reason: sel.reason, view, access, sel, window: sel.window, key: null };
   const { airport } = departuresContext(profile);
   const { start: from, end: to } = sel.window;
-  const base = { view, sel, window: sel.window, airport, from, to };
-  if (review) return { ...base, kind: 'review', key: `review|${airport}|${from}|${to}` };
-  const access = ctx.departuresAccess?.() ?? 'ready';
-  if (access !== 'ready') return { ...base, kind: 'access', access };
-  return { ...base, kind: 'load', key: `${airport}|${from}|${to}`, query: { airport, from, to, carriers: null } };
+  const base = { mode, view, access, sel, window: sel.window, airport, from, to };
+  if (access !== 'ready') return { ...base, reason: 'access', key: null };
+  return { ...base, reason: 'ok', key: `${mode}|${airport}|${from}|${to}`, query: { airport, from, to, carriers: null } };
 }
 
-/** Review mode: the fictional list, built once per window and kept (no request of any kind). */
+/** Review mode: the fictional list, built once per key and kept (no request of any kind). */
 function reviewSession(p) {
   if (session?.key !== p.key) {
     const { profile, now } = p.view;
     const ownCarrier = airlineOf(profile).flightDesignators?.[0] ?? null;
-    session = newSession(p.key, p.window, {
+    session = newSession(p.key, {
       status: 'ready', review: true,
       result: sampleDepartures({ airport: p.airport, from: p.from, to: p.to, now, ownCarrier, airportTz: profile.homeTz }),
     });
@@ -90,36 +108,71 @@ function reviewSession(p) {
   return session;
 }
 
+/** The session for the plan's key: the one on screen, a running load's, or a new one. Any other session is dropped. */
+function claim(p) {
+  if (session?.key !== p.key) session = inflight.get(p.key) ?? newSession(p.key);
+  return session;
+}
+
 // --- Loading ---------------------------------------------------------------------------
 
-function start(ctx, p, { force }) {
-  const s = session;
-  if (!s || s.busy) return;
+/**
+ * The single place that decides whether a departures load starts. `open`: the screen is being
+ * opened (also: the first update after an opening that found no roster).
+ */
+function ensure(ctx, p, { open = false } = {}) {
+  if (p.mode === 'review') {
+    if (p.key) reviewSession(p);
+    else if (p.reason !== 'no-roster') session = null;
+    return;
+  }
+  if (session?.review) session = null;                              // review data never reaches production
+  if (!p.key) {
+    // Nothing can be requested. A missing roster keeps what is there (it may come back); no window or
+    // no access does not: nothing from an earlier visit stays.
+    if (p.access !== 'ready' || WINDOWLESS.has(p.reason)) session = null;
+    if (p.access !== 'ready') inflight.clear();
+    return;
+  }
+  const s = claim(p);
+  const known = hasState(s);
+  if (known && !open) return;                                     // data or a recorded error: nothing to ask
+  if (s.busy || inflight.has(p.key)) return;                       // already on its way
+  if (known && cooldownLeft(p.key, p.view.now) > 0) return;       // the first load of a key is never held back
+  start(ctx, p, s, { force: false });
+}
+
+function start(ctx, p, s, { force }) {
+  if (s.busy) return;
   s.busy = true;
+  inflight.set(s.key, s);
   s.refreshError = null;
   if (!s.result) { s.status = 'loading'; s.error = null; }
   let pending;
   try { pending = Promise.resolve(ctx.loadDepartures(p.query, { force })); } catch (error) { pending = Promise.reject(error); }
   pending.then(
-    (result) => { if (session === s) { s.result = result; s.status = 'ready'; s.error = null; } },
+    (result) => { s.result = result; s.status = 'ready'; s.error = null; },
     (error) => {
-      if (session !== s) return;
       // With data on screen the list stays; otherwise this is an error state with a Retry.
       if (s.result) s.refreshError = error; else { s.status = 'error'; s.error = error; }
+      // Errors are not cached, so a failed key rests for 30 s before anything asks again.
+      cooldowns.set(s.key, ctx.view().now + REFRESH_COOLDOWN_MS);
     },
   ).finally(() => {
     s.busy = false;
+    if (inflight.get(s.key) === s) inflight.delete(s.key);
     if (session === s && mounted) ctx.rerender?.();
   });
 }
 
+/** Refresh and Retry: one forced load for the CURRENT plan key, then the shared 30 s pause. */
 function refresh(ctx) {
-  const p = plan(ctx, { sticky: true });
-  if (p.kind !== 'load' || !session || session.key !== p.key || session.busy) return;
-  // Refresh and Retry share one 30 s pause (errors are not cached, so rapid retries would reach the provider).
-  if (p.view.now < session.blockedUntil) return;
-  session.blockedUntil = p.view.now + REFRESH_COOLDOWN_MS;
-  start(ctx, p, { force: true });
+  const p = plan(ctx);
+  if (p.mode !== 'production' || !p.key) return;
+  const s = claim(p);
+  if (s.busy || inflight.has(p.key) || cooldownLeft(p.key, p.view.now) > 0) return;
+  cooldowns.set(p.key, p.view.now + REFRESH_COOLDOWN_MS);
+  start(ctx, p, s, { force: true });
   ctx.rerender?.();
 }
 
@@ -167,9 +220,12 @@ function rowView(r, ownName) {
       <span class="rd-dest"><span class="rd-city">${r.destinationLabel}</span>${r.destinationCode && r.destinationCode !== r.destinationLabel ? html` <span class="rd-iata t-tabular">${r.destinationCode}</span>` : ''}</span>
       ${r.revisedText ? html`<span class="rd-rev t-tabular"><span class="visually-hidden">Revised departure </span>→ ${r.revisedText} · ${r.delayText}</span>` : ''}
       ${r.state ? html`<span class="rd-chip is-${r.state}">${r.state === 'cancelled' ? 'Cancelled' : 'Departed'}</span>` : ''}
-      ${r.aircraft ? html`<span class="rd-ac" title="${r.aircraft}" aria-label="Aircraft ${r.aircraft}">${r.aircraft}</span>` : ''}
+      ${r.aircraft ? html`<span class="rd-ac" title="${r.aircraft}"><span class="visually-hidden">Aircraft </span>${r.aircraft}</span>` : ''}
     </li>`;
 }
+
+/** Retry's label: while the key rests, how long is left. */
+const retryLabel = (wait) => (wait > 0 ? `Retry in ${Math.ceil(wait / 1000)} s` : 'Retry');
 
 function skeleton() {
   return html`
@@ -181,7 +237,7 @@ function skeleton() {
 function sourceBar(s, view, { review }) {
   const tz = view.profile.homeTz;
   const fetched = s.result ? clock(s.result.fetchedAt, tz) : null;
-  const blocked = s.busy || view.now < s.blockedUntil;
+  const blocked = s.busy || cooldownLeft(s.key, view.now) > 0;
   return html`
     <div class="rd-source">
       <div class="rd-source-text">
@@ -229,7 +285,7 @@ function loadedBody(s, p) {
 
 function bodyFor(p) {
   const { view } = p;
-  switch (p.kind) {
+  switch (p.reason) {
     case 'no-roster': {
       const needsToken = !view.loading && view.error?.code === 'auth-required';
       return frame(view, message({
@@ -255,7 +311,7 @@ function bodyFor(p) {
       }), { window: p.window, airport: p.airport });
     }
     default: {
-      const s = p.kind === 'review' ? reviewSession(p) : session?.key === p.key ? session : null;
+      const s = p.mode === 'review' ? reviewSession(p) : session?.key === p.key ? session : null;
       const head = { window: p.window, airport: p.airport };
       if (!s || s.status === 'loading') {
         return frame(view, html`
@@ -263,9 +319,10 @@ function bodyFor(p) {
           <section class="rd-loading" aria-busy="true"><p class="t-callout t-secondary" role="status">${TEXT.loading}</p>${skeleton()}</section>`, head);
       }
       if (s.status === 'error') {
+        const wait = cooldownLeft(s.key, view.now);
         return frame(view, html`
           <p class="rd-boundary t-callout t-secondary">${TEXT.boundary}</p>
-          ${message({ headline: errorText(s.error), action: html`<button type="button" class="btn btn-quiet" data-rd-retry ${s.busy || view.now < s.blockedUntil ? 'disabled' : ''}>Retry</button>` })}`, head);
+          ${message({ headline: errorText(s.error), action: html`<button type="button" class="btn btn-quiet" data-rd-retry ${s.busy || wait > 0 ? 'disabled' : ''}>${retryLabel(wait)}</button>` })}`, head);
       }
       return frame(view, loadedBody(s, p), head);
     }
@@ -282,22 +339,16 @@ export const radar = {
   },
 
   /**
-   * Opening the screen starts the one (non-forced) request this visit needs: the device cache
-   * answers within 5 minutes, otherwise the backend is asked. The previous in-memory list stays on
-   * screen meanwhile. `quiet` marks a redraw of the screen already open (main.js show): it never
-   * requests, except for a window the screen has no session for yet.
+   * Opening the screen runs the request rule (ensure) with `open`: an existing session for the key is
+   * refreshed without force (the device cache answers within 5 minutes), a missing one is loaded.
+   * `quiet` marks a redraw of the screen already open (main.js show): it only loads a key that has
+   * no session yet.
    */
   mount(root, ctx, { quiet = false } = {}) {
     const p = plan(ctx);
     mounted = true;
-    if (!quiet) initialPending = p.kind === 'no-roster';   // roster still loading: update() issues the load
-    if (p.kind === 'load') {
-      initialPending = false;
-      if (session?.key !== p.key) { session = newSession(p.key, p.window); start(ctx, p, { force: false }); }
-      else if (!quiet) start(ctx, p, { force: false });
-    } else if (p.kind !== 'review') {
-      session = null;   // no window, ended, no access: nothing from an earlier visit stays
-    }
+    if (!quiet) openPending = p.reason === 'no-roster';   // roster still loading: the first update() that has one opens
+    ensure(ctx, p, { open: !quiet });
 
     const onClick = (event) => {
       const button = event.target.closest('[data-rd-refresh], [data-rd-retry]');
@@ -309,15 +360,25 @@ export const radar = {
     root.addEventListener('click', onClick);
     root.addEventListener('toggle', onToggle, true);
 
-    // Re-enable Refresh when its 30 s pause is over. UI only: this timer never fetches.
+    // UI only, never fetches: counts the Retry wait down and re-enables the buttons when the key's
+    // 30 s pause is over.
     let timer = null;
-    const remaining = session ? session.blockedUntil - ctx.view().now : 0;
-    if (remaining > 0) {
+    const arm = () => {
+      const s = session;
+      const left = s ? cooldownLeft(s.key, ctx.view().now) : 0;
+      if (left <= 0) return;
       timer = setTimeout(() => {
-        if (session && !session.busy) root.querySelector?.('[data-rd-refresh], [data-rd-retry]')?.removeAttribute('disabled');
-      }, remaining + 50);
+        timer = null;
+        if (!mounted || session !== s) return;
+        const wait = cooldownLeft(s.key, ctx.view().now);
+        const retry = root.querySelector?.('[data-rd-retry]');
+        if (retry) retry.textContent = retryLabel(wait);
+        if (wait > 0) arm();
+        else if (!s.busy) root.querySelector?.('[data-rd-refresh], [data-rd-retry]')?.removeAttribute('disabled');
+      }, s.status === 'error' ? Math.min(1000, left) + 20 : left + 50);
       timer.unref?.();
-    }
+    };
+    arm();
     return () => {
       mounted = false;
       if (timer) clearTimeout(timer);
@@ -327,22 +388,16 @@ export const radar = {
   },
 
   /**
-   * Called on every controller change: redraws from memory (rows move past "now"). It never
-   * fetches, with one exception: an opening that found no roster yet gets its single initial load
-   * from the first update() whose roster has a usable window.
+   * Called on every controller change (roster ticks): recomputes the plan and redraws from memory
+   * (rows move past "now"). Same key: no request. A new key (window changed, review ended, token
+   * added) gets its one load from the request rule; the first update after an opening that found no
+   * roster counts as that opening.
    */
   update(root, ctx) {
-    let p;
-    if (initialPending) {
-      p = plan(ctx);
-      if (p.kind !== 'no-roster') {
-        initialPending = false;
-        if (p.kind === 'load') { session = newSession(p.key, p.window); start(ctx, p, { force: false }); }
-      }
-    } else {
-      p = plan(ctx, { sticky: true });
-    }
-    if (p.kind !== 'load' && p.kind !== 'review') session = null;
+    const p = plan(ctx);
+    const open = openPending && p.reason !== 'no-roster';
+    if (open) openPending = false;
+    ensure(ctx, p, { open });
     const previous = lastHtml;
     const next = bodyFor(p);
     lastHtml = next.toString();
@@ -350,10 +405,12 @@ export const radar = {
   },
 };
 
-/** Test hook: forget the in-memory session. */
+/** Test hook: forget the in-memory session, cooldowns and running loads. */
 export function resetRadarUi() {
   session = null;
   mounted = false;
   lastHtml = '';
-  initialPending = false;
+  openPending = false;
+  cooldowns.clear();
+  inflight.clear();
 }
