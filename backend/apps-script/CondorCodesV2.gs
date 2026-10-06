@@ -13,5 +13,11 @@ const FCV2_CONDOR_CODES_ = Object.freeze({
     Object.freeze({ id: "day-free", match: Object.freeze({ exact: "-" }), kind: "off", subtype: "free", source: "docs/CONTRACT-V2.md source inventory (2026-10-04)" }),
     Object.freeze({ id: "day-leave", match: Object.freeze({ exact: "U" }), kind: "off", subtype: "leave", source: "docs/CONTRACT-V2.md source inventory (2026-10-04)" }),
     Object.freeze({ id: "day-ort", match: Object.freeze({ exact: "ORT" }), kind: "off", subtype: "ort", protected: true, source: "docs/CONTRACT-V2.md source inventory (2026-10-04)" }),
+    Object.freeze({ id: "day-unassigned", match: Object.freeze({ exact: "--" }), kind: "unassigned", source: "Condor MTV Fibel p.10 (Strichtage \"--\"); owner decision 2026-10-06" }),
+    Object.freeze({ id: "standby-sb90s", match: Object.freeze({ exact: "SB90S" }), kind: "standby", source: "Condor MTV Fibel (Verdi) p.17, Symbol Dienstplan" }),
+    Object.freeze({ id: "standby-sb90-i", match: Object.freeze({ exact: "SB90_I" }), kind: "standby", source: "Condor MTV Fibel (Verdi) p.17, Symbol Dienstplan" }),
+    Object.freeze({ id: "standby-sbh30", match: Object.freeze({ exact: "SBH30" }), kind: "standby", source: "Condor MTV Fibel (Verdi) p.17, Symbol Dienstplan" }),
+    Object.freeze({ id: "standby-sbaus", match: Object.freeze({ exact: "SBAUS" }), kind: "standby", source: "Condor MTV Fibel (Verdi) p.17, Symbol Dienstplan" }),
+    Object.freeze({ id: "standby-sb90ko", match: Object.freeze({ exact: "SB90KO" }), kind: "standby", source: "Condor MTV Fibel (Verdi) p.17, Symbol Dienstplan" }),
   ]),
 });

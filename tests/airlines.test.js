@@ -41,6 +41,16 @@ test('profiles are deep-frozen', () => {
   }
 });
 
+test('unassigned wording: Condor says Strichtag, generic stays neutral, neither claims the day can be assigned or mentions hours', () => {
+  const c = getAirline('condor').terminology.unassigned;
+  const g = getAirline('generic').terminology.unassigned;
+  assert.deepEqual({ ...c }, { short: 'STRICHTAG', name: 'Strichtag', legend: 'STRICHTAG · unassigned day, not off', reason: 'The roster lists today as STRICHTAG: no duty is assigned. This is not a day off.', summary: 'Strichtag' });
+  assert.deepEqual({ ...g }, { short: 'UNASG', name: 'Unassigned day', legend: 'Unassigned · no duty yet, not off', reason: 'The roster lists today as unassigned: no duty is assigned. This is not a day off.', summary: 'unassigned' });
+  assert.doesNotMatch(JSON.stringify(g), /strichtag/i);
+  for (const t of [c, g]) assert.doesNotMatch(JSON.stringify(t), /\b48\b|hours?\b|can still|convert/i);
+  assert.ok(Object.isFrozen(c) && Object.isFrozen(g));
+});
+
 test('generic terminology carries no ORT; Condor keeps its own wording', () => {
   assert.doesNotMatch(JSON.stringify(getAirline('generic')), /ORT/);
   assert.equal(getAirline('generic').terminology.offSubtype.ort.short, 'PROT');
@@ -66,6 +76,8 @@ test('every pack and the generic fallback supply all terminology the Today/Calen
     text(t.protectedLegend, `${id}: protectedLegend`);
     text(t.protectedEyebrow, `${id}: protectedEyebrow`);
     text(t.protectedReason, `${id}: protectedReason`);
+    // today.js, calendar.js, week.js and the state engine read all five for an unassigned day.
+    for (const field of ['short', 'name', 'legend', 'reason', 'summary']) text(t.unassigned?.[field], `${id}: unassigned.${field}`);
   }
 });
 

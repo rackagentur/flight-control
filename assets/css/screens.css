@@ -154,6 +154,10 @@
 .cal-code.tok-ort { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--tok-off) 70%, transparent), 0 0 0 1.5px var(--canvas), 0 0 0 2.5px var(--tok-off); }
 .cal-code.tok-leave { background: repeating-linear-gradient(135deg, color-mix(in oklab, var(--tok-off) 34%, transparent) 0 3px, color-mix(in oklab, var(--tok-off) 14%, transparent) 3px 6px); }
 .cal-code.tok-duty, .cal-code.tok-unknown { color: var(--fg-2); font-weight: var(--weight-medium); }
+/* Unassigned day (roster lists no duty; NOT a day off): neutral dashed outline, no fill, so it never reads as OFF.
+   The word is long (STRICHTAG), so it is set smaller and untracked to fit a 7-column cell without truncation. */
+.cal-code.tok-unassigned { min-width: 0; padding: 0 1px; border-radius: 9px; font-size: 7px; letter-spacing: -0.01em; color: var(--fg-1);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--fg-2) 70%, transparent); background: repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in oklab, var(--fg-2) 14%, transparent) 4px 5px); }
 .cal-sub { display: none; }
 
 /* Key: a disclosure, closed on phones, open on wide screens (calendar.js mount). */
@@ -175,6 +179,10 @@
 .key-ort .cal-key-sample { background: color-mix(in oklab, light-dark(#85552F, #D2A273) 30%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, light-dark(#85552F, #D2A273) 70%, transparent), 0 0 0 1.5px var(--canvas), 0 0 0 2.5px light-dark(#85552F, #D2A273); }
 .key-leave .cal-key-sample { width: 42px; background: repeating-linear-gradient(135deg, color-mix(in oklab, light-dark(#85552F, #D2A273) 34%, transparent) 0 3px, color-mix(in oklab, light-dark(#85552F, #D2A273) 14%, transparent) 3px 6px); }
 .key-duty .cal-key-sample, .key-unknown .cal-key-sample { color: var(--fg-2); }
+.key-unassigned .cal-key-sample { width: auto; min-width: 34px; padding: 0 5px; font-size: 8.5px; letter-spacing: 0; box-shadow: inset 0 0 0 1px color-mix(in oklab, light-dark(#6A6259, #BBB1A5) 70%, transparent); background: repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in oklab, light-dark(#6A6259, #BBB1A5) 16%, transparent) 4px 5px); }
+/* 7-day strip on Today: an unassigned day's long code must fit its column (never truncated). */
+.week-day.is-unassigned .week-mark { background: transparent; box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--fg-2) 70%, transparent); }
+.week-day.is-unassigned .week-code { font-size: 7px; letter-spacing: -0.01em; white-space: nowrap; }
 .key-nodata .cal-key-sample { border-radius: 5px; background: repeating-linear-gradient(135deg, transparent 0 3px, color-mix(in oklab, var(--fg-1) 22%, transparent) 3px 4px); }
 
 /* Detail */

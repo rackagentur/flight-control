@@ -17,6 +17,19 @@ const gsDir = new URL('../backend/apps-script/', import.meta.url);
 const classifyWith = (g, input) => g.fcv2ClassifyEvent_(input, g.FCV2_CONDOR_CONFIG_);
 const bare = (title) => ({ sourceId: 'x', title, start: 0, end: 1, description: '', basis: 'airline-feed' });
 
+// Phase 2 (approved 2026-10-06): the ONLY golden cases whose output may differ from the pre-1b baseline,
+// keyed by cleaned title, with the explicit new kind. Every other golden case must stay byte-identical.
+const APPROVED_CHANGES = new Map([
+  ['--', 'unassigned'], ['SB90S', 'standby'], ['SB90_I', 'standby'], ['SBH30', 'standby'], ['SBAUS', 'standby'], ['SB90KO', 'standby'],
+]);
+const plain = (x) => JSON.parse(JSON.stringify(x));
+/** The new expected output of an approved golden case: the baseline output with the approved kind. */
+function approvedOutput(c) {
+  const kind = APPROVED_CHANGES.get(c.output.title);
+  const hotel = kind === 'standby' ? plain(gs.fcv2ParseDescription_(c.input.description)).hotel : null;
+  return { ...c.output, kind, subtype: null, code: c.output.title, protected: false, hotel };
+}
+
 // --- Golden equivalence ---------------------------------------------------------------
 
 test('golden corpus: synthetic, large, and covers every outcome', () => {
@@ -26,10 +39,20 @@ test('golden corpus: synthetic, large, and covers every outcome', () => {
   for (const k of ['flight', 'checkin', 'pickup', 'standby', 'reserve', 'off', 'unknown']) assert.ok(kinds.has(k), k);
 });
 
-test('the table-driven classifier reproduces every baseline output byte for byte', () => {
+test('the classifier reproduces every baseline output byte for byte, except the explicitly approved Phase 2 changes', () => {
+  const changed = [];
   for (const c of golden.cases) {
-    assert.equal(JSON.stringify(classifyWith(gs, c.input)), JSON.stringify(c.output), `title ${JSON.stringify(c.input.title)}`);
+    const actual = JSON.stringify(classifyWith(gs, c.input));
+    if (APPROVED_CHANGES.has(c.output.title)) {
+      assert.equal(c.output.kind, 'unknown', 'the baseline had these as unknown');
+      assert.equal(actual, JSON.stringify(approvedOutput(c)), `approved change ${JSON.stringify(c.input.title)}`);
+      changed.push(`${JSON.stringify(c.input.title)} → ${c.output.kind} → ${plain(classifyWith(gs, c.input)).kind}`);
+    } else {
+      assert.equal(actual, JSON.stringify(c.output), `unchanged title ${JSON.stringify(c.input.title)}`);
+    }
   }
+  assert.equal(changed.length, 22, 'exactly the approved golden cases changed');
+  for (const t of APPROVED_CHANGES.keys()) assert.ok(golden.cases.some((c) => c.output.title === t), `golden covers ${t}`);
 });
 
 // --- Generated Apps Script copy -------------------------------------------------------
@@ -59,7 +82,7 @@ function loadOrdered(files) {
 const BACKEND = GS_FILES.filter((f) => f !== 'CondorCodesV2.gs');
 
 test('load order: the codes file may come first or last; the adapter alone loads without it', () => {
-  const sample = golden.cases.filter((_, i) => i % 7 === 0);
+  const sample = golden.cases.filter((c, i) => i % 7 === 0 && !APPROVED_CHANGES.has(c.output.title));
   for (const order of [['CondorCodesV2.gs', ...BACKEND], [...BACKEND, 'CondorCodesV2.gs']]) {
     const g = loadOrdered(order);
     for (const c of sample) assert.equal(JSON.stringify(classifyWith(g, c.input)), JSON.stringify(c.output), order[0]);
@@ -76,9 +99,11 @@ test('load order: the codes file may come first or last; the adapter alone loads
 
 test('the table holds only typedef fields and contract-v2 canonical values', () => {
   const FIELDS = new Set(['id', 'match', 'kind', 'subtype', 'protected', 'source']);
-  const KINDS = new Set(['checkin', 'pickup', 'standby', 'reserve', 'off']);
+  const KINDS = new Set(['checkin', 'pickup', 'standby', 'reserve', 'off', 'unassigned']);
   const SUBTYPES = new Set(['off', 'free', 'leave', 'ort']);
-  assert.deepEqual(CONDOR_ROSTER_CODES.map((d) => d.id), ['checkin', 'pickup', 'standby-sb', 'reserve-re', 'day-off', 'day-free', 'day-leave', 'day-ort']);
+  // The first eight entries and their order are the Phase 1b table; Phase 2 only appends.
+  assert.deepEqual(CONDOR_ROSTER_CODES.map((d) => d.id), ['checkin', 'pickup', 'standby-sb', 'reserve-re', 'day-off', 'day-free', 'day-leave', 'day-ort',
+    'day-unassigned', 'standby-sb90s', 'standby-sb90-i', 'standby-sbh30', 'standby-sbaus', 'standby-sb90ko']);
   assert.equal(new Set(CONDOR_ROSTER_CODES.map((d) => d.id)).size, CONDOR_ROSTER_CODES.length, 'ids are unique');
   for (const d of CONDOR_ROSTER_CODES) {
     for (const k of Object.keys(d)) assert.ok(FIELDS.has(k), `${d.id}: unexpected field ${k}`);
@@ -91,7 +116,7 @@ test('the table holds only typedef fields and contract-v2 canonical values', () 
     assert.ok(type === 'exact' || type === 'pattern');
     assert.ok(typeof value === 'string' && value.length > 0);
     if (type === 'pattern') assert.match(value, /^\^.*\$$/, `${d.id}: pattern is anchored`);
-    assert.match(d.source, /^docs\/CONTRACT-V2\.md /);
+    assert.match(d.source, /^(docs\/CONTRACT-V2\.md |Condor MTV Fibel)/);
     assert.ok(Object.isFrozen(d) && Object.isFrozen(d.match));
   }
   assert.ok(Object.isFrozen(CONDOR_ROSTER_CODES) && Object.isFrozen(CONDOR_FLIGHT_DESIGNATORS));
@@ -107,10 +132,10 @@ test('the Condor pack exposes the table; terminology stays separate from raw cod
   assert.doesNotMatch(JSON.stringify(CONDOR_ROSTER_CODES), /Protected free day|Off day|Free day|label/);
 });
 
-// --- Phase 1b changed no behaviour ----------------------------------------------------
+// --- Unrecognised codes stay unknown ---------------------------------------------------
 
-test('unrecognised Fibel symbols and agreement names are still unknown', () => {
-  for (const t of ['--', 'SB90S', 'SB90_I', 'SBH30', 'SBAUS', 'SB90KO', 'SBY', 'SBYHOT', 'SBYKO', 'SB30-AUS', 'SBYAP', 'RES10', 'RES10_I', 'SB1000', 'sb90', 'SB 90']) {
+test('agreement names and other unrecognised codes are still unknown (Phase 2 recognises only exact roster symbols)', () => {
+  for (const t of ['SBY', 'SBYHOT', 'SBYKO', 'SBY_I', 'SB30-AUS', 'SBYAP', 'RES10', 'RES10_I', 'SB1000', 'sb90', 'SB 90']) {
     for (const title of [t, `✈️✈️✈️ ${t}`]) {
       const e = classifyWith(gs, bare(title));
       assert.equal(e.kind, 'unknown', title);
@@ -130,6 +155,7 @@ test('every recognised code in the corpus maps to exactly one table entry, and e
   const used = new Set();
   for (const c of golden.cases) {
     const o = c.output;
+    if (APPROVED_CHANGES.has(o.title)) continue;   // covered by the approved-change replay above
     if (o.kind === 'flight' || o.kind === 'unknown') {
       if (o.kind === 'unknown') assert.ok(!tests.some((t) => t(o.title)), `unknown title ${JSON.stringify(o.title)} matches no entry`);
       continue;
@@ -140,5 +166,7 @@ test('every recognised code in the corpus maps to exactly one table entry, and e
     assert.deepEqual([o.kind, o.subtype, o.protected], [d.kind, d.subtype ?? null, d.protected === true], o.title);
     used.add(d.id);
   }
-  assert.deepEqual([...used].sort(), CONDOR_ROSTER_CODES.map((d) => d.id).sort());
+  // The Phase 2 entries are exercised by the approved-change replay and tests/condor-unassigned.test.js.
+  const phase1b = CONDOR_ROSTER_CODES.slice(0, 8).map((d) => d.id);
+  assert.deepEqual([...used].sort(), phase1b.sort());
 });

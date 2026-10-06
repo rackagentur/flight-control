@@ -127,6 +127,21 @@ function statusPass(view) {
       </section>`;
   }
 
+  if (state.status === 'unassigned') {
+    const term = airlineOf(profile).terminology.unassigned;
+    return html`
+      <section class="pass" aria-labelledby="status-title">
+        <div class="pass-head">
+          ${kicker(term.name, state, review)}
+          <h2 class="pass-state t-display" id="status-title">${term.short}</h2>
+          ${duty ? html`<p class="pass-lede">Next duty ${routeTitle(duty)} · ${relativeDayLabel(now, duty.sectors[0].dep, tz)}</p>` : ''}
+        </div>
+        ${nextEventBlock(state, now, tz)}
+        ${duty ? html`<dl class="pass-fields">${dutyFields(duty, profile)}</dl>` : ''}
+        ${hz}
+      </section>`;
+  }
+
   // UNKNOWN: say why, and still show what is known about the next duty.
   const noSource = state.phase === 'no-source';
   const needsToken = noSource && !view.snapshot && view.error?.code === 'auth-required';   // S6
@@ -287,7 +302,7 @@ function intelligence(view, weatherFor) {
       ${view.roster ? html`
         <section class="section">
           <div class="section-head"><h2 class="t-eyebrow">This week</h2></div>
-          ${weekView(view.roster.days, view.profile.homeTz)}
+          ${weekView(view.roster.days, view.profile.homeTz, airlineOf(view.profile).terminology)}
         </section>` : ''}
       ${clocksSection(view)}
       ${restSection(view)}

@@ -16,6 +16,7 @@ import { clock, city } from '../duty.js';
 import { airport } from '../../data/airports.js';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+// 'unassigned' has no entry here on purpose: its wording is the airline's (term.unassigned).
 const STATUS_NAME = { flight: 'Flight', layover: 'Layover', standby: 'Standby', reserve: 'Reserve', off: 'Off', unknown: 'Unknown' };
 const PROVENANCE = {
   source: 'From the roster source',
@@ -34,6 +35,7 @@ function noData(day) {
 /** Short text shown in the cell. Text, not colour, carries the meaning. */
 function cellCode(day, term) {
   if (day.status === 'off') return term.offSubtype[day.offSubtype]?.short ?? 'OFF';
+  if (day.status === 'unassigned') return term.unassigned.short;
   if (day.status === 'standby') return 'SB';
   if (day.status === 'reserve') return 'RE';
   if (day.label) return day.label;
@@ -52,9 +54,9 @@ function cellSub(day, tz) {
 
 function describe(day, term) {
   const sub = day.status === 'off' ? term.offSubtype[day.offSubtype] : null;
-  const name = sub ? `${sub.name}${sub.detail ? ` (${sub.detail})` : ''}` : STATUS_NAME[day.status];
+  const name = sub ? `${sub.name}${sub.detail ? ` (${sub.detail})` : ''}` : day.status === 'unassigned' ? term.unassigned.name : STATUS_NAME[day.status];
   const conf = day.status === 'unknown' ? '' : day.confidence === 'inferred' ? ', inferred' : ', confirmed';
-  const label = day.label && !(day.status === 'off' && day.offSubtype) ? ` ${day.label}` : '';
+  const label = day.label && !(day.status === 'off' && day.offSubtype) && day.status !== 'unassigned' ? ` ${day.label}` : '';
   const evidence = day.status === 'unknown' ? `: ${EVIDENCE[day.evidence] ?? 'no data'}` : day.evidence === 'duty-unspecified' ? ', duty also listed' : '';
   return `${name}${label}${conf}${evidence}`;
 }
@@ -71,6 +73,7 @@ function token(day) {
   if (day.status === 'standby') return 'tok-sb';
   if (day.status === 'reserve') return 'tok-re';
   if (day.status === 'off') return day.offSubtype === 'ort' ? 'tok-off tok-ort' : day.offSubtype === 'leave' ? 'tok-off tok-leave' : 'tok-off';
+  if (day.status === 'unassigned') return 'tok-unassigned';
   if (day.status === 'unknown' && day.evidence === 'duty-unspecified') return 'tok-duty';
   if (day.status === 'unknown' && !noData(day)) return 'tok-unknown';
   return '';
@@ -115,6 +118,7 @@ const keyRows = (term) => [
   ['key-off', 'Off · stated by roster', term.offSubtype.off.short],
   ['key-ort', term.protectedLegend, term.offSubtype.ort.short],
   ['key-leave', 'Leave', term.offSubtype.leave.short],
+  ['key-unassigned', term.unassigned.legend, term.unassigned.short],
   ['key-duty', 'Duty · type not given', 'Duty'],
   ['key-unknown', 'Unknown', '?'],
   ['key-nodata', 'No data'],
@@ -153,11 +157,11 @@ function coverageChip(m) {
     </p>`;
 }
 
-function summaryView(m) {
+function summaryView(m, term) {
   const s = m.summary;
   const parts = [
     [s.flightDays, 'flight days'], [s.layoverDays, 'layover days'], [s.standbyDays, 'standby'], [s.reserveDays, 'reserve'],
-    [s.offDays, 'off'], [s.unknownDuty, 'duty, type not given'], [s.unknownFree, 'no duty reported'],
+    [s.offDays, 'off'], [s.unassignedDays, term.unassigned.summary], [s.unknownDuty, 'duty, type not given'], [s.unknownFree, 'no duty reported'],
     [s.unknownOther + s.noData, 'unknown / no data'],
   ].filter(([n]) => n > 0);
   return html`
@@ -250,6 +254,7 @@ function detailView(day, view) {
   const title = noData(day) ? 'No data'
     : day.status === 'unknown' && day.evidence === 'duty-unspecified' ? 'Duty'
     : day.status === 'off' && term.offSubtype[day.offSubtype] ? term.offSubtype[day.offSubtype].name
+    : day.status === 'unassigned' ? term.unassigned.name
     : `${STATUS_NAME[day.status]}${day.label && (day.status === 'flight' || day.status === 'layover') ? ` · ${day.status === 'flight' ? `to ${city(day.label)}` : city(day.label)}` : ''}`;
   return html`
     <article class="cal-detail-card" aria-labelledby="cal-detail-title">
@@ -286,8 +291,8 @@ function detailView(day, view) {
         </section>` : ''}
       ${day.window ? html`
         <section class="cal-detail-section">
-          <p class="t-eyebrow">${day.window.kind === 'off' && term.offSubtype[day.window.subtype] ? term.offSubtype[day.window.subtype].name : STATUS_NAME[day.window.kind] ?? day.window.kind} · from roster</p>
-          <p class="t-callout t-tabular">${windowText(day.window, day, tz)}${day.window.label && day.window.kind !== 'off' && day.window.kind !== 'layover' ? ` · ${day.window.label}` : ''}</p>
+          <p class="t-eyebrow">${day.window.kind === 'off' && term.offSubtype[day.window.subtype] ? term.offSubtype[day.window.subtype].name : day.window.kind === 'unassigned' ? term.unassigned.name : STATUS_NAME[day.window.kind] ?? day.window.kind} · from roster</p>
+          <p class="t-callout t-tabular">${windowText(day.window, day, tz)}${day.window.label && day.window.kind !== 'off' && day.window.kind !== 'layover' && day.window.kind !== 'unassigned' ? ` · ${day.window.label}` : ''}</p>
         </section>` : ''}
 
       ${day.layover && day.window?.kind !== 'layover' ? html`
@@ -357,7 +362,7 @@ export const calendar = {
           </section>
           <aside class="cal-side" aria-label="Day detail">
             <div class="cal-detail" data-cal-detail>${detailView(selectedDay, view)}</div>
-            ${summaryView(m)}
+            ${summaryView(m, term)}
           </aside>
         </div>
       </div>`;

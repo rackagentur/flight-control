@@ -20,5 +20,12 @@ export const CONDOR = {
     protectedLegend: 'ORT · protected free day',
     protectedEyebrow: 'ORT · from roster',
     protectedReason: 'The roster lists today as a protected free day (ORT): assigned by the company and not reassignable.',
+    unassigned: {
+      short: 'STRICHTAG',
+      name: 'Strichtag',
+      legend: 'STRICHTAG · unassigned day, not off',
+      reason: 'The roster lists today as STRICHTAG: no duty is assigned. This is not a day off.',
+      summary: 'Strichtag',
+    },
   },
 };

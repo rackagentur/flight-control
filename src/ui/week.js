@@ -13,8 +13,9 @@ const EVIDENCE_TEXT = {
   'outside-window': 'No data',
 };
 
-function dayLabel(day) {
+function dayLabel(day, term) {
   if (day.status === 'off') return 'OFF';
+  if (day.status === 'unassigned') return term.unassigned.short;
   if (day.status === 'standby') return 'SB';
   if (day.status === 'reserve') return 'RE';
   if (day.label) return day.label;
@@ -22,29 +23,30 @@ function dayLabel(day) {
   return '—';
 }
 
-function dayDescription(day) {
+function dayDescription(day, term) {
   const base = {
     flight: `Flight${day.label ? ` · ${day.label}` : ''}`,
     layover: `Layover ${day.label}${day.confidence === 'inferred' ? ' (inferred)' : ''}${day.evidence === 'duty-unspecified' ? ', duty also listed' : ''}`,
     standby: 'Standby',
     reserve: 'Reserve',
     off: 'Off',
+    unassigned: term.unassigned.name,
   }[day.status];
   return base ?? EVIDENCE_TEXT[day.evidence] ?? 'Unknown';
 }
 
-export function weekView(days, tz) {
+export function weekView(days, tz, term) {
   return html`
     <ol class="week" role="list" aria-label="Next 7 days">
       ${days.map((day) => {
         const p = zonedParts(day.start + 12 * 3600000, tz);
         return html`
           <li class="week-day is-${day.status} ${day.isToday ? 'is-today' : ''} ${day.confidence === 'inferred' ? 'is-inferred' : ''} ${day.evidence ? `ev-${day.evidence}` : ''}"
-              aria-label="${day.isToday ? 'Today, ' : ''}${WEEKDAY[p.weekday]} ${p.day}: ${dayDescription(day)}">
+              aria-label="${day.isToday ? 'Today, ' : ''}${WEEKDAY[p.weekday]} ${p.day}: ${dayDescription(day, term)}">
             <span class="week-dow" aria-hidden="true">${day.isToday ? 'Today' : WEEKDAY[p.weekday]}</span>
             <span class="week-date t-tabular" aria-hidden="true">${p.day}</span>
             <span class="week-mark" aria-hidden="true"></span>
-            <span class="week-code" aria-hidden="true">${dayLabel(day)}</span>
+            <span class="week-code" aria-hidden="true">${dayLabel(day, term)}</span>
           </li>`;
       })}
     </ol>`;

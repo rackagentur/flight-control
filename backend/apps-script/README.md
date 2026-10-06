@@ -1,6 +1,6 @@
 # fc.roster v2 backend (Apps Script sources)
 
-Status: **installed (private).** `CondorAdapterV2.gs` (pre-Phase-1b version), `RosterModelV2.gs`, `AirportsV2.gs`, `RosterApiV2.gs` and `RouterV2.gs` are installed unchanged in the existing Apps Script project and served by the existing *untitled* ("Unbenannt") deployment, now **Version 26** (v2 with the PDX/SYX zones, the BH-1 router `RouterV2.gs`, and BH-2 token-protected roster reads); the /exec URL is unchanged. Script Property `FC_V2_TOKEN` is set (the token lives only in a private local file and Script Properties). The five original project files, the triggers and `PLACES_API_KEY` are unchanged, and v5 `getStats` remains operational as the fallback. **Rollback target: Version 25** (then 24); Version 22 is the pre-v2 baseline. Step H (auth and contract verification) passed on 2026-10-05 and was repeated on Version 24; see `docs/BACKEND-HARDENING.md`. The app does not use v2 until the token is entered in Settings (not done yet). **Not yet deployed:** Phase 1b (the updated `CondorAdapterV2.gs` plus the new `CondorCodesV2.gs`; no behaviour change). Once it ships, Version 26 becomes the rollback target.
+Status: **installed (private).** `CondorAdapterV2.gs` (pre-Phase-1b version), `RosterModelV2.gs`, `AirportsV2.gs`, `RosterApiV2.gs` and `RouterV2.gs` are installed unchanged in the existing Apps Script project and served by the existing *untitled* ("Unbenannt") deployment, now **Version 26** (v2 with the PDX/SYX zones, the BH-1 router `RouterV2.gs`, and BH-2 token-protected roster reads); the /exec URL is unchanged. Script Property `FC_V2_TOKEN` is set (the token lives only in a private local file and Script Properties). The five original project files, the triggers and `PLACES_API_KEY` are unchanged, and v5 `getStats` remains operational as the fallback. **Rollback target: Version 25** (then 24); Version 22 is the pre-v2 baseline. Step H (auth and contract verification) passed on 2026-10-05 and was repeated on Version 24; see `docs/BACKEND-HARDENING.md`. The app does not use v2 until the token is entered in Settings (not done yet). **Not yet deployed:** Phase 1b (the updated `CondorAdapterV2.gs` plus the new `CondorCodesV2.gs`; no behaviour change) and Phase 2 (recognised codes `--` and five standby symbols; changes `CondorCodesV2.gs` and `RosterModelV2.gs`). Once they ship, Version 26 becomes the rollback target.
 
 | File | Role |
 |---|---|
@@ -49,6 +49,10 @@ longer holds the codes. Apps Script appends a new file after the existing ones; 
 because the adapter reads `FCV2_CONDOR_CODES_` only inside function bodies at call time, never while
 loading. Regenerate after any change to the pack table: `node scripts/gen-condor-codes-gs.mjs`
 (`tests/condor-codes.test.js` fails when the committed copy is stale).
+
+### Phase 2 deploy note (recognised codes: `--` → `unassigned`, five standby symbols)
+
+Phase 2 ships **three files together in one new version**: `CondorAdapterV2.gs` (**unchanged since Phase 1b**; it must still go out in its 1b form because the installed copy is the pre-1b one), `CondorCodesV2.gs` (new, carries the Phase 2 entries) and `RosterModelV2.gs` (changed: `unassigned` day codes and `capabilities.unassigned`). **Deploy the frontend first.** The frontend maps an event of kind `unassigned` to its own day kind and works against the old backend (where `--` is still `unknown`). The reverse order would send a new event kind to a frontend that does not know it (the contract validator accepts it, but an older frontend ignores the kind, so the day would read as a rostered day with no details instead of Strichtag). Rollback is the previous version (Version 26 until Phase 1b/2 ship).
 
 ## Rollback
 

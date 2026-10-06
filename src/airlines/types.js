@@ -18,6 +18,16 @@
  * @property {string} protectedLegend   calendar key text for the protected free day
  * @property {string} protectedEyebrow  day detail heading for a protected free day stated by the roster
  * @property {string} protectedReason   state-engine reason for a protected free day
+ * @property {UnassignedTerm} unassigned  wording for a day the roster lists with no duty assigned (not a day off)
+ */
+
+/**
+ * @typedef {Object} UnassignedTerm
+ * @property {string} short    cell / week-strip code
+ * @property {string} name     plain-language name (Today kicker, day detail)
+ * @property {string} legend   calendar key text
+ * @property {string} reason   state-engine reason
+ * @property {string} summary  month-summary label ("<n> <summary>")
  */
 
 /**
@@ -25,9 +35,9 @@
  * to mean. Raw codes stay separate from canonical concepts (contract v2) and from user-facing
  * terminology.
  * @typedef {Object} RosterCodeDefinition
- * @property {string} id                 stable key inside the pack ('checkin', 'pickup', 'standby-sb', 'reserve-re', 'day-off', 'day-free', 'day-leave', 'day-ort')
+ * @property {string} id                 stable key inside the pack ('checkin', 'pickup', 'standby-sb', 'reserve-re', 'day-off', 'day-free', 'day-leave', 'day-ort', 'day-unassigned', ...)
  * @property {{exact:string}|{pattern:string}} match   raw roster title: exact code, or an anchored regex SOURCE string
- * @property {'checkin'|'pickup'|'standby'|'reserve'|'off'} kind   canonical Flight Control concept (contract v2)
+ * @property {'checkin'|'pickup'|'standby'|'reserve'|'off'|'unassigned'} kind   canonical Flight Control concept (contract v2)
  * @property {'off'|'free'|'leave'|'ort'|null} [subtype]
  * @property {boolean} [protected]
  * @property {string} source             where the mapping is established, e.g. 'docs/CONTRACT-V2.md source inventory (2026-10-04)'
