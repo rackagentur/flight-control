@@ -1,6 +1,6 @@
 # fc.roster v2 backend (Apps Script sources)
 
-Status: **installed (private).** The four files below are installed unchanged in the existing Apps Script project and served by the existing *untitled* ("Unbenannt") deployment, now **Version 26** (v2 with the PDX/SYX zones, the BH-1 router `RouterV2.gs`, and BH-2 token-protected roster reads); the /exec URL is unchanged. Script Property `FC_V2_TOKEN` is set (the token lives only in a private local file and Script Properties). The five original project files, the triggers and `PLACES_API_KEY` are unchanged, and v5 `getStats` remains operational as the fallback. **Rollback target: Version 25** (then 24); Version 22 is the pre-v2 baseline. Step H (auth and contract verification) passed on 2026-10-05 and was repeated on Version 24; see `docs/BACKEND-HARDENING.md`. The app does not use v2 until the token is entered in Settings (not done yet).
+Status: **installed (private).** `CondorAdapterV2.gs` (pre-Phase-1b version), `RosterModelV2.gs`, `AirportsV2.gs`, `RosterApiV2.gs` and `RouterV2.gs` are installed unchanged in the existing Apps Script project and served by the existing *untitled* ("Unbenannt") deployment, now **Version 26** (v2 with the PDX/SYX zones, the BH-1 router `RouterV2.gs`, and BH-2 token-protected roster reads); the /exec URL is unchanged. Script Property `FC_V2_TOKEN` is set (the token lives only in a private local file and Script Properties). The five original project files, the triggers and `PLACES_API_KEY` are unchanged, and v5 `getStats` remains operational as the fallback. **Rollback target: Version 25** (then 24); Version 22 is the pre-v2 baseline. Step H (auth and contract verification) passed on 2026-10-05 and was repeated on Version 24; see `docs/BACKEND-HARDENING.md`. The app does not use v2 until the token is entered in Settings (not done yet). **Not yet deployed:** Phase 1b (the updated `CondorAdapterV2.gs` plus the new `CondorCodesV2.gs`; no behaviour change). Once it ships, Version 26 becomes the rollback target.
 
 | File | Role |
 |---|---|
@@ -24,8 +24,10 @@ Rules the files follow:
 Pre-checks (read-only): the project still matches the recorded baseline (five files with unchanged
 hashes, deployment "untitled" on version 22, triggers unchanged, Script Properties = PLACES_API_KEY only).
 
-1. **Add four files** in the project editor (Files → + → Script), each named exactly as here and
-   pasted unchanged: `CondorAdapterV2`, `RosterModelV2`, `AirportsV2`, `RosterApiV2`. New files are
+1. **Add six files** in the project editor (Files → + → Script), each named exactly as here and
+   pasted unchanged: `CondorAdapterV2`, `RosterModelV2`, `AirportsV2`, `RosterApiV2`, `RouterV2`,
+   `CondorCodesV2`. `CondorAdapterV2` must never ship without `CondorCodesV2` (every roster/history
+   call would throw and the app would fall back to v5). New files are
    appended after the existing ones. Do not edit, rename, reorder or delete any existing file.
 2. **Save** (no "Run"). Nothing executes on save; the triggers will load the new files on their next
    run, which only declares constants and functions (verified: no service access at load time).
@@ -50,8 +52,8 @@ loading. Regenerate after any change to the pack table: `node scripts/gen-condor
 
 ## Rollback
 
-- Deployment: Manage deployments → untitled → Edit → Version 23 (v2 without the PDX/SYX zones) or Version 22 (pre-v2 baseline) → Deploy (instant; same URL).
+- Deployment: Manage deployments → untitled → Edit → the previous version (Version 26 once Phase 1b ships; then 25, 24, 23) or Version 22 (pre-v2 baseline) → Deploy (instant; same URL).
 - Kill switch: delete Script Property `FC_V2_TOKEN` (every v2 call is refused; the app falls back to v5).
 - BH-2 GET switch: Script Property `FC_V5_GET` = `open` serves the unauthenticated `getStats` again (instant, no redeploy); deleting it requires the token for every roster read.
-- Code: delete the four files (triggers run the current code, so this is the rollback for them).
+- Code: delete the six v2 files listed above (triggers run the current code, so this is the rollback for them).
 - App: Settings → Roster contract v2 → Remove token (the app then uses v5 only).
