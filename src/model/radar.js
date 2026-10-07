@@ -83,7 +83,8 @@ export function radarLinkable(window, now) {
  *  1. 'roster'             the window's own roster event states an airport (window.location, IATA);
  *  2. 'inferred-next'      the origin of the first sector of the NEXT duty (first sector departing at or after
  *                          the window's end), when no other flight sector departs between the window's start
- *                          and that sector, and the sector departs within RADAR_INFER_HORIZON_MS of the end;
+ *                          and that sector, and the duty starts (its wake-up, pickup or report time, else that
+ *                          sector's departure) within RADAR_INFER_HORIZON_MS of the end;
  *  3. 'inferred-previous'  else the destination of the last sector that departed before the window's start,
  *                          when it had arrived by the start and no more than RADAR_INFER_HORIZON_MS before it;
  *  4. 'base'               else the profile's base: a fallback, not a finding.
