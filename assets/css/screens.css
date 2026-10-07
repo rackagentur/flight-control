@@ -74,11 +74,11 @@
 .cal-dow { text-align: center; font-size: 10px; font-weight: var(--weight-semibold); letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-2); padding: 0 0 var(--space-2); }
 
 .cal-day {
-  --journey: light-dark(#3A5B7C, #94B4D2);
-  --layover-tone: light-dark(#6A6259, #BBB1A5);
-  --tok-standby: light-dark(#8E6322, #D9A85C);
-  --tok-reserve: light-dark(#6E5F51, #C2AF9A);
-  --tok-off: light-dark(#85552F, #D2A273);
+  --journey: var(--mark-flight);
+  --layover-tone: var(--mark-layover);
+  --tok-standby: var(--mark-standby);
+  --tok-reserve: var(--mark-reserve);
+  --tok-off: var(--mark-off);
   position: relative;
   display: grid;
   grid-template-rows: 26px 12px 18px auto;
@@ -195,20 +195,20 @@
 .cal-key-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-2) var(--space-4); padding: 0 0 var(--space-2); margin: 0; list-style: none; }
 .cal-key-item { display: flex; align-items: center; gap: var(--space-2); }
 .cal-key-sample { position: relative; display: inline-grid; place-items: center; flex: none; width: 34px; height: 18px; border-radius: 9px; font-size: 10px; font-weight: var(--weight-semibold); color: var(--fg-1); letter-spacing: 0.04em; }
-.key-flight .cal-key-sample::before { content: ""; position: absolute; left: 9px; right: 7px; top: 7px; height: 4px; background: light-dark(#3A5B7C, #94B4D2); }
-.key-flight .cal-key-sample::after { content: ""; position: absolute; right: 3px; top: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--canvas); box-shadow: inset 0 0 0 2px light-dark(#3A5B7C, #94B4D2); }
+.key-flight .cal-key-sample::before { content: ""; position: absolute; left: 9px; right: 7px; top: 7px; height: 4px; background: var(--mark-flight); }
+.key-flight .cal-key-sample::after { content: ""; position: absolute; right: 3px; top: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--canvas); box-shadow: inset 0 0 0 2px var(--mark-flight); }
 .key-flight .cal-key-plane { position: absolute; left: -1px; top: -1px; width: 20px; height: 20px; }
-.key-flight .cal-key-plane svg { color: light-dark(#3A5B7C, #94B4D2); }
+.key-flight .cal-key-plane svg { color: var(--mark-flight); }
 .key-flight .cal-key-plane svg:first-child { color: var(--canvas); -webkit-mask-image: linear-gradient(to bottom, #000 calc(50% - 2px), transparent calc(50% - 2px) calc(50% + 2px), #000 calc(50% + 2px)); mask-image: linear-gradient(to bottom, #000 calc(50% - 2px), transparent calc(50% - 2px) calc(50% + 2px), #000 calc(50% + 2px)); }
-.key-layover .cal-key-sample { font-style: italic; background: repeating-linear-gradient(90deg, light-dark(#6A6259, #BBB1A5) 0 3px, transparent 3px 6px) bottom / 100% 3px no-repeat; border-radius: 0; }
-.key-layover-roster .cal-key-sample { background: linear-gradient(light-dark(#6A6259, #BBB1A5) 0 2px, transparent 2px 4px, light-dark(#6A6259, #BBB1A5) 4px 6px) bottom / 100% 6px no-repeat; border-radius: 0; }
-.key-sb .cal-key-sample { box-shadow: inset 0 0 0 1.5px light-dark(#8E6322, #D9A85C); }
-.key-re .cal-key-sample { background: repeating-linear-gradient(90deg, color-mix(in oklab, light-dark(#6E5F51, #C2AF9A) 26%, transparent) 0 3px, transparent 3px 5px); box-shadow: inset 0 0 0 1px light-dark(#6E5F51, #C2AF9A); }
-.key-off .cal-key-sample { background: color-mix(in oklab, light-dark(#85552F, #D2A273) 30%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, light-dark(#85552F, #D2A273) 70%, transparent); }
-.key-ort .cal-key-sample { background: color-mix(in oklab, light-dark(#85552F, #D2A273) 30%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, light-dark(#85552F, #D2A273) 70%, transparent), 0 0 0 1.5px var(--canvas), 0 0 0 2.5px light-dark(#85552F, #D2A273); }
-.key-leave .cal-key-sample { width: 42px; background: repeating-linear-gradient(135deg, color-mix(in oklab, light-dark(#85552F, #D2A273) 34%, transparent) 0 3px, color-mix(in oklab, light-dark(#85552F, #D2A273) 14%, transparent) 3px 6px); }
+.key-layover .cal-key-sample { font-style: italic; background: repeating-linear-gradient(90deg, var(--mark-layover) 0 3px, transparent 3px 6px) bottom / 100% 3px no-repeat; border-radius: 0; }
+.key-layover-roster .cal-key-sample { background: linear-gradient(var(--mark-layover) 0 2px, transparent 2px 4px, var(--mark-layover) 4px 6px) bottom / 100% 6px no-repeat; border-radius: 0; }
+.key-sb .cal-key-sample { box-shadow: inset 0 0 0 1.5px var(--mark-standby); }
+.key-re .cal-key-sample { background: repeating-linear-gradient(90deg, color-mix(in oklab, var(--mark-reserve) 26%, transparent) 0 3px, transparent 3px 5px); box-shadow: inset 0 0 0 1px var(--mark-reserve); }
+.key-off .cal-key-sample { background: color-mix(in oklab, var(--mark-off) 30%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--mark-off) 70%, transparent); }
+.key-ort .cal-key-sample { background: color-mix(in oklab, var(--mark-off) 30%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--mark-off) 70%, transparent), 0 0 0 1.5px var(--canvas), 0 0 0 2.5px var(--mark-off); }
+.key-leave .cal-key-sample { width: 42px; background: repeating-linear-gradient(135deg, color-mix(in oklab, var(--mark-off) 34%, transparent) 0 3px, color-mix(in oklab, var(--mark-off) 14%, transparent) 3px 6px); }
 .key-duty .cal-key-sample, .key-unknown .cal-key-sample { color: var(--fg-2); }
-.key-unassigned .cal-key-sample { box-shadow: inset 0 0 0 1px color-mix(in oklab, light-dark(#6A6259, #BBB1A5) 70%, transparent); background: repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in oklab, light-dark(#6A6259, #BBB1A5) 16%, transparent) 4px 5px); }
+.key-unassigned .cal-key-sample { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--mark-layover) 70%, transparent); background: repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in oklab, var(--mark-layover) 16%, transparent) 4px 5px); }
 /* 7-day strip on Today: the same outline + hatch language as the calendar token, drawn as a taller capsule so it is
    visibly different from the thin outlined unknown mark and from the solid bronze off bar. */
 .week-day.is-unassigned .week-mark { height: 7px; border-radius: 4px; background: repeating-linear-gradient(135deg, transparent 0 3px, color-mix(in oklab, var(--fg-2) 45%, transparent) 3px 4px); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--fg-2) 80%, transparent); }
@@ -285,7 +285,7 @@
   .fl-layout.is-explicit .fl-list { display: none; }
 }
 
-.fl-rot { --jr-flight: light-dark(#3A5B7C, #94B4D2); --jr-ground: light-dark(#6A6259, #BBB1A5); display: grid; gap: var(--space-3); }
+.fl-rot { --jr-flight: var(--mark-flight); --jr-ground: var(--mark-layover); display: grid; gap: var(--space-3); }
 .fl-rot + .fl-rot { padding-top: var(--space-5); border-top: 0.5px solid var(--line); }
 .fl-rot-head { display: grid; gap: 4px; }
 .fl-rot-head .t-eyebrow { color: var(--fg-2); }

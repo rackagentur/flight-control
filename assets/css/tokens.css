@@ -78,6 +78,8 @@
   /* Elevation: translucency first, shadow only where depth is functional */
   --blur-glass: 22px;
   --shadow-float: 0 1px 0 rgb(0 0 0 / 0.04), 0 12px 32px -12px rgb(0 0 0 / 0.18);
+  --shadow-segment: 0 1px 2px rgb(0 0 0 / 0.08);
+  --shadow-knob: 0 2px 6px rgb(0 0 0 / 0.18);
 }
 
 /* 2. Theme mechanics ------------------------------------------------------- */
@@ -280,3 +282,24 @@
 @property --st-atmos-3 { syntax: "<color>"; inherits: true; initial-value: #C9C4BA; }
 @property --st-canvas  { syntax: "<color>"; inherits: true; initial-value: #EDEBE6; }
 @property --st-tint    { syntax: "<color>"; inherits: true; initial-value: #9A9A94; }
+
+/* 5. Fixed operational marks and notices ------------------------------------
+   Plain :root, not per-state: these never change with data-state. The marks keep
+   roster meanings (flight, layover, standby, reserve, off) stable across every
+   environment. The standby mark is intentionally its own token, separate from
+   --caution, even though the two values currently match. */
+:root {
+  --mark-flight: light-dark(#3A5B7C, #94B4D2);
+  --mark-layover: light-dark(#6A6259, #BBB1A5);
+  --mark-standby: light-dark(#8E6322, #D9A85C);
+  --mark-reserve: light-dark(#6E5F51, #C2AF9A);
+  --mark-off: light-dark(#85552F, #D2A273);
+
+  /* Review banner (amber notice) */
+  --notice-bg: light-dark(#F3E3C4, #3A2C14);
+  --notice-fg: light-dark(#5A3A0A, #F2D9A8);
+  --notice-edge: light-dark(#C99A4A, #8A6524);
+
+  /* Switch knob */
+  --knob: #fff;
+}

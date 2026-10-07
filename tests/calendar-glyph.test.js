@@ -289,11 +289,18 @@ test('the CSS of the OFF / FREE / ORT / SB / RE / LEAVE markers is byte-for-byte
       ".cal-code.tok-ort { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--tok-off) 70%, transparent), 0 0 0 1.5px var(--canvas), 0 0 0 2.5px var(--tok-off); }",
       ".cal-code.tok-leave { background: repeating-linear-gradient(135deg, color-mix(in oklab, var(--tok-off) 34%, transparent) 0 3px, color-mix(in oklab, var(--tok-off) 14%, transparent) 3px 6px); }",
       ".cal-code.tok-duty, .cal-code.tok-unknown { color: var(--fg-2); font-weight: var(--weight-medium); }",
-      "  --tok-standby: light-dark(#8E6322, #D9A85C);",
-      "  --tok-reserve: light-dark(#6E5F51, #C2AF9A);",
-      "  --tok-off: light-dark(#85552F, #D2A273);"
+      "  --tok-standby: var(--mark-standby);",
+      "  --tok-reserve: var(--mark-reserve);",
+      "  --tok-off: var(--mark-off);"
   ];
   for (const line of lines) assert.ok(css.includes(line), `changed or missing: ${line.slice(0, 60)}`);
+  // The marker colours now live in tokens.css; their values are still pinned to the baseline.
+  const tokens = readFileSync(new URL('../assets/css/tokens.css', import.meta.url), 'utf8').split('\n');
+  for (const line of [
+    "  --mark-standby: light-dark(#8E6322, #D9A85C);",
+    "  --mark-reserve: light-dark(#6E5F51, #C2AF9A);",
+    "  --mark-off: light-dark(#85552F, #D2A273);",
+  ]) assert.ok(tokens.includes(line), `changed or missing: ${line.slice(0, 60)}`);
 });
 
 test('calendar key: one line per rotation, with the aircraft in the sample; other entries kept', () => {

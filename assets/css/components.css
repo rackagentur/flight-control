@@ -224,7 +224,7 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
 .segmented button[aria-checked="true"] {
   background: var(--surface-1);
   color: var(--fg-1);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08), inset 0 0 0 0.5px var(--glass-edge);
+  box-shadow: var(--shadow-segment), inset 0 0 0 0.5px var(--glass-edge);
 }
 .segmented-compact button { min-height: 30px; padding: 0 var(--space-3); font-size: var(--text-caption); }
 
@@ -299,8 +299,8 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
   top: 2px; left: 2px;
   width: 27px; height: 27px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 2px 6px rgb(0 0 0 / 0.18);
+  background: var(--knob);
+  box-shadow: var(--shadow-knob);
   transition: transform var(--dur-quick) var(--ease-standard);
 }
 .switch[aria-checked="true"] { background: var(--accent); }
@@ -521,11 +521,11 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
 .week-dow { font-size: 10px; font-weight: var(--weight-semibold); letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-2); }
 .week-date { font-size: var(--text-headline); font-weight: var(--weight-semibold); line-height: 1; }
 .week-mark { width: 18px; height: 3px; border-radius: 2px; background: color-mix(in oklab, var(--fg-1) 18%, transparent); }
-.week-day.is-flight .week-mark { background: light-dark(#3A5B7C, #94B4D2); }
-.week-day.is-layover .week-mark { background: repeating-linear-gradient(90deg, light-dark(#6A6259, #BBB1A5) 0 3px, transparent 3px 5px); }
-.week-day.is-standby .week-mark { background: light-dark(#8E6322, #D9A85C); }
-.week-day.is-reserve .week-mark { background: light-dark(#6E5F51, #C2AF9A); }
-.week-day.is-off .week-mark { background: light-dark(#85552F, #D2A273); }
+.week-day.is-flight .week-mark { background: var(--mark-flight); }
+.week-day.is-layover .week-mark { background: repeating-linear-gradient(90deg, var(--mark-layover) 0 3px, transparent 3px 5px); }
+.week-day.is-standby .week-mark { background: var(--mark-standby); }
+.week-day.is-reserve .week-mark { background: var(--mark-reserve); }
+.week-day.is-off .week-mark { background: var(--mark-off); }
 .week-day.is-unknown .week-mark { background: transparent; box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--fg-2) 60%, transparent); }
 .week-day.is-unknown.ev-duty-unspecified .week-mark { background: color-mix(in oklab, var(--fg-1) 40%, transparent); box-shadow: none; }
 .week-code { font-size: var(--text-caption); font-weight: var(--weight-semibold); letter-spacing: 0.02em; color: var(--fg-1); }
@@ -579,9 +579,9 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
   max-width: calc(100vw - 2 * var(--space-4));
   padding: 6px var(--space-4);
   border-radius: var(--radius-pill);
-  background: light-dark(#F3E3C4, #3A2C14);
-  color: light-dark(#5A3A0A, #F2D9A8);
-  box-shadow: inset 0 0 0 1px light-dark(#C99A4A, #8A6524), var(--shadow-float);
+  background: var(--notice-bg);
+  color: var(--notice-fg);
+  box-shadow: inset 0 0 0 1px var(--notice-edge), var(--shadow-float);
   font-size: var(--text-caption);
   font-weight: var(--weight-semibold);
   letter-spacing: 0.06em;
