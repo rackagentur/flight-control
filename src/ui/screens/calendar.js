@@ -4,7 +4,7 @@
 // code where useful, and rotation continuity drawn as a band across the days it spans.
 
 import { html, render } from '../../lib/html.js';
-import { formatDate, formatTime, localDateKey, dayShift, formatDuration } from '../../lib/time.js';
+import { formatDate, formatTime, localDateKey, dayShift } from '../../lib/time.js';
 import { pageHeader, previewBadge } from '../components.js';
 import { icon } from '../icons.js';
 import { buildMonth, addMonths, monthKeyOf } from '../../model/calendar.js';
@@ -16,6 +16,7 @@ import { clock, city } from '../duty.js';
 import { airport } from '../../data/airports.js';
 import { hrefFor } from '../../router.js';
 import { radarLinkable } from '../../model/radar.js';
+import { sectorCard } from '../flight-parts.js';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 // 'unassigned' has no entry here on purpose: its wording is the airline's (term.unassigned).
@@ -209,16 +210,14 @@ function awayRange(layover, homeTz) {
   return `${formatDate(layover.from, z)} ${formatTime(layover.from, z)} → ${formatDate(layover.to, z)} ${formatTime(layover.to, z)} ${otz ? 'local time' : 'home time'}`;
 }
 
+/** One sector of the selected day: a static compact card (the calendar never navigates from here). */
 function sectorRow(s, day) {
   const shift = s.originTz && s.destTz ? dayShift(s.dep, s.originTz, s.arr, s.destTz) : 0;
+  const elsewhere = s.originTz && localDateKey(s.dep, s.originTz) !== day.date;
   return html`
     <li class="cal-sector">
-      <span class="cal-sector-flight t-code">${s.flightNumber}${s.originTz && localDateKey(s.dep, s.originTz) !== day.date ? html`<span class="cal-sector-date">${formatDate(s.dep, s.originTz)}</span>` : ''}</span>
-      <span class="cal-sector-route t-tabular">
-        <span class="cal-sector-leg"><b>${s.origin}</b> ${clock(s.dep, s.originTz)}</span>
-        <span class="cal-sector-leg"><span class="cal-sector-arrow" aria-hidden="true">→</span> <b>${s.destination}</b> ${clock(s.arr, s.destTz)}${shift ? html`<sup class="pass-shift">${shift > 0 ? `+${shift}` : shift}</sup>` : ''}</span>
-      </span>
-      <span class="cal-sector-block t-tabular">${formatDuration(s.blockMin)}</span>
+      ${elsewhere ? html`<span class="cal-sector-date t-caption">${formatDate(s.dep, s.originTz)}</span>` : ''}
+      ${sectorCard({ sector: s, entry: { sector: s, shift, status: null }, selected: false, href: null, compact: true })}
     </li>`;
 }
 

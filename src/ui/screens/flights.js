@@ -14,6 +14,7 @@ import { buildFlights, defaultSector } from '../../model/flights.js';
 import { horizonView } from '../horizon.js';
 import { alarmLink, city, clock, field, zoneNote } from '../duty.js';
 import { journeyView } from '../journey.js';
+import { milestoneList, milestoneRow, relativeIn, routeHero, sectorStatus, statusChip } from '../flight-parts.js';
 import { destinationView } from '../destination.js';
 import { focusCalendar } from './calendar.js';
 
@@ -57,7 +58,7 @@ function rotationView(r, i, view, selectedId, weatherFor) {
     <article class="fl-rot ${lead ? 'is-lead' : ''}" aria-labelledby="fl-rot-${i}">
       <header class="fl-rot-head">
         <p class="t-eyebrow">${rotationEyebrow(r, i, now, tz)}</p>
-        <h3 class="fl-rot-route ${lead ? 't-title-2' : 't-headline'}" id="fl-rot-${i}"><span class="visually-hidden">Rotation </span>${routeTitle(r.route)}</h3>
+        <h3 class="fl-rot-route ${lead ? 't-title-2' : 't-headline'}" id="fl-rot-${i}"><span class="visually-hidden">Rotation </span>${routeHero({ codes: r.route, size: lead ? 'title' : 'inline', as: 'span' })}</h3>
         <p class="fl-rot-meta t-tabular">${meta}</p>
       </header>
       ${lead && r.horizon ? horizonView(r.horizon, { variant: 'compact' }) : ''}
@@ -145,14 +146,22 @@ function timingView(e, view) {
   const shift = e.shift ? html`<sup class="pass-shift">${e.shift > 0 ? `+${e.shift}` : e.shift}</sup>` : '';
   const upcoming = e.status === 'upcoming';
   const alarm = (ms, label) => (upcoming && !review ? alarmLink(profile, ms, s.originTz, label) : clock(ms, s.originTz));
+  const zone = (ms, tz) => (zoneNote(ms, tz, profile) ? html` · ${zoneNote(ms, tz, profile)}` : '');
+  // Milestones in the order they happen. "in …" only for events still ahead of now.
+  const rows = [
+    e.wakeup !== null ? { icon: 'bell', time: alarm(e.wakeup, 'wake-up'), label: 'Wake-up', relative: relativeIn(now, e.wakeup) } : null,
+    e.pickup !== null ? { icon: 'car', time: alarm(e.pickup, 'pickup'), label: 'Pickup', relative: relativeIn(now, e.pickup) } : null,
+    { icon: 'takeoff', time: clock(s.dep, s.originTz), label: 'Departure', relative: relativeIn(now, s.dep),
+      note: html`${city(s.origin)} · ${formatDate(s.dep, s.originTz ?? 'UTC')}${zone(s.dep, s.originTz)}` },
+    { icon: 'landing', time: html`${clock(s.arr, s.destTz)}${shift}`, label: 'Arrival', relative: relativeIn(now, s.arr),
+      note: html`${city(s.destination)} · ${formatDate(s.arr, s.destTz ?? 'UTC')}${zone(s.arr, s.destTz)}` },
+  ].filter(Boolean);
+  const next = rows.find((row) => row.relative);
   return html`
     <section class="fl-section" aria-labelledby="fl-timing">
       <p class="t-eyebrow" id="fl-timing">Timing</p>
-      <dl class="pass-fields fl-fields">
-        ${e.wakeup !== null ? field('Wake-up', alarm(e.wakeup, 'wake-up')) : ''}
-        ${e.pickup !== null ? field('Pickup', alarm(e.pickup, 'pickup')) : ''}
-        ${field('Departure', html`${clock(s.dep, s.originTz)}`, html`${city(s.origin)} · ${formatDate(s.dep, s.originTz ?? 'UTC')}${zoneNote(s.dep, s.originTz, profile) ? html` · ${zoneNote(s.dep, s.originTz, profile)}` : ''}`)}
-        ${field('Arrival', html`${clock(s.arr, s.destTz)}${shift}`, html`${city(s.destination)} · ${formatDate(s.arr, s.destTz ?? 'UTC')}${zoneNote(s.arr, s.destTz, profile) ? html` · ${zoneNote(s.arr, s.destTz, profile)}` : ''}`)}
+      ${milestoneList(rows.map((row) => milestoneRow({ ...row, emphasis: row === next })))}
+      <dl class="pass-fields fl-fields fl-facts">
         ${field('Block', formatDuration(s.blockMin))}
         ${s.aircraft ? field('Aircraft', s.aircraft.typeCode, s.aircraft.registration ?? null) : ''}
       </dl>
@@ -179,21 +188,25 @@ function rotationSection(e, view, weatherFor) {
     </section>`;
 }
 
+/** City under an airport code; null when only the code is known (no repeated code). */
+const cityName = (iata) => (city(iata) !== iata ? city(iata) : null);
+
 function detailView(e, view, weatherFor, { explicit }) {
   if (!e) return html`<div class="fl-detail-empty"><p class="t-callout t-secondary">Select a flight to see its details.</p></div>`;
   const { profile, now } = view;
   const s = e.sector;
   const tz = profile.homeTz;
-  const when = e.status === 'past' ? 'Flown' : e.status === 'active' ? 'In the air' : relativeDayLabel(now, s.dep, tz);
+  const status = sectorStatus(e, s);
+  const when = relativeDayLabel(now, s.dep, tz);
   const seen = s.provenance === 'history' && s.historySource !== 'roster-calendar' && Number.isFinite(s.seenAt) ? `Last seen in your roster ${formatDate(s.seenAt, tz)}` : null;
   return html`
     <article class="fl-detail-card" aria-labelledby="fl-detail-title" data-fl-detail>
       ${explicit ? html`<a class="fl-back" href="${hrefFor('flights')}" data-fl-back><span aria-hidden="true">‹ </span>Flights</a>` : ''}
       <header class="fl-detail-head">
         <p class="t-eyebrow">${formatDate(s.dep, s.originTz ?? 'UTC')} · Flight ${e.index + 1} of ${e.count} in this rotation</p>
-        <h2 class="t-title-2 fl-detail-route" id="fl-detail-title" tabindex="-1">${s.origin}<span class="fl-arrow" aria-hidden="true"> → </span><span class="visually-hidden"> to </span>${s.destination}</h2>
-        <p class="t-callout"><span class="t-code">${s.flightNumber}</span> · ${city(s.origin)} to ${city(s.destination)}</p>
-        <p class="cal-detail-meta">${provenancePill(e)}<span class="t-caption t-secondary">${when}${seen ? ` · ${seen}` : ''}</span></p>
+        <h2 class="t-title-2 fl-detail-route" id="fl-detail-title" tabindex="-1">${routeHero({ codes: [s.origin, s.destination], cities: [cityName(s.origin), cityName(s.destination)], size: 'hero', as: 'span' })}</h2>
+        <p class="t-callout"><span class="t-code">${s.flightNumber}</span></p>
+        <p class="cal-detail-meta">${provenancePill(e)}${status ? statusChip(status) : ''}<span class="t-caption t-secondary">${[status ? null : when, seen].filter(Boolean).join(' · ')}</span></p>
       </header>
       ${timingView(e, view)}
       ${rotationSection(e, view, weatherFor)}

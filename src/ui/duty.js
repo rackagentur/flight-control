@@ -4,6 +4,7 @@
 import { html } from '../lib/html.js';
 import { formatTime, formatUtcOffset, offsetMinutes, dayShift, formatDuration } from '../lib/time.js';
 import { airport } from '../data/airports.js';
+import { icon } from './icons.js';
 
 /** Local time with an explicit marker when the zone is unknown (never a guessed local time). */
 export function clock(ms, tz) {
@@ -32,6 +33,9 @@ export function zoneNote(ms, tz, profile) {
   return `${formatUtcOffset(ms, tz)} · ${formatTime(ms, profile.homeTz)} at home`;
 }
 
+/** A field label with a small decorative glyph (the text still carries the meaning). */
+const iconLabel = (name, text) => html`<span class="pf-icon" aria-hidden="true">${icon(name)}</span>${text}`;
+
 /** Fields describing a duty: wake-up, pickup, departure, arrival (+N), block, flight. */
 export function dutyFields(duty, profile) {
   const first = duty.sectors[0];
@@ -39,10 +43,10 @@ export function dutyFields(duty, profile) {
   const shift = first.originTz && last.destTz ? dayShift(first.dep, first.originTz, last.arr, last.destTz) : null;
   const block = duty.sectors.reduce((sum, s) => sum + s.blockMin, 0);
   return html`
-    ${duty.wakeup !== null ? field('Wake-up', alarmLink(profile, duty.wakeup, first.originTz, 'wake-up')) : ''}
-    ${duty.pickup !== null ? field('Pickup', alarmLink(profile, duty.pickup, first.originTz, 'pickup')) : ''}
-    ${field('Departure', html`${clock(first.dep, first.originTz)}`, html`${city(first.origin)}${zoneNote(first.dep, first.originTz, profile) ? html` · ${zoneNote(first.dep, first.originTz, profile)}` : ''}`)}
-    ${field('Arrival', html`${clock(last.arr, last.destTz)}${shift ? html`<sup class="pass-shift" aria-label="${shift > 0 ? `plus ${shift} day` : `minus ${-shift} day`}">${shift > 0 ? `+${shift}` : shift}</sup>` : ''}`,
+    ${duty.wakeup !== null ? field(iconLabel('bell', 'Wake-up'), alarmLink(profile, duty.wakeup, first.originTz, 'wake-up')) : ''}
+    ${duty.pickup !== null ? field(iconLabel('car', 'Pickup'), alarmLink(profile, duty.pickup, first.originTz, 'pickup')) : ''}
+    ${field(iconLabel('takeoff', 'Departure'), html`${clock(first.dep, first.originTz)}`, html`${city(first.origin)}${zoneNote(first.dep, first.originTz, profile) ? html` · ${zoneNote(first.dep, first.originTz, profile)}` : ''}`)}
+    ${field(iconLabel('landing', 'Arrival'), html`${clock(last.arr, last.destTz)}${shift ? html`<sup class="pass-shift" aria-label="${shift > 0 ? `plus ${shift} day` : `minus ${-shift} day`}">${shift > 0 ? `+${shift}` : shift}</sup>` : ''}`,
       html`${city(last.destination)}${zoneNote(last.arr, last.destTz, profile) ? html` · ${zoneNote(last.arr, last.destTz, profile)}` : ''}`)}
     ${field('Block', formatDuration(block), duty.sectors.length > 1 ? `${duty.sectors.length} sectors` : null)}
     ${field('Flight', duty.sectors.map((s) => s.flightNumber).join(' · '))}`;
@@ -57,6 +61,11 @@ export function sectorList(duty) {
     </ol>`;
 }
 
+/** The airports of a duty in order: origin, then every sector's destination. */
+export function routeCodes(duty) {
+  return [duty.sectors[0].origin, ...duty.sectors.map((s) => s.destination)];
+}
+
 export function routeTitle(duty) {
-  return [duty.sectors[0].origin, ...duty.sectors.map((s) => s.destination)].join(' → ');
+  return routeCodes(duty).join(' → ');
 }

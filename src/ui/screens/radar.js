@@ -45,6 +45,7 @@ import { pageHeader } from '../components.js';
 import { icon } from '../icons.js';
 import { hrefFor } from '../../router.js';
 import { clock } from '../duty.js';
+import { statusChip } from '../flight-parts.js';
 import { airlineOf } from '../../airlines/index.js';
 import { selectStandbyWindow, buildRadarView, radarAirport, radarCarriers } from '../../model/radar.js';
 import { sampleDepartures } from '../../sources/sample.js';
@@ -318,9 +319,9 @@ function rowView(r, ownName) {
     <li class="rd-row ${r.emphasized ? 'is-own' : ''} ${r.state ? `is-${r.state}` : ''}">
       <span class="rd-time t-tabular">${r.timeText}</span>
       <span class="rd-flight t-code">${r.emphasized ? html`<span class="rd-mark" role="img" aria-label="Your airline (${ownName})" title="Your airline (${ownName})"></span>` : ''}${r.flightNumber}</span>
-      <span class="rd-dest"><span class="rd-city">${r.destinationLabel}</span>${r.destinationCode && r.destinationCode !== r.destinationLabel ? html` <span class="rd-iata t-tabular">${r.destinationCode}</span>` : ''}</span>
+      <span class="rd-dest"><span class="rd-city">${r.destinationLabel}</span>${r.destinationCode && r.destinationCode !== r.destinationLabel ? html` <span class="rd-arrow" aria-hidden="true">→</span><span class="rd-iata t-airport">${r.destinationCode}</span>` : ''}</span>
       ${r.revisedText ? html`<span class="rd-rev t-tabular"><span class="visually-hidden">Revised departure </span>→ ${r.revisedText} · ${r.delayText}</span>` : ''}
-      ${r.state ? html`<span class="rd-chip is-${r.state}">${r.state === 'cancelled' ? 'Cancelled' : 'Departed'}</span>` : ''}
+      ${r.state ? html`<span class="rd-chip is-${r.state}">${statusChip(r.state === 'cancelled' ? { tone: 'critical', label: 'Cancelled' } : { tone: 'neutral', label: 'Departed' })}</span>` : ''}
       ${r.aircraft ? html`<span class="rd-ac" title="${r.aircraft}"><span class="visually-hidden">Aircraft </span>${r.aircraft}</span>` : ''}
     </li>`;
 }

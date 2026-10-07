@@ -352,3 +352,21 @@
   --elev-2: inset 0 0.5px 0 var(--sheen-edge), inset 0 0 0 0.5px var(--shell-edge), 0 1px 2px var(--shell-shadow-near), 0 10px 28px -14px var(--shell-shadow-color);
   --elev-3: inset 0 1px 0 var(--sheen-edge), inset 0 0 0 0.5px var(--shell-edge), 0 2px 4px var(--shell-shadow-near), 0 32px 64px -32px var(--pass-lift);
 }
+
+/* 9. Aviation components (route hero, sector card, milestone list, rail nodes)
+   Plain :root, never per-state. Sizes only: colour roles come from the sections above
+   (copper = identity, route blue = movement, status colour = operational state). */
+:root {
+  --text-route-hero: clamp(2.25rem, 1.7rem + 2.4vw, 2.75rem);   /* 36 → 44: flight detail hero */
+  --text-route-title: 1.75rem;                                  /* 28: rotation title */
+
+  --size-mark: 36px;              /* copper aircraft tile on a sector card */
+  --size-mark-compact: 28px;
+  --size-mark-glyph: 20px;
+  --size-mark-glyph-compact: 16px;
+  --size-ms-icon: 32px;           /* milestone icon tile */
+  --size-ms-glyph: 18px;
+
+  --size-node: 12px;              /* rail node (ring) */
+  --rail-ring: 3px;
+}

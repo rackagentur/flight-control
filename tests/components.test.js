@@ -87,7 +87,7 @@ test('no font-size literals except the glyph allowlist: everything else is var(-
 
 test('time and countdown displays use fixed-width digits (tabular-nums)', () => {
   const TIME = [
-    '.t-route', '.fl-rot-route', '.jr-route', '.cal-sector-route',
+    '.t-route', '.fl-rot-route', '.jr-route',
     '.rd-time', '.rd-rev', '.hz-time', '.hz-time-value', '.week-date', '.cal-num',
     '.pass-countdown', '.pass-sectors', '.pass-field dd', '.intel-clock',
     '.jr-day-times', '.fl-recent-date', '.cal-pickup',
@@ -107,13 +107,13 @@ test('route lines: titles semibold + tight + tabular; sector lines keep code/tim
   assert.match(group.body, /font-weight:\s*var\(--weight-semibold\)/);
   assert.match(group.body, /letter-spacing:\s*-0\.01em/);
   assert.match(group.body, /font-variant-numeric:\s*tabular-nums/);
-  for (const s of ['.jr-route', '.cal-sector-route']) {
+  for (const s of ['.jr-route']) {
     const rules = withSelector(s);
     assert.ok(rules.some((r) => /font-variant-numeric:\s*tabular-nums/.test(r.body)), `${s} has tabular digits`);
     // Bold airport codes (<b>) against regular-weight times: the line itself must not be made semibold.
     assert.ok(!rules.some((r) => /font-weight:\s*var\(--weight-semibold\)/.test(r.body)), `${s} keeps regular-weight times`);
   }
-  for (const s of ['.fl-arrow', '.jr-arrow', '.cal-sector-arrow']) {
+  for (const s of ['.fl-arrow', '.jr-arrow']) {
     assert.ok(withSelector(s).some((r) => /color:\s*var\(--fg-2\)/.test(r.body)), `${s} colour var(--fg-2)`);
   }
 });
@@ -178,7 +178,7 @@ test('icon tiles: list icon 32px / control radius, empty icon 44px / row radius,
   for (const b of [list, empty]) { assert.match(b, /background:\s*var\(--fill-selected\)/); assert.match(b, /color:\s*var\(--accent\)/); }
 });
 
-test('.chip-status keeps ink text; the status colour is only the dot; the primitive is not used in markup yet', () => {
+test('.chip-status keeps ink text; the status colour is only the dot; markup comes only from flight-parts.statusChip', () => {
   const chipRules = rules.filter((r) => r.selectors.some((s) => s === '.chip-status' || s.startsWith('.chip-status[') || s.startsWith('.chip-status::')));
   assert.ok(chipRules.length >= 5);
   const base = withSelector('.chip-status').map((r) => r.body).join('\n');
@@ -193,14 +193,14 @@ test('.chip-status keeps ink text; the status colour is only the dot; the primit
     const body = withSelector(`.chip-status[data-status="${status}"]`).map((r) => r.body).join('\n');
     assert.match(body, new RegExp(`--chip-dot:\\s*var\\(--${token}\\)`));
   }
-  // Primitive only: no markup or script references it.
+  // Step 6: the chip is emitted by one template function (ui/flight-parts.js statusChip); nothing else writes it by hand.
   const files = [];
   (function walk(dir) {
     for (const f of readdirSync(dir)) { const p = join(dir, f); statSync(p).isDirectory() ? walk(p) : files.push(p); }
   })(join(ROOT, 'src'));
   files.push(join(ROOT, 'index.html'));
   const used = files.filter((f) => /chip-status/.test(readFileSync(f, 'utf8')));
-  assert.deepEqual(used, [], 'chip-status is not used in src/ or index.html yet');
+  assert.deepEqual(used.map((f) => f.slice(ROOT.length + 1)), ['src/ui/flight-parts.js'], 'chip-status markup lives only in src/ui/flight-parts.js');
 });
 
 // --- Scale tokens ----------------------------------------------------------------------------------------

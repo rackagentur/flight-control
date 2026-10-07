@@ -18,6 +18,14 @@ const PATHS = {
   // of the journey line's own band by the calendar's CSS, so the line is never cut where the aircraft sits on it).
   aircraft: `<path transform="${AIRCRAFT.t}" fill="currentColor" stroke="none" d="${AIRCRAFT.d}"/>`,
   aircraftHalo: `<path transform="${AIRCRAFT.t}" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linejoin="round" d="${AIRCRAFT.d}"/>`,
+  // Milestone glyphs for the flight timing list (wake-up, pickup, briefing, departure, arrival, home).
+  // takeoff/landing reuse the airliner silhouette as an outline (about 70% of the box, stroke kept at 1.6), turned up or down over a runway line.
+  bell: '<path d="M12 3.5V5"/><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/>',
+  car: '<path d="M4 16.5v-3l1.8-4.3A2 2 0 0 1 7.7 8h8.6a2 2 0 0 1 1.9 1.2L20 13.5v3z"/><path d="M4 13.5h16"/><circle cx="8" cy="17.5" r="1.6"/><circle cx="16" cy="17.5" r="1.6"/>',
+  briefing: '<circle cx="9" cy="8.5" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9.5" r="2.4"/><path d="M16 14.2a4.6 4.6 0 0 1 5 4.8"/>',
+  takeoff: `<path transform="translate(13 9.8) rotate(50) scale(1.04) translate(-12 -12)" stroke-width="1.54" d="${AIRCRAFT.d}"/><path d="M3.5 20.5h17"/>`,
+  landing: `<path transform="translate(13 12) rotate(130) scale(1.04) translate(-12 -12)" stroke-width="1.54" d="${AIRCRAFT.d}"/><path d="M3.5 20.5h17"/>`,
+  home: '<path d="m4 11 8-7 8 7"/><path d="M6 9.5V19.5h12V9.5"/><path d="M10 19.5v-5h4v5"/>',
   map: '<path d="M9 4.5 3.5 6.5v13l5.5-2 6 2 5.5-2v-13l-5.5 2-6-2z"/><path d="M9 4.5v13M15 6.5v13"/>',
   more: '<circle cx="12" cy="12" r="8.5"/><path d="M8 12h.01M12 12h.01M16 12h.01" stroke-width="2.4"/>',
   weather: '<path d="M8.5 5.5V4M4.6 7.1l-1-1M12.4 7.1l1-1"/><path d="M5.2 11.2A3.6 3.6 0 0 1 11.8 9"/><path d="M8 19.5h9a3.5 3.5 0 0 0 .4-7 5 5 0 0 0-9.6 1.2A2.9 2.9 0 0 0 8 19.5z"/>',

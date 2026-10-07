@@ -7,35 +7,21 @@
 //   layover roster    double line, "Layover · from roster"
 //   return not listed dashed line fading out, "Return not yet listed"
 // Flown sectors recede and say "Flown"; the selected sector is marked with aria-current.
+// Each sector is a card (flight-parts.sectorCard) on the rail: route blue line and node, copper ring when selected.
 
 import { html } from '../lib/html.js';
-import { formatDate, formatDuration } from '../lib/time.js';
+import { formatDate } from '../lib/time.js';
 import { hrefFor } from '../router.js';
 import { clock } from './duty.js';
+import { sectorCard } from './flight-parts.js';
 import { destinationTeaser, stayLabel, stayText } from './destination.js';
 
-const STATUS_TEXT = { past: 'Flown', active: 'In the air' };
-
-function shiftMark(shift) {
-  if (!shift) return '';
-  return html`<sup class="pass-shift" aria-label="${shift > 0 ? `plus ${shift} day` : `minus ${-shift} day`}">${shift > 0 ? `+${shift}` : shift}</sup>`;
-}
-
-function sectorLeg(e, { selectedId, homeTz }) {
+function sectorLeg(e, { selectedId }) {
   const s = e.sector;
   const selected = s.id === selectedId;
-  const status = STATUS_TEXT[e.status];
-  const label = `${s.flightNumber}, ${s.origin} ${clock(s.dep, s.originTz)} to ${s.destination} ${clock(s.arr, s.destTz)}${e.shift ? ` (${e.shift > 0 ? '+' : ''}${e.shift} day)` : ''}, ${formatDate(s.dep, s.originTz ?? 'UTC')}${status ? `, ${status.toLowerCase()}` : ''}${s.provenance === 'history' ? ', remembered on this device' : ''}`;
   return html`
     <li class="jr-leg jr-sector is-${e.status} ${s.provenance === 'history' ? 'is-remembered' : ''} ${selected ? 'is-selected' : ''}">
-      <a class="jr-link" href="${hrefFor('flights', s.id)}" data-sector="${s.id}" aria-label="${label}" ${selected ? html`aria-current="true"` : ''}>
-        <span class="jr-node" aria-hidden="true"></span>
-        <span class="jr-main" aria-hidden="true">
-          <span class="jr-route t-tabular"><span class="jr-end"><b>${s.origin}</b> ${clock(s.dep, s.originTz)}</span><span class="jr-end"><span class="jr-arrow">→</span> <b>${s.destination}</b> ${clock(s.arr, s.destTz)}${shiftMark(e.shift)}</span></span>
-          <span class="jr-sub"><span class="t-code">${s.flightNumber}</span> · ${formatDuration(s.blockMin)}${status ? html` · <span class="jr-status">${status}</span>` : ''}${s.provenance === 'history' ? html` · <span class="fl-tag tag-remembered jr-tag">Remembered</span>` : ''}</span>
-        </span>
-        <span class="jr-chev" aria-hidden="true">›</span>
-      </a>
+      ${sectorCard({ sector: s, entry: e, selected, href: hrefFor('flights', s.id) })}
     </li>`;
 }
 

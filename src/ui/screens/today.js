@@ -9,11 +9,12 @@ import { airport } from '../../data/airports.js';
 import { hrefFor } from '../../router.js';
 import { pageHeader, previewBadge } from '../components.js';
 import { horizonView } from '../horizon.js';
-import { clock, city, field, dutyFields, sectorList, routeTitle } from '../duty.js';
+import { clock, city, field, dutyFields, sectorList, routeTitle, routeCodes } from '../duty.js';
 import { weekView } from '../week.js';
 import { buildDestination } from '../../model/destination.js';
 import { airlineOf } from '../../airlines/index.js';
 import { weatherText } from '../destination.js';
+import { routeHero } from '../flight-parts.js';
 
 const CONFIDENCE_LABEL = { confirmed: 'Confirmed', inferred: 'Inferred', unknown: 'Unknown' };
 const PHASE_LABEL = {
@@ -66,7 +67,7 @@ function statusPass(view) {
       <section class="pass" aria-labelledby="status-title">
         <div class="pass-head">
           ${kicker(`${PHASE_LABEL[state.phase] ?? 'Flight'} · ${day}`, state, review)}
-          <h2 class="pass-state t-display" id="status-title">${routeTitle(duty)}</h2>
+          <h2 class="pass-state t-display" id="status-title">${routeHero({ codes: routeCodes(duty), size: 'hero', as: 'span' })}</h2>
           <p class="pass-lede">${city(duty.sectors[0].origin)} to ${city(duty.sectors.at(-1).destination)}</p>
         </div>
         ${nextEventBlock(state, now, tz)}
@@ -83,7 +84,7 @@ function statusPass(view) {
       <section class="pass" aria-labelledby="status-title">
         <div class="pass-head">
           ${kicker('Layover · derived from your itinerary', state, review)}
-          <h2 class="pass-state t-display" id="status-title">${city(here)}</h2>
+          <h2 class="pass-state t-display" id="status-title"><span aria-hidden="true">${routeHero({ codes: [here], cities: city(here) !== here ? [city(here)] : undefined, size: 'hero', as: 'span' })}</span><span class="visually-hidden">${city(here)}</span></h2>
           <p class="pass-lede">${here} · local time <span data-clock-tz="${tzHere ?? ''}">${tzHere ? formatTime(now, tzHere) : '—'}</span>${tzHere ? ` (${formatUtcOffset(now, tzHere)})` : ''}</p>
         </div>
         ${nextEventBlock(state, now, tz)}

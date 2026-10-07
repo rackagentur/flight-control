@@ -231,15 +231,11 @@
 .cal-detail-section { display: grid; gap: var(--space-2); padding-top: var(--space-4); border-top: 0.5px solid var(--line); }
 .cal-detail-section .t-eyebrow { color: var(--fg-2); }
 .cal-sectors { display: grid; gap: var(--space-2); padding: 0; margin: 0; list-style: none; }
-.cal-sector { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: var(--space-3); }
-.cal-sector-flight { display: grid; font-size: var(--text-caption); color: var(--fg-2); }
-.cal-sector-date { font-size: var(--text-mini); font-weight: var(--weight-regular); letter-spacing: 0; }
-.cal-sector-route { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px var(--space-2); font-size: var(--text-body); }
-.cal-sector-route b { font-weight: var(--weight-semibold); }
-.cal-sector-arrow { color: var(--fg-2); }
-/* A leg never splits from its arrow: wraps read "FRA 08:00" / "→ BER 09:05". */
-.cal-sector-leg { white-space: nowrap; }
-.cal-sector-block { font-size: var(--text-caption); color: var(--fg-2); }
+/* Day-detail sectors are static compact sector cards (flight-parts.sectorCard with href: null). The only
+   extra is the departure date, shown above the card when the flight left on another local day. */
+.cal-sector { display: grid; gap: var(--space-1); }
+.cal-sector-date { padding-left: var(--space-1); color: var(--fg-2); font-size: var(--text-mini); font-weight: var(--weight-regular); letter-spacing: 0; }
+.cal-sector .jr-link { background: var(--fill-quiet); box-shadow: inset 0 0 0 0.5px var(--shell-edge); } /* neutral: copper fill is reserved for selection */
 .cal-pickup { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); color: var(--fg-2); font-size: var(--text-callout); }
 .cal-pickup b { color: var(--fg-1); font-weight: var(--weight-semibold); }
 .cal-detail-empty { padding: var(--space-5); border-radius: var(--radius-card); border: 1px dashed color-mix(in oklab, var(--fg-2) 30%, transparent); }
@@ -303,23 +299,29 @@
 .jr-day-times, .fl-recent-date, .cal-pickup { font-variant-numeric: tabular-nums; }
 .jr-day-date { font-weight: var(--weight-semibold); color: var(--fg-1); letter-spacing: 0.02em; }
 .jr-day-times b { color: var(--fg-1); font-weight: var(--weight-semibold); }
-.jr-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); min-height: var(--touch-min); padding: 6px var(--space-3) 6px 0; color: inherit; text-decoration: none; border-radius: 12px; }
+.jr-sector { padding-top: 4px; padding-bottom: 4px; }
+/* Sector card: a glass row on the rail (copper aircraft mark, codes + times, flight number, chevron). */
+.jr-link { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); min-height: var(--touch-min); padding: var(--pad-row-y) var(--pad-row-x); color: inherit; text-decoration: none; border-radius: var(--radius-row); background: var(--glass-strong); box-shadow: var(--elev-1); }
 .jr-link:hover .jr-route b { color: var(--route); }
 .jr-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.jr-node { position: absolute; left: calc(var(--jr-x) - 6px); top: 50%; width: 12px; height: 12px; margin-top: -6px; border-radius: 50%; background: var(--canvas); box-shadow: inset 0 0 0 3px var(--jr-flight); }
+.jr-node { position: absolute; left: calc(var(--jr-x) - var(--size-node) / 2); top: 50%; width: var(--size-node); height: var(--size-node); margin-top: calc(var(--size-node) / -2); border-radius: 50%; background: var(--canvas); box-shadow: inset 0 0 0 var(--rail-ring) var(--jr-flight); }
 .jr-main { display: grid; gap: 2px; min-width: 0; }
 .jr-route { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--space-2); font-size: var(--text-body); }
-.jr-route b { font-weight: var(--weight-semibold); }
+.jr-route b { font-weight: var(--weight-bold); letter-spacing: -0.02em; }
 .jr-end { white-space: nowrap; }
 .jr-arrow { color: var(--fg-2); }
-.jr-sub { color: var(--fg-2); font-size: var(--text-caption); }
-.jr-status { font-weight: var(--weight-semibold); color: var(--fg-1); }
+.jr-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; color: var(--fg-2); font-size: var(--text-caption); }
+.jr-status { display: inline-flex; }
+.jr-status .chip-status { height: 20px; padding: 0 8px; }
 .jr-chev { color: var(--fg-2); font-size: 20px; line-height: 1; }
-.jr-sector.is-past .jr-main { opacity: 0.62; }
+.sc-compact { padding: var(--space-2) var(--space-3); gap: var(--space-2); }
+.sc-compact .jr-route { font-size: var(--text-callout); }
+.jr-sector.is-past .jr-main, .jr-sector.is-past .sc-mark { opacity: 0.62; }
 .jr-sector.is-past .jr-node { background: var(--jr-flight); }
 .jr-sector.is-active .jr-node { background: var(--route); box-shadow: 0 0 0 4px color-mix(in oklab, var(--route) 25%, transparent); }
-.jr-sector.is-selected .jr-link { background: var(--fill-selected); box-shadow: inset 0 0 0 1px var(--edge-selected); padding-left: var(--space-3); margin-left: calc(-1 * var(--space-3)); }
-.jr-sector.is-selected .jr-node { box-shadow: inset 0 0 0 3px var(--accent); }
+.jr-sector.is-selected .jr-link { background: var(--fill-selected); box-shadow: inset 0 0 0 1px var(--edge-selected), var(--elev-1); }
+.jr-sector.is-selected .jr-node { box-shadow: inset 0 0 0 var(--rail-ring) var(--accent); }
+.jr-sector.is-selected .sc-mark { background: var(--brand-fill); color: var(--on-brand); }
 
 .jr-stay { display: grid; gap: 2px; padding-top: 6px; padding-bottom: 8px; font-size: var(--text-callout); }
 .jr-stay-label { font-weight: var(--weight-semibold); }
@@ -339,7 +341,7 @@
 .jr-finish { display: flex; align-items: center; min-height: 28px; font-size: var(--text-caption); color: var(--fg-2); }
 .jr-finish::before { bottom: 50%; }
 .jr-finish b { color: var(--fg-1); font-weight: var(--weight-semibold); }
-.jr-finish .jr-node { background: var(--jr-flight); }
+.jr-finish .jr-node { background: var(--canvas); box-shadow: inset 0 0 0 2px var(--fg-1); }
 
 /* End of the listed flights: a calm terminus, not an error. */
 .fl-boundary { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: var(--space-3); align-items: start; padding-top: var(--space-2); }
@@ -382,6 +384,8 @@
 .fl-section { display: grid; gap: var(--space-3); padding-top: var(--space-4); border-top: 0.5px solid var(--line); }
 .fl-section > .t-eyebrow { color: var(--fg-2); }
 .fl-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); padding-top: 0; border-top: 0; }
+.fl-facts { padding-top: var(--space-3); border-top: 0.5px solid var(--line); }
+.fl-facts .pass-field dd { font-size: var(--text-body); }
 .fl-mini { display: grid; gap: 2px; padding: 0; margin: 0; list-style: none; }
 .fl-mini-row { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: var(--space-3); color: inherit; text-decoration: none; font-size: var(--text-callout); }
 .fl-mini-row .t-code { color: var(--fg-2); font-size: var(--text-caption); }
@@ -412,6 +416,7 @@
   .fl-side { position: sticky; top: var(--space-8); max-height: calc(100dvh - 2 * var(--space-8)); overflow-y: auto; overscroll-behavior: contain; border-radius: var(--radius-card); }
   .fl-back { display: none; }
 }
+.jr-dot { color: var(--fg-2); }
 .jr-tag { display: inline-block; padding: 0 6px; font-size: var(--text-mini); vertical-align: 1px; }
 .jr-stay.kind-gap::before { background: repeating-linear-gradient(180deg, color-mix(in oklab, var(--fg-2) 60%, transparent) 0 2px, transparent 2px 9px); opacity: 1; }
 .jr-stay.kind-gap .jr-stay-text { color: var(--fg-2); }
@@ -452,14 +457,18 @@
 .rd-time { grid-area: time; align-self: start; font-size: var(--text-title-2); font-weight: var(--weight-semibold); letter-spacing: -0.01em; line-height: 1.15; font-variant-numeric: tabular-nums; }
 .rd-flight { grid-area: flight; display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-body); min-width: 0; white-space: nowrap; }
 .rd-dest { grid-area: dest; font-size: var(--text-callout); color: var(--fg-1); overflow-wrap: anywhere; }
-.rd-iata { color: var(--fg-2); font-size: var(--text-caption); font-weight: var(--weight-semibold); letter-spacing: 0.02em; }
+.rd-arrow { margin: 0 0.2em 0 0.1em; color: var(--accent); font-weight: var(--weight-medium); }
+.rd-iata { color: inherit; font-size: var(--text-callout); }
 .rd-rev { grid-area: rev; font-size: var(--text-caption); font-weight: var(--weight-semibold); color: var(--fg-1); font-variant-numeric: tabular-nums; }
 /* The aircraft is tertiary: its column is capped and clipped on one line (full text in title/aria), so a long
    model name can never take width from the time and flight/destination columns. */
 .rd-ac { grid-area: ac; justify-self: end; align-self: center; min-width: 0; max-width: 12ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-micro); color: var(--fg-2); letter-spacing: 0.02em; }
 @media (min-width: 600px) { .rd-ac { max-width: 28ch; } }
-.rd-chip { grid-area: chip; justify-self: end; align-self: center; padding: 2px 8px; border-radius: var(--radius-pill); font-size: var(--text-micro); font-weight: var(--weight-semibold); letter-spacing: 0.02em; white-space: nowrap; color: var(--fg-1); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--fg-1) 45%, transparent); }
-.rd-chip.is-cancelled { color: var(--critical); box-shadow: none; border: 1px dashed var(--critical); }
+/* The state chip is flight-parts.statusChip; this wrapper only places it. Cancelled keeps a dashed edge so the
+   state never relies on the dot colour alone. */
+.rd-chip { grid-area: chip; justify-self: end; align-self: center; display: inline-flex; }
+.rd-chip .chip-status { height: 22px; padding: 0 8px; }
+.rd-chip.is-cancelled .chip-status { box-shadow: none; border: 1px dashed var(--critical); }
 
 /* The user's own airline: a small accent mark before the flight number, nothing louder. */
 .rd-mark { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent); }

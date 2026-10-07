@@ -1110,8 +1110,8 @@ test('review sample covers each case: delay, early, cancelled, departed, and a b
   const m = h.go();
   assert.match(m, /→ \d\d:\d\d · \+25 min/);
   assert.match(m, /→ \d\d:\d\d · −5 min/);
-  assert.match(m, /rd-chip is-cancelled">Cancelled/);
-  assert.match(m, /rd-chip is-departed">Departed/);
+  assert.match(m, /rd-chip is-cancelled"><span class="chip-status" data-status="critical">Cancelled/);
+  assert.match(m, /rd-chip is-departed"><span class="chip-status" >Departed/);
   const boarding = rowHtml(m, 'SAMPLE 104');
   assert.ok(boarding.includes('SAMPLE 104'));
   assert.doesNotMatch(boarding, /rd-chip/);
@@ -1128,7 +1128,7 @@ test('review sample follows the carrier filter: with a pack every fictional row 
   assert.equal(h.calls.length, 0);
   assert.match(m, new RegExp(`Departures from \\S+ · ${pack.name} flights`));
   assert.match(m, /SAMPLE 10\d/);
-  assert.match(m, /rd-chip is-cancelled">Cancelled/, 'the cancelled sample row is still there');
+  assert.match(m, /rd-chip is-cancelled"><span class="chip-status" data-status="critical">Cancelled/, 'the cancelled sample row is still there');
   assert.doesNotMatch(m, /rd-mark|Your airline/, 'a filtered list needs no emphasis');
   const generic = sampleProfile(normalizeProfile({ airlineId: 'generic' }));
   const g = harness({ review: true, profile: generic, snapshot: sampleSnapshot('standby', 'ocean', NOW, generic) }).go();

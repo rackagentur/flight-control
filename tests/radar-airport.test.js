@@ -296,7 +296,7 @@ test('MAIN: FRA crew on an SB90 standby at BER, Condor pack, mixed carriers: BER
   assert.match(m, /Departures from BER · Condor flights \(from your next duty\)/);
   assert.deepEqual(standbyRows(m), ['DE1', 'DE4']);
   assert.doesNotMatch(m, /LH2|EW3|X35|LH6|FR7/);
-  assert.match(m, /rd-chip is-cancelled">Cancelled/, 'the cancelled DE row is listed, as a fact');
+  assert.match(m, /rd-chip is-cancelled"><span class="chip-status" data-status="critical">Cancelled/, 'the cancelled DE row is listed, as a fact');
   assert.doesNotMatch(m, /rd-mark|Your airline/, 'every row is the user\'s airline: no emphasis dot');
 });
 

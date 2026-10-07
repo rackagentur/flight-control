@@ -432,6 +432,7 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
 .pass-next { display: grid; gap: var(--space-1); }
 .pass-next-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-1) var(--space-3); color: var(--fg-2); }
 .pass-countdown {
+  color: var(--accent);
   font-family: var(--font-display);
   font-size: var(--text-title-1);
   font-weight: var(--weight-semibold);
@@ -496,18 +497,19 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
   box-shadow: none;
 }
 
+/* Stops are 10px rings (hollow = still ahead); past stops recede to a filled ink dot; the next stop is a route-blue
+   ring with a soft halo (movement is blue, never copper). */
 .hz-stop {
   position: absolute;
   top: 50%;
-  width: 7px; height: 7px;
+  width: 10px; height: 10px;
   border-radius: 50%;
   transform: translate(-50%, -50%);
   background: var(--st-atmos-2);
-  box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--fg-1) 45%, transparent);
+  box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--fg-1) 45%, transparent);
 }
-.hz-stop-departure, .hz-stop-arrival { width: 9px; height: 9px; }
-.hz-stop.is-past { background: color-mix(in oklab, var(--fg-1) 45%, transparent); box-shadow: none; }
-.hz-stop.is-next { box-shadow: inset 0 0 0 2px var(--route); }
+.hz-stop.is-past { background: color-mix(in oklab, var(--fg-1) 40%, transparent); box-shadow: none; }
+.hz-stop.is-next { box-shadow: inset 0 0 0 2px var(--route), 0 0 0 3px color-mix(in oklab, var(--route) 22%, transparent); }
 
 .hz-now {
   position: absolute;
@@ -536,7 +538,7 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
 }
 .hz-time:first-child { transform: none; justify-items: start; }
 .hz-time:last-child { transform: translateX(-100%); justify-items: end; }
-.hz-time-label { font-size: var(--text-mini); font-weight: var(--weight-semibold); letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-2); }
+.hz-time-label { font-size: var(--text-mini); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-eyebrow); text-transform: uppercase; color: var(--fg-2); }
 .hz-time-value { font-size: var(--text-caption); color: var(--fg-2); font-variant-numeric: tabular-nums; }
 .hz-time.is-next .hz-time-value { color: var(--fg-1); font-weight: var(--weight-semibold); }
 .hz-time.is-next .hz-time-label { color: var(--fg-1); }
@@ -638,3 +640,96 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
 .review-banner[hidden] { display: none; }
 .is-review .main { padding-top: calc(env(safe-area-inset-top) + var(--space-8) + var(--space-3)); }
 @media (min-width: 1200px) { .is-review .main { padding-top: calc(var(--space-8) + var(--space-3)); } }
+
+/* --- Aviation components ---------------------------------------------------------------------------
+   Route hero, sector mark, milestone list. Copper (var(--accent)) = identity and emphasis; the rail,
+   horizon and movement stay route blue (see screens.css); status colour lives only in .chip-status. */
+
+/* Airport code: bold, tight, fixed-width digits */
+.t-airport {
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Route hero: BER → FRA → HER → FRA. Each arrow stays with the code that follows it when the route wraps. */
+.route-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-1) 0;
+  min-width: 0;
+  line-height: var(--leading-tight);
+  color: var(--fg-1);
+}
+.rh-hero { font-size: var(--text-route-hero); }
+.rh-title { font-size: var(--text-route-title); }
+.rh-inline { font-size: var(--text-headline); }
+.rh-leg { display: inline-flex; align-items: flex-start; }
+.rh-stop { display: grid; gap: var(--space-1); min-width: 0; justify-items: start; }
+.rh-arrow { margin: 0 0.25em; color: var(--accent); font-weight: var(--weight-medium); }
+.rh-city { font-size: var(--text-callout); font-weight: var(--weight-regular); letter-spacing: 0; line-height: 1.3; color: var(--fg-2); }
+
+/* Sector mark: copper aircraft on a brand-soft tile (selected cards fill it, see screens.css) */
+.sc-mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--size-mark);
+  height: var(--size-mark);
+  border-radius: var(--radius-control);
+  background: var(--fill-selected);
+  color: var(--accent);
+}
+.sc-mark svg { width: var(--size-mark-glyph); height: var(--size-mark-glyph); }
+.sc-compact .sc-mark { width: var(--size-mark-compact); height: var(--size-mark-compact); }
+.sc-compact .sc-mark svg { width: var(--size-mark-glyph-compact); height: var(--size-mark-glyph-compact); }
+
+/* Milestones: icon | time | label (+ note) | relative. Rows share columns through subgrid so times and labels line up. */
+.ms-list {
+  display: grid;
+  grid-template-columns: var(--size-ms-icon) auto minmax(0, 1fr) auto;
+  column-gap: var(--space-3);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.ms-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: var(--size-ms-icon) auto minmax(0, 1fr) auto;
+  grid-template-columns: subgrid;
+  align-items: center;
+  column-gap: var(--space-3);
+  padding: var(--space-3) 0;
+}
+.ms-row + .ms-row { border-top: 0.5px solid var(--line); }
+.ms-icon {
+  display: grid;
+  place-items: center;
+  width: var(--size-ms-icon);
+  height: var(--size-ms-icon);
+  border-radius: var(--radius-control);
+  background: var(--fill-selected);
+  color: var(--accent);
+}
+.ms-icon svg { width: var(--size-ms-glyph); height: var(--size-ms-glyph); }
+.ms-row.is-emphasis .ms-icon { background: var(--brand-fill); color: var(--on-brand); }
+.ms-time { font-size: var(--text-title-2); font-weight: var(--weight-semibold); letter-spacing: -0.01em; line-height: 1.2; font-variant-numeric: tabular-nums; }
+/* .ms-text dissolves so label and note become grid items of the row: the label sits on the first line with
+   the time and the relative time, the note drops to a second line spanning label..rel (never a narrow column). */
+.ms-text { display: contents; }
+.ms-icon, .ms-time, .ms-label, .ms-rel { grid-row: 1; }
+.ms-icon { grid-column: 1; }
+.ms-time { grid-column: 2; }
+.ms-label { grid-column: 3; min-width: 0; font-size: var(--text-body); color: var(--fg-1); }
+.ms-note { grid-row: 2; grid-column: 3 / -1; margin-top: 2px; font-size: var(--text-caption); line-height: 1.4; color: var(--fg-2); }
+.ms-rel { grid-column: 4; justify-self: end; white-space: nowrap; font-size: var(--text-callout); font-weight: var(--weight-semibold); color: var(--accent); }
+
+/* Field-label glyph (wake-up, pickup, departure, arrival): decorative, copper, sits on the label's baseline. */
+.pf-icon { display: inline-block; margin-right: 6px; color: var(--accent); vertical-align: -3px; line-height: 1; }
+.pf-icon svg { width: 14px; height: 14px; }
+
+/* Static sector card (no link): no chevron column, no hover recolour, default cursor. */
+.jr-link.is-static { grid-template-columns: auto minmax(0, 1fr); cursor: default; }
+.jr-link.is-static:hover .jr-route b { color: inherit; }
