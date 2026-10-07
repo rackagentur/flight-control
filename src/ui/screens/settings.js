@@ -123,7 +123,7 @@ export const settings = {
                 <input class="field-input" id="endpoint-input" name="endpoint" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false"
                   placeholder="${connected ? 'Connected · paste a new URL to replace it' : 'https://script.google.com/macros/s/…/exec'}">
                 <div class="source-actions">
-                  <button type="submit" class="btn btn-quiet">Save and test</button>
+                  <button type="submit" class="btn btn-primary">Save and test</button>
                   <button type="button" class="btn btn-quiet" data-endpoint-test ${connected ? '' : 'disabled'}>Test connection</button>
                   <button type="button" class="btn btn-critical" data-endpoint-remove ${connected ? '' : 'disabled'}>Disconnect</button>
                 </div>
@@ -142,7 +142,7 @@ export const settings = {
                   data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"
                   placeholder="${hasToken ? 'Token saved · paste a new one to replace it' : 'Access token'}">
                 <div class="source-actions">
-                  <button type="submit" class="btn btn-quiet" ${connected ? '' : 'disabled'}>Save and test</button>
+                  <button type="submit" class="btn btn-primary" ${connected ? '' : 'disabled'}>Save and test</button>
                   <button type="button" class="btn btn-critical" data-token-remove ${hasToken ? '' : 'disabled'}>Remove token</button>
                 </div>
                 <div class="source-result" data-token-result role="status" aria-live="polite"></div>

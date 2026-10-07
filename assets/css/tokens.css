@@ -28,6 +28,7 @@
   --text-callout: 0.875rem;                                 /* 14 */
   --text-caption: 0.8125rem;                                /* 13 */
   --text-micro: 0.6875rem;                                  /* 11 */
+  --text-mini: 0.65625rem;                                  /* 10.5 */
 
   --leading-tight: 1.05;
   --leading-snug: 1.25;
@@ -35,10 +36,12 @@
   --tracking-display: -0.035em;
   --tracking-title: -0.02em;
   --tracking-micro: 0.08em;
+  --tracking-eyebrow: 0.12em;
 
   --weight-regular: 400;
   --weight-medium: 500;
   --weight-semibold: 600;
+  --weight-bold: 700;
 
   /* Spacing: 4-pt scale */
   --space-1: 4px;
@@ -53,10 +56,15 @@
 
   /* Radii */
   --radius-control: 10px;
-  --radius-row: 16px;
-  --radius-card: 24px;
-  --radius-hero: 32px;
+  --radius-row: 14px;
+  --radius-card: 20px;
+  --radius-hero: 28px;
   --radius-pill: 999px;
+
+  /* Component padding */
+  --pad-card: 20px;
+  --pad-row-y: 12px;
+  --pad-row-x: 14px;
 
   /* Motion */
   --dur-instant: 120ms;
@@ -202,7 +210,11 @@
 
   /* Materials: translucent surfaces carry a trace of the environment's light */
   --glass: color-mix(in oklab, color-mix(in oklab, var(--st-canvas) 94%, var(--st-tint)) 70%, transparent);
-  --glass-strong: color-mix(in oklab, color-mix(in oklab, var(--base-surface-1) 94%, var(--st-tint)) 76%, transparent);
+  /* Card material: near-opaque warm ivory in Day Flight (the ice atmosphere still breathes through);
+     a slightly lifted warm charcoal in Night Flight so cards separate from the warm-black canvas. */
+  --glass-strong: light-dark(
+    color-mix(in oklab, color-mix(in oklab, var(--base-surface-1) 94%, var(--st-tint)) 90%, transparent),
+    color-mix(in oklab, color-mix(in oklab, color-mix(in oklab, var(--base-surface-1) 70%, var(--base-surface-2)) 94%, var(--st-tint)) 86%, transparent));
   --glass-edge: color-mix(in oklab, var(--base-ink-1) 9%, transparent);
   --sheen: light-dark(rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.06));   /* top reflection */
   --sheen-edge: light-dark(rgb(255 255 255 / 0.85), rgb(255 255 255 / 0.10)); /* lit top edge */
@@ -328,4 +340,15 @@
   --brand-mark-hi: light-dark(#F4E3CA, #E8CB98);
   --brand-mark-lo: light-dark(#C98B55, #9A6A3C);
   --brand-mark-ink: light-dark(#0F1B2E, #14110D);
+}
+
+/* 8. Elevation (component depth; built from the shell materials)
+   Plain :root, never per-state. Components take depth from these three steps only:
+     elev-1  row cards, chips, quiet buttons: a hairline edge and a near shadow
+     elev-2  cards and grouped lists: lit top edge plus a soft ambient lift
+     elev-3  the hero pass: lit top edge plus a long state-lit lift */
+:root {
+  --elev-1: inset 0 0 0 0.5px var(--shell-edge), 0 1px 2px var(--shell-shadow-near);
+  --elev-2: inset 0 0.5px 0 var(--sheen-edge), inset 0 0 0 0.5px var(--shell-edge), 0 1px 2px var(--shell-shadow-near), 0 10px 28px -14px var(--shell-shadow-color);
+  --elev-3: inset 0 1px 0 var(--sheen-edge), inset 0 0 0 0.5px var(--shell-edge), 0 2px 4px var(--shell-shadow-near), 0 32px 64px -32px var(--pass-lift);
 }

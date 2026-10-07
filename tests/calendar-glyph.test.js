@@ -282,7 +282,7 @@ test('the CSS of the OFF / FREE / ORT / SB / RE / LEAVE markers is byte-for-byte
   const css = readFileSync(new URL('../assets/css/screens.css', import.meta.url), 'utf8').split('\n');
   const lines = [
       ".cal-day.is-outside .cal-band, .cal-day.is-outside .cal-mark, .cal-day.is-outside .cal-code[class*=\"tok-\"] { opacity: 0.55; }",
-      ".cal-code.tok-sb, .cal-code.tok-re, .cal-code.tok-off { min-width: 30px; padding: 0 6px; border-radius: 9px; font-size: 10.5px; letter-spacing: 0.06em; }",
+      ".cal-code.tok-sb, .cal-code.tok-re, .cal-code.tok-off { min-width: 30px; padding: 0 6px; border-radius: 9px; font-size: var(--text-mini); letter-spacing: 0.06em; }",  // Step 5: 10.5px literal -> var(--text-mini) (0.65625rem = 10.5px, same size)
       ".cal-code.tok-sb { box-shadow: inset 0 0 0 1.5px var(--tok-standby); }",
       ".cal-code.tok-re { background: repeating-linear-gradient(90deg, color-mix(in oklab, var(--tok-reserve) 26%, transparent) 0 3px, transparent 3px 5px); box-shadow: inset 0 0 0 1px var(--tok-reserve); }",
       ".cal-code.tok-off { background: color-mix(in oklab, var(--tok-off) 30%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--tok-off) 70%, transparent); }",

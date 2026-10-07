@@ -386,7 +386,8 @@ test('CSS: the compact code needs no shrink rule; the unassigned marks are outli
   // STR / UNAS carry exactly the shared SB / RE / OFF capsule metrics (own rule, so the shared marker rule stays at baseline).
   const shared = screens.match(/^\.cal-code\.tok-sb, \.cal-code\.tok-re, \.cal-code\.tok-off \{[^}]*\}/m)[0];
   const token = screens.match(/^\.cal-code\.tok-unassigned \{[^}]*\}/m)[0];
-  for (const prop of ['min-width: 30px', 'border-radius: 9px', 'font-size: 10.5px', 'letter-spacing: 0.06em']) {
+  // Step 5: the 10.5px literal became var(--text-mini) (0.65625rem = 10.5px, same size).
+  for (const prop of ['min-width: 30px', 'border-radius: 9px', 'font-size: var(--text-mini)', 'letter-spacing: 0.06em']) {
     assert.ok(shared.includes(prop), `shared capsule has ${prop}`);
     assert.ok(token.includes(prop), `unassigned capsule has ${prop}`);
     const name = prop.split(':')[0];

@@ -65,7 +65,7 @@ a { color: inherit; }
 .t-eyebrow {
   font-size: var(--text-micro);
   font-weight: var(--weight-semibold);
-  letter-spacing: var(--tracking-micro);
+  letter-spacing: var(--tracking-eyebrow);
   text-transform: uppercase;
   line-height: 1.2;
 }
@@ -73,6 +73,17 @@ a { color: inherit; }
 .t-accent { color: var(--accent); }
 .t-tabular { font-variant-numeric: tabular-nums; }
 .t-code { font-variant-numeric: tabular-nums; font-weight: var(--weight-semibold); letter-spacing: -0.01em; }
+/* Route lines (ORIGIN → DESTINATION): semibold, tight, fixed-width digits so times align row to row.
+   .fl-rot-route is a whole-route title and takes the same weight. */
+.t-route,
+.fl-rot-route {
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+/* Sector lines mix bold airport codes (<b>) with regular-weight times: digits only, weight unchanged. */
+.jr-route,
+.cal-sector-route { font-variant-numeric: tabular-nums; }
 
 /* --- Accessibility --------------------------------------------------------- */
 :focus { outline: none; }
