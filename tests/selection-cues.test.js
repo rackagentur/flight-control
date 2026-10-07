@@ -41,7 +41,7 @@ const SELECTION = [
   ['.jr-sector.is-selected', ['edge-selected', 'accent']],
   ['.fl-recent-row.is-selected', ['edge-selected']],
   ['.fl-mini-row.is-current', ['edge-selected', 'accent']],
-  ['.nav-item[aria-current="page"]', ['edge-selected', 'accent']],
+  ['.nav-item[aria-current="page"]', ['edge-selected', 'accent', 'tab-active']],
 ];
 
 const MOVEMENT = [
@@ -81,7 +81,8 @@ test('the selected-state fill is on the same rule as its edge for rows and cells
 
 test('the switch track and the tab icon keep the brand accent', () => {
   assert.ok(uses(declarationsFor(rules, '.switch[aria-checked="true"]').text, 'accent'), '.switch[aria-checked="true"] track');
-  assert.ok(uses(declarationsFor(rules, '.tab[aria-current="page"]').text, 'accent'), '.tab[aria-current="page"] icon');
+  const tabCurrent = declarationsFor(rules, '.tab[aria-current="page"]').text;
+  assert.ok(uses(tabCurrent, 'accent') || uses(tabCurrent, 'tab-active'), '.tab[aria-current="page"] icon');  // --tab-active = var(--brand)
 });
 
 test('movement and timeline selectors use route blue and never the brand accent', () => {

@@ -151,7 +151,7 @@
   background: linear-gradient(180deg, var(--sheen), transparent 40%), var(--glass-strong);
   -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(1.3);
   backdrop-filter: blur(var(--blur-glass)) saturate(1.3);
-  box-shadow: inset 0 0.5px 0 var(--sheen-edge), inset 0 0 0 0.5px var(--glass-edge);
+  box-shadow: inset 0 0.5px 0 var(--sheen-edge), inset 0 0 0 0.5px var(--shell-edge), 0 1px 2px var(--shell-shadow-near);
 }
 
 /* --- Grouped list (settings-style) ------------------------------------------------ */
@@ -160,7 +160,7 @@
   background: linear-gradient(180deg, var(--sheen), transparent 30%), var(--glass-strong);
   -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(1.3);
   backdrop-filter: blur(var(--blur-glass)) saturate(1.3);
-  box-shadow: inset 0 0.5px 0 var(--sheen-edge), inset 0 0 0 0.5px var(--glass-edge);
+  box-shadow: inset 0 0.5px 0 var(--sheen-edge), inset 0 0 0 0.5px var(--shell-edge), 0 1px 2px var(--shell-shadow-near);
   overflow: hidden;
 }
 .list-row {
@@ -208,7 +208,7 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
   padding: 3px;
   border-radius: var(--radius-control);
   background: var(--fill-quiet);
-  box-shadow: inset 0 0 0 0.5px var(--glass-edge);
+  box-shadow: inset 0 0 0 0.5px var(--shell-edge);
 }
 .segmented button {
   min-height: 36px;
@@ -223,8 +223,9 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
 }
 .segmented button[aria-checked="true"] {
   background: var(--surface-1);
-  color: var(--fg-1);
-  box-shadow: var(--shadow-segment), inset 0 0 0 0.5px var(--glass-edge);
+  color: var(--brand);
+  font-weight: var(--weight-semibold);
+  box-shadow: var(--shadow-segment), inset 0 0 0 0.5px var(--shell-edge);
 }
 .segmented-compact button { min-height: 30px; padding: 0 var(--space-3); font-size: var(--text-caption); }
 
@@ -364,7 +365,7 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
   background: linear-gradient(180deg, var(--sheen), transparent 40%), var(--glass-strong);
   -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(1.3);
   backdrop-filter: blur(var(--blur-glass)) saturate(1.3);
-  box-shadow: inset 0 0.5px 0 var(--sheen-edge), inset 0 0 0 0.5px var(--glass-edge), var(--shadow-float);
+  box-shadow: inset 0 0.5px 0 var(--sheen-edge), inset 0 0 0 0.5px var(--shell-edge), 0 1px 2px var(--shell-shadow-near), var(--shadow-float);
 }
 .review-dock[hidden] { display: none; }
 .review-dock-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: 0 var(--space-1); }

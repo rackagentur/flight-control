@@ -68,7 +68,8 @@
 
   /* Layout */
   --gutter: var(--space-4);
-  --tabbar-height: 56px;
+  --tabbar-height: 62px;
+  --tabbar-radius: 26px;
   --rail-width: 92px;
   --sidebar-width: 256px;
   --context-width: 340px;
@@ -200,8 +201,8 @@
   --tint: var(--st-tint);
 
   /* Materials: translucent surfaces carry a trace of the environment's light */
-  --glass: color-mix(in oklab, color-mix(in oklab, var(--st-canvas) 90%, var(--st-tint)) 70%, transparent);
-  --glass-strong: color-mix(in oklab, color-mix(in oklab, var(--base-surface-1) 88%, var(--st-tint)) 70%, transparent);
+  --glass: color-mix(in oklab, color-mix(in oklab, var(--st-canvas) 94%, var(--st-tint)) 70%, transparent);
+  --glass-strong: color-mix(in oklab, color-mix(in oklab, var(--base-surface-1) 94%, var(--st-tint)) 76%, transparent);
   --glass-edge: color-mix(in oklab, var(--base-ink-1) 9%, transparent);
   --sheen: light-dark(rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.06));   /* top reflection */
   --sheen-edge: light-dark(rgb(255 255 255 / 0.85), rgb(255 255 255 / 0.10)); /* lit top edge */
@@ -218,7 +219,7 @@
   --pass-rule: color-mix(in oklab, var(--base-ink-1) 12%, transparent);
 
   /* Quiet chrome: navigation stays stable while the scene changes */
-  --chrome: light-dark(color-mix(in oklab, var(--base-surface-1) 72%, transparent), color-mix(in oklab, #0E0E0D 62%, transparent));
+  --chrome: light-dark(color-mix(in oklab, var(--base-surface-1) 82%, transparent), color-mix(in oklab, var(--base-canvas-2) 88%, transparent));
   --fill-quiet: color-mix(in oklab, var(--base-ink-1) 5%, transparent);
   --fill-hover: color-mix(in oklab, var(--base-ink-1) 8%, transparent);
 
@@ -306,4 +307,25 @@
   --status-positive: light-dark(#2F7A45, #7FCB8E);
   --status-caution: light-dark(#A87000, #F49B2F);
   --status-critical: light-dark(#B11E3A, #F4847E);
+}
+
+/* 7. Shell materials (state-independent: navigation stays steady while the duty atmosphere changes)
+   Plain :root, never per-state. Built only from the brand base (section 6), so the tab bar, rail and
+   sidebar look the same in every duty state; only the page canvas behind them changes. */
+:root {
+  --shell-glass: light-dark(color-mix(in oklab, var(--base-surface-1) 78%, transparent), color-mix(in oklab, var(--base-surface-1) 80%, transparent));
+  --shell-edge: light-dark(color-mix(in oklab, var(--base-ink-1) 9%, transparent), color-mix(in oklab, var(--base-ink-1) 12%, transparent));
+  --shell-highlight: light-dark(rgb(255 255 255 / 0.9), rgb(255 255 255 / 0.07));
+  --shell-shadow-color: light-dark(rgb(15 27 46 / 0.16), rgb(0 0 0 / 0.55));
+  --shell-shadow-near: light-dark(rgb(15 27 46 / 0.06), rgb(0 0 0 / 0.35));
+
+  /* Navigation roles: copper/champagne marks the current destination, restrained ink the rest */
+  --tab-active: var(--brand);
+  --tab-idle: var(--fg-2);
+  --tab-halo: color-mix(in oklab, var(--brand) 14%, transparent);
+
+  /* Brand mark tile: champagne-to-copper, with ink for the horizon and duty arc */
+  --brand-mark-hi: light-dark(#F4E3CA, #E8CB98);
+  --brand-mark-lo: light-dark(#C98B55, #9A6A3C);
+  --brand-mark-ink: light-dark(#0F1B2E, #14110D);
 }

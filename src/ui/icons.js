@@ -43,15 +43,15 @@ export function icon(name, label = null) {
   return raw(`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" ${a11y}>${body}</svg>`);
 }
 
-/** Brand mark: an earth-tone horizon with the duty arc. */
+/** Brand mark: a champagne-to-copper tile with the horizon and duty arc (colours come from the --brand-mark-* tokens). */
 export function brandMark() {
   return raw(`<svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
     <defs><linearGradient id="fc-brand-g" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#EDE3D6"/><stop offset=".58" stop-color="#C9B193"/><stop offset="1" stop-color="#3A5B7C"/>
+      <stop offset="0" style="stop-color:var(--brand-mark-hi)"/><stop offset="1" style="stop-color:var(--brand-mark-lo)"/>
     </linearGradient></defs>
     <rect width="32" height="32" rx="9" fill="url(#fc-brand-g)"/>
-    <path d="M6 20.5h20" stroke="#1B232C" stroke-width="1.4" stroke-linecap="round"/>
-    <path d="M10.5 20.5a5.5 5.5 0 0 1 11 0" fill="none" stroke="#1B232C" stroke-width="1.4"/>
-    <circle cx="20.4" cy="17.6" r="1.7" fill="#1B232C"/>
+    <path d="M6 20.5h20" style="stroke:var(--brand-mark-ink)" stroke-width="1.4" stroke-linecap="round"/>
+    <path d="M10.5 20.5a5.5 5.5 0 0 1 11 0" fill="none" style="stroke:var(--brand-mark-ink)" stroke-width="1.4"/>
+    <circle cx="20.4" cy="17.6" r="1.7" style="fill:var(--brand-mark-ink)"/>
   </svg>`);
 }
