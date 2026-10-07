@@ -303,3 +303,45 @@
   /* Switch knob */
   --knob: #fff;
 }
+
+/* 6. Flight Control brand foundation (Day Flight / Night Flight) -------------
+   Every token is light-dark(<Day Flight>, <Night Flight>): one identity under two
+   lighting conditions, not two themes.
+   - brand  = champagne/copper, for the brand itself, selection and premium emphasis.
+   - route  = aviation blue, for routes, flight paths, timeline connectors and
+              aircraft movement.
+   - status-* = operational colours: green = positive/confirmed/on-time,
+              amber = caution/standby, red = critical; kept measurably distinct
+              from brand (enforced by tests/brand-tokens.test.js).
+   Defined ahead of use: nothing consumes these yet and components migrate in a later
+   step. Duty states will later become tints over this base. Plain :root, never
+   per-state. */
+:root {
+  /* Base */
+  --base-canvas: light-dark(#E8F1FA, #14110D);
+  --base-canvas-2: light-dark(#F3F7FB, #1B1712); /* lower atmosphere / horizon */
+  --base-surface-1: light-dark(#FBFAF7, #1F1C18); /* cards: warm near-white / dark elevated */
+  --base-surface-2: light-dark(#EEF3F8, #28241F); /* grouped / inset */
+  --base-ink-1: light-dark(#0F1B2E, #F2ECE3);
+  --base-ink-2: light-dark(#3B4C63, #BCB3A6);
+  --base-ink-3: light-dark(#6C7A8C, #857C70); /* decorative only, never text */
+  --base-line: light-dark(#D3DCE6, #332D26);
+
+  /* Brand */
+  --brand: light-dark(#9A4B1C, #E8CB98);
+  --brand-strong: light-dark(#7A3E12, #F3D7A6);
+  --brand-soft: light-dark(#F4E5D5, #352B20); /* selected fill */
+  --brand-edge: light-dark(#AA764B, #8C7253); /* selected outline (non-text indicator, >= 3:1) */
+  --brand-fill: light-dark(#E2B07E, #3C3128); /* filled brand button, with --on-brand */
+  --on-brand: light-dark(#2A1A0B, #F4E8D6);
+
+  /* Route */
+  --route: light-dark(#1D6BAE, #8CC4EE);
+  --route-soft: light-dark(#DCEAF6, #18232E); /* route-tinted fill */
+
+  /* Status: indicator colours (dots, icons, outlines; non-text >= 3:1). Status TEXT
+     uses base ink plus its label, never colour alone. */
+  --status-positive: light-dark(#2F7A45, #7FCB8E);
+  --status-caution: light-dark(#A87000, #F49B2F);
+  --status-critical: light-dark(#B11E3A, #F4847E);
+}
