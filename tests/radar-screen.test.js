@@ -23,6 +23,10 @@ const M = 60000;
 const D = 24 * H;
 const NOW = Date.parse('2026-10-06T20:00:00Z');
 const HOME_TZ = PROFILE.homeTz;
+// The generic pack has no flight designators: Radar lists all carriers for it. The pre-existing harness tests
+// cover the screen mechanics (loading, cache, cooldown, ...) and use it so their mixed 'XX' rows stay visible;
+// the airline-pack behaviour (carrier filter) has its own tests below.
+const ALL_CARRIERS_PROFILE = { ...PROFILE, airlineId: 'generic' };
 const tick = () => new Promise((r) => setTimeout(r, 0));
 const sb = (start, end, label = 'SB90') => ({ kind: 'standby', start, end, label });
 const ACTIVE = sb(NOW - 3 * H, NOW + 6 * H);
@@ -58,7 +62,7 @@ function fakeRoot() {
 }
 
 /** A radar ctx with a controllable clock and a recording loader; `go()` renders + mounts like main.js. */
-function harness({ windows = [ACTIVE], now = NOW, param = null, review = false, access = 'ready', profile = PROFILE, load = null, snapshot = null, noSnapshot = false } = {}) {
+function harness({ windows = [ACTIVE], now = NOW, param = null, review = false, access = 'ready', profile = ALL_CARRIERS_PROFILE, load = null, snapshot = null, noSnapshot = false } = {}) {
   const t = { now };
   const calls = [];
   const root = fakeRoot();
@@ -190,8 +194,8 @@ test('a different base airport is used for the request and the header', async ()
 
 // ---------- opening the screen before the roster is there (F1) ----------
 
-const rosterView = (h, over = {}) => { h.ctx.view = () => ({ profile: PROFILE, now: h.t.now, snapshot: { windows: [ACTIVE] }, review: false, loading: false, error: null, ...over }); };
-const loadingView = (h) => { h.ctx.view = () => ({ profile: PROFILE, now: h.t.now, snapshot: null, review: false, loading: true, error: null }); };
+const rosterView = (h, over = {}) => { h.ctx.view = () => ({ profile: ALL_CARRIERS_PROFILE, now: h.t.now, snapshot: { windows: [ACTIVE] }, review: false, loading: false, error: null, ...over }); };
+const loadingView = (h) => { h.ctx.view = () => ({ profile: ALL_CARRIERS_PROFILE, now: h.t.now, snapshot: null, review: false, loading: true, error: null }); };
 
 test('cold open without a roster: "Loading roster…" (not the departures skeleton), then the first update with a roster issues exactly one request', async () => {
   const h = harness({ noSnapshot: true });
@@ -235,7 +239,7 @@ test('cold deep link with a window param: the initial load is for that window', 
 
 test('cold open: a failed roster keeps the existing states and requests nothing; a later roster still gets its one load', async () => {
   const h = harness({ noSnapshot: true });
-  h.ctx.view = () => ({ profile: PROFILE, now: h.t.now, snapshot: null, review: false, loading: false, error: { code: 'auth-required' } });
+  h.ctx.view = () => ({ profile: ALL_CARRIERS_PROFILE, now: h.t.now, snapshot: null, review: false, loading: false, error: { code: 'auth-required' } });
   assert.match(h.go(), /Access token required[\s\S]*Open Settings/);
   h.update();
   assert.match(h.markup(), /Access token required/);
@@ -487,7 +491,7 @@ test('a failed load starts the 30 s pause: Retry is disabled with the remaining 
 
 // ---------- one request rule: plan, key, cooldown ----------
 
-const viewOf = (h, over = {}) => { h.ctx.view = () => ({ profile: PROFILE, now: h.t.now, snapshot: { windows: [ACTIVE] }, review: false, loading: false, error: null, ...over }); };
+const viewOf = (h, over = {}) => { h.ctx.view = () => ({ profile: ALL_CARRIERS_PROFILE, now: h.t.now, snapshot: { windows: [ACTIVE] }, review: false, loading: false, error: null, ...over }); };
 const sampleView = (h) => {
   const profile = sampleProfile(PROFILE);
   viewOf(h, { review: true, profile, snapshot: sampleSnapshot('standby', 'ocean', NOW, profile) });
@@ -1116,13 +1120,20 @@ test('review sample covers each case: delay, early, cancelled, departed, and a b
   assert.match(m, /Earlier in this window \(3\)/);
 });
 
-test('review sample emphasises the profile airline by its pack designator', () => {
-  const m = reviewHarness().go();
-  const pack = airlineOf(sampleProfile(PROFILE));
-  assert.match(m, /rd-mark/);
-  assert.ok(m.includes(`aria-label="Your airline (${pack.name})"`));
+test('review sample follows the carrier filter: with a pack every fictional row is its carrier and carries no mark; the generic pack lists the mixed sample', () => {
+  const packProfile = sampleProfile(PROFILE);
+  const pack = airlineOf(packProfile);
+  const h = harness({ review: true, profile: packProfile, snapshot: sampleSnapshot('standby', 'ocean', NOW, packProfile), load: () => { throw new Error('no network in review mode'); } });
+  const m = h.go();
+  assert.equal(h.calls.length, 0);
+  assert.match(m, new RegExp(`Departures from \\S+ · ${pack.name} flights`));
+  assert.match(m, /SAMPLE 10\d/);
+  assert.match(m, /rd-chip is-cancelled">Cancelled/, 'the cancelled sample row is still there');
+  assert.doesNotMatch(m, /rd-mark|Your airline/, 'a filtered list needs no emphasis');
   const generic = sampleProfile(normalizeProfile({ airlineId: 'generic' }));
   const g = harness({ review: true, profile: generic, snapshot: sampleSnapshot('standby', 'ocean', NOW, generic) }).go();
+  assert.match(g, /· All carriers/);
+  assert.match(g, /SAMPLE 10\d/);
   assert.doesNotMatch(g, /rd-mark|Your airline/);
 });
 
@@ -1192,19 +1203,21 @@ test('CSS: the aircraft column is capped so time and flight/destination keep the
   assert.doesNotMatch(css, /\.rd-row\s*\{[^}]*grid-template-columns:[^;]*\bauto\b/, 'no unbounded auto column');
 });
 
-test('emphasis is a small mark with an accessible name from the pack; a foreign carrier gets none', async () => {
+test('emphasis: a pack with designators filters the list (every row is the user\'s airline), so no row is marked; the generic pack marks nothing', async () => {
   const own = airlineOf(PROFILE).flightDesignators[0];
   const flights = [flight({ flightNumber: 'XX8', carrier: own, scheduledDep: NOW + H }), flight({ flightNumber: 'XX9', carrier: 'ZZ', scheduledDep: NOW + 2 * H })];
-  const h = harness({ load: (q) => Promise.resolve(resultFor(q, flights)) });
+  const h = harness({ profile: PROFILE, load: (q) => Promise.resolve(resultFor(q, flights)) });
   h.go();
   await tick();
-  assert.match(rowHtml(h.markup(), 'XX8'), new RegExp(`role="img" aria-label="Your airline \\(${airlineOf(PROFILE).name}\\)" title="Your airline \\(${airlineOf(PROFILE).name}\\)"`));
-  assert.doesNotMatch(rowHtml(h.markup(), 'XX9'), /rd-mark/);
-  // Generic profile: nothing is emphasised.
+  assert.match(h.markup(), /XX8/);
+  assert.doesNotMatch(h.markup(), /XX9/, 'the foreign carrier is filtered out');
+  assert.doesNotMatch(h.markup(), /rd-mark/);
   resetRadarUi();
   const gen = harness({ profile: normalizeProfile({ airlineId: 'generic' }), load: (q) => Promise.resolve(resultFor(q, flights)) });
   gen.go();
   await tick();
+  assert.match(gen.markup(), /XX8/);
+  assert.match(gen.markup(), /XX9/);
   assert.doesNotMatch(gen.markup(), /rd-mark/);
 });
 

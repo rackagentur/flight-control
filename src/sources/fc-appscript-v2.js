@@ -98,8 +98,16 @@ export function adaptV2(p, { profile, fetchedAt, kind = 'live' }) {
   }).sort((a, b) => a.dep - b.dep);
 
   const windows = [];
+  // A standby/reserve window keeps the id of its roster event and that event's stated airport (IATA
+  // only, else null). The Radar uses it to know where the standby is served (src/model/radar.js).
+  const eventById = new Map(p.events.filter((e) => typeof e?.id === 'string').map((e) => [e.id, e]));
   for (const w of p.windows) {
-    windows.push({ kind: w.kind, start: w.start, end: w.end, label: typeof w.code === 'string' ? w.code : null, provenance: 'source' });
+    const eventId = typeof w.eventId === 'string' ? w.eventId : null;
+    const stated = eventId ? eventById.get(eventId)?.location : null;
+    windows.push({
+      kind: w.kind, start: w.start, end: w.end, label: typeof w.code === 'string' ? w.code : null, provenance: 'source',
+      eventId, location: typeof stated === 'string' && IATA.test(stated) ? stated : null,
+    });
   }
   for (const e of p.events) {
     // A day the roster lists with no duty assigned: its own concept, never an off window.

@@ -56,6 +56,8 @@
  * @property {number} start
  * @property {number} end
  * @property {string} [label]
+ * @property {string|null} [eventId]   id of the roster event behind a standby/reserve window (v2)
+ * @property {string|null} [location] IATA airport the roster event states for a standby/reserve window (v2), else null
  */
 
 /**

@@ -11,8 +11,12 @@
 // One rule decides every request (ensure() below). Each render / mount / update first computes a
 // PLAN: {mode, reason, window, key}. `mode` is 'review' or 'production', `window` is chosen again
 // every time (route param first, then the active or next standby), and `key` is
-// `${mode}|${airport}|${from}|${to}` (null when no request is possible: roster not there, no window,
-// no access). A load starts only for a production plan with a key, when that key has no session
+// `${mode}|${airport}|${carriers or *}|${from}|${to}` (null when no request is possible: roster not
+// there, no window, no access). The airport is where the standby is served (radarAirport: the roster
+// event's own airport, else inferred from the adjacent duty, else the profile base) and the carriers are
+// the active airline pack's flight designators (radarCarriers; none = all carriers). Today and Calendar
+// both only link here with the window's start, so this plan() is the one place that decides both.
+// A load starts only for a production plan with a key, when that key has no session
 // (data or a recorded error), no request already running and no cooldown. Opening the screen
 // additionally refreshes an existing session for the key, not forced: the 5-minute device cache
 // makes that free. Controller ticks only recompute the plan: same key, no request; a new key (the
@@ -42,8 +46,7 @@ import { icon } from '../icons.js';
 import { hrefFor } from '../../router.js';
 import { clock } from '../duty.js';
 import { airlineOf } from '../../airlines/index.js';
-import { departuresContext } from '../../model/scheduled-flights.js';
-import { selectStandbyWindow, buildRadarView } from '../../model/radar.js';
+import { selectStandbyWindow, buildRadarView, radarAirport, radarCarriers } from '../../model/radar.js';
 import { sampleDepartures } from '../../sources/sample.js';
 
 export const RADAR_TITLE = 'Flights in standby window';
@@ -55,11 +58,19 @@ export const TEXT = Object.freeze({
   none: 'No standby in your roster for the next 14 days.',
   ended: 'This standby window has ended.',
   tooLong: 'This window is longer than 24 hours. Departures are listed for windows up to 24 hours.',
-  empty: (iata) => `No departures from ${iata} are scheduled in this window.`,
+  empty: (iata, carrierName = null) => `No ${carrierName ? `${carrierName} departures` : 'departures'} from ${iata} are scheduled in this window.`,
   tooFar: (date) => `Schedules are available from ${date}.`,
   notConfigured: 'Flight data is not set up on the backend.',
   busy: 'The flight-data provider is busy. Try again in a minute.',
   unavailable: 'Flight data is unavailable right now.',
+});
+
+/** What the header says about where the airport comes from; the roster's own statement needs no note. */
+const BASIS_NOTE = Object.freeze({
+  roster: null,
+  'inferred-next': 'from your next duty',
+  'inferred-previous': 'from your previous flight',
+  base: 'your base · the roster gives no standby location',
 });
 
 /** User-facing text for a loader failure (DeparturesError or ApiError code). */
@@ -108,23 +119,29 @@ function plan(ctx) {
   const access = review ? 'ready' : ctx.departuresAccess?.() ?? 'ready';
   if (!snapshot) return { mode, reason: 'no-roster', view, access, window: null, key: null };
   const sel = selectStandbyWindow(snapshot, now, ctx.param?.() ?? null);
-  if (sel.reason) return { mode, reason: sel.reason, view, access, sel, window: sel.window, key: null };
-  const { airport } = departuresContext(profile);
+  const pack = airlineOf(profile);
+  const carriers = radarCarriers(pack);
+  const { airport, basis } = radarAirport(sel.window, snapshot, profile);
+  const head = { airport, basis, carriers, pack };
+  if (sel.reason) return { mode, reason: sel.reason, view, access, sel, window: sel.window, key: null, ...head };
   const { start: from, end: to } = sel.window;
-  const base = { mode, view, access, sel, window: sel.window, airport, from, to };
+  const base = { mode, view, access, sel, window: sel.window, from, to, ...head };
   if (access !== 'ready') return { ...base, reason: 'access', key: null };
-  return { ...base, reason: 'ok', key: `${mode}|${airport}|${from}|${to}`, query: { airport, from, to, carriers: null } };
+  return { ...base, reason: 'ok', key: `${mode}|${airport}|${carriers?.join(',') ?? '*'}|${from}|${to}`, query: { airport, from, to, carriers } };
 }
 
 /** Review mode: the fictional list, built once per key and kept (no request of any kind). */
 function reviewSession(p) {
   if (session?.key !== p.key) {
     const { profile, now } = p.view;
-    const ownCarrier = airlineOf(profile).flightDesignators?.[0] ?? null;
-    session = newSession(p.key, {
-      status: 'ready', review: true,
-      result: sampleDepartures({ airport: p.airport, from: p.from, to: p.to, now, ownCarrier, airportTz: profile.homeTz }),
-    });
+    const ownCarrier = p.carriers?.[0] ?? null;
+    const sample = sampleDepartures({ airport: p.airport, from: p.from, to: p.to, now, ownCarrier, airportTz: profile.homeTz });
+    // The same carrier filter as a real request: with carriers set, every fictional row is one of them
+    // (spread over the list), so the sample shows the filtered list, not a mixed one.
+    const result = p.carriers
+      ? { ...sample, carriers: p.carriers, flights: Object.freeze(sample.flights.map((f, i) => Object.freeze({ ...f, carrier: p.carriers[i % p.carriers.length] }))) }
+      : sample;
+    session = newSession(p.key, { status: 'ready', review: true, result });
   }
   return session;
 }
@@ -263,12 +280,18 @@ function windowLine(window, tz) {
     : `${formatDate(window.start, tz)} ${clock(window.start, tz)} → ${formatDate(window.end, tz)} ${clock(window.end, tz)}`;
 }
 
-function frame(view, body, { window = null, airport = null } = {}) {
+/** "Departures from <airport> · <pack> flights (<basis note>)": airport, carriers, where the airport comes from. */
+function sourceLine({ airport, basis, carriers, pack }) {
+  const note = BASIS_NOTE[basis] ?? null;
+  return `Departures from ${airport} · ${carriers ? `${pack.name} flights` : 'All carriers'}${note ? ` (${note})` : ''}`;
+}
+
+function frame(view, body, { window = null, head = null } = {}) {
   const tz = view.profile.homeTz;
   const parts = [];
   if (window?.label) parts.push(window.label);
   if (window) parts.push(windowLine(window, tz));
-  if (airport) parts.push(`Departures from ${airport}`);
+  if (head?.airport) parts.push(sourceLine(head));
   return html`
     <div class="page rd">
       <a class="rd-back" href="${hrefFor('today')}"><span aria-hidden="true">‹ </span>Today</a>
@@ -352,14 +375,18 @@ function loadedBody(s, p) {
   const { profile } = view;
   const pack = airlineOf(profile);
   const rv = buildRadarView(s.result, {
-    now: view.now, window: p.window, emphasisCarriers: pack.flightDesignators ?? null, homeTz: profile.homeTz,
+    now: view.now, window: p.window, carriers: p.carriers,
+    // Every row of a filtered list is the user's airline: no emphasis mark. Only the all-carriers list marks it.
+    emphasisCarriers: p.carriers ? null : pack.flightDesignators ?? null, homeTz: profile.homeTz,
   });
   const empty = rv.total === 0;
   return html`
     <p class="rd-boundary t-callout t-secondary">${TEXT.boundary}</p>
     ${sourceBar(s, view, { review: Boolean(s.review) })}
-    ${empty ? message({ headline: TEXT.empty(p.airport) }) : listView(rv, p, pack.name)}`;
+    ${empty ? message({ headline: TEXT.empty(p.airport, p.carriers ? pack.name : null) }) : listView(rv, p, pack.name)}`;
 }
+
+const headOf = ({ airport, basis, carriers, pack }) => ({ airport, basis, carriers, pack });
 
 function bodyFor(p) {
   const { view } = p;
@@ -375,22 +402,22 @@ function bodyFor(p) {
     case 'none':
       return frame(view, message({ headline: TEXT.none, action: todayLink }));
     case 'ended':
-      return frame(view, message({ headline: TEXT.ended, action: todayLink }), { window: p.sel.window, airport: departuresContext(view.profile).airport });
+      return frame(view, message({ headline: TEXT.ended, action: todayLink }), { window: p.sel.window, head: headOf(p) });
     case 'too-far':
-      return frame(view, message({ headline: TEXT.tooFar(formatDate(p.sel.availableFrom, view.profile.homeTz)), action: todayLink }), { window: p.sel.window, airport: departuresContext(view.profile).airport });
+      return frame(view, message({ headline: TEXT.tooFar(formatDate(p.sel.availableFrom, view.profile.homeTz)), action: todayLink }), { window: p.sel.window, head: headOf(p) });
     case 'too-long':
-      return frame(view, message({ headline: TEXT.tooLong, action: todayLink }), { window: p.sel.window, airport: departuresContext(view.profile).airport });
+      return frame(view, message({ headline: TEXT.tooLong, action: todayLink }), { window: p.sel.window, head: headOf(p) });
     case 'access': {
       const noEndpoint = p.access === 'no-endpoint';
       return frame(view, message({
         headline: noEndpoint ? 'No roster source connected' : 'Access token required',
         text: noEndpoint ? 'Scheduled departures need your roster source. Connect it in Settings.' : 'Scheduled departures are only loaded with the access token. Add it under Roster contract v2 in Settings.',
         action: settingsLink(noEndpoint ? 'Connect roster source' : 'Open Settings'),
-      }), { window: p.window, airport: p.airport });
+      }), { window: p.window, head: headOf(p) });
     }
     default: {
       const s = p.mode === 'review' ? reviewSession(p) : session?.key === p.key ? session : null;
-      const head = { window: p.window, airport: p.airport };
+      const head = { window: p.window, head: headOf(p) };
       if (!s || s.status === 'loading') {
         return frame(view, html`
           <p class="rd-boundary t-callout t-secondary">${TEXT.boundary}</p>
