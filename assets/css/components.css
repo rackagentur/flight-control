@@ -139,8 +139,8 @@
   content: "";
   width: 8px; height: 8px;
   border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent);
+  background: var(--state-accent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--state-accent) 22%, transparent);
 }
 .status-pill[data-confidence="unknown"]::before { background: transparent; border: 1.5px dashed var(--fg-2); box-shadow: none; }
 
@@ -258,9 +258,9 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
   width: 14px; height: 14px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--st-atmos-2), var(--st-accent));
-  box-shadow: inset 0 0 0 0.5px color-mix(in oklab, var(--st-ink) 25%, transparent);
+  box-shadow: inset 0 0 0 0.5px color-mix(in oklab, var(--fg-1) 25%, transparent);
 }
-.chip[aria-checked="true"] { background: var(--surface-1); color: var(--fg-1); box-shadow: inset 0 0 0 1px var(--accent); }
+.chip[aria-checked="true"] { background: var(--fill-selected); color: var(--fg-1); box-shadow: inset 0 0 0 1px var(--edge-selected); }
 
 /* --- Buttons ------------------------------------------------------------------------- */
 .btn {
@@ -435,17 +435,17 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
 .hz-span.is-upcoming { background: repeating-linear-gradient(90deg, color-mix(in oklab, var(--fg-1) 34%, transparent) 0 2px, transparent 2px 7px); }
 .hz-flight.is-upcoming, .hz-return.is-upcoming { background: color-mix(in oklab, var(--fg-1) 24%, transparent); height: 1.5px; }
 .hz-span.is-current {
-  background: var(--accent);
-  box-shadow: 0 0 14px color-mix(in oklab, var(--accent) 55%, transparent);
+  background: var(--route);
+  box-shadow: 0 0 14px color-mix(in oklab, var(--route) 55%, transparent);
 }
 /* Rest is a soft band rather than a line: you are on the ground, away. */
 .hz-layover { height: 8px; border-radius: 4px; }
 .hz-layover.is-past { background: color-mix(in oklab, var(--fg-1) 12%, transparent); }
 .hz-layover.is-upcoming { background: color-mix(in oklab, var(--tint) 22%, transparent); }
-.hz-layover.is-current { background: color-mix(in oklab, var(--accent) 30%, transparent); box-shadow: none; }
+.hz-layover.is-current { background: color-mix(in oklab, var(--route) 30%, transparent); box-shadow: none; }
 .hz-before { background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--fg-1) 22%, transparent)) !important; box-shadow: none !important; }
 .hz-recovery.is-upcoming, .hz-recovery.is-current, .hz-recovery.is-past {
-  background: linear-gradient(90deg, color-mix(in oklab, var(--accent) 45%, transparent), transparent);
+  background: linear-gradient(90deg, color-mix(in oklab, var(--route) 45%, transparent), transparent);
   box-shadow: none;
 }
 
@@ -460,7 +460,7 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
 }
 .hz-stop-departure, .hz-stop-arrival { width: 9px; height: 9px; }
 .hz-stop.is-past { background: color-mix(in oklab, var(--fg-1) 45%, transparent); box-shadow: none; }
-.hz-stop.is-next { box-shadow: inset 0 0 0 2px var(--accent); }
+.hz-stop.is-next { box-shadow: inset 0 0 0 2px var(--route); }
 
 .hz-now {
   position: absolute;
@@ -468,13 +468,13 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
   width: 11px; height: 11px;
   border-radius: 50%;
   transform: translate(-50%, -50%);
-  background: var(--accent);
-  box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 22%, transparent), 0 0 22px color-mix(in oklab, var(--accent) 65%, transparent);
+  background: var(--route);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--route) 22%, transparent), 0 0 22px color-mix(in oklab, var(--route) 65%, transparent);
   animation: hz-breathe 3.2s var(--ease-standard) infinite;
 }
 @keyframes hz-breathe {
-  0%, 100% { box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 22%, transparent), 0 0 22px color-mix(in oklab, var(--accent) 65%, transparent); }
-  50% { box-shadow: 0 0 0 7px color-mix(in oklab, var(--accent) 10%, transparent), 0 0 28px color-mix(in oklab, var(--accent) 45%, transparent); }
+  0%, 100% { box-shadow: 0 0 0 4px color-mix(in oklab, var(--route) 22%, transparent), 0 0 22px color-mix(in oklab, var(--route) 65%, transparent); }
+  50% { box-shadow: 0 0 0 7px color-mix(in oklab, var(--route) 10%, transparent), 0 0 28px color-mix(in oklab, var(--route) 45%, transparent); }
 }
 .horizon-upcoming .hz-span { opacity: 0.85; }
 

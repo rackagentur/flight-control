@@ -294,12 +294,12 @@ test('the CSS of the OFF / FREE / ORT / SB / RE / LEAVE markers is byte-for-byte
       "  --tok-off: var(--mark-off);"
   ];
   for (const line of lines) assert.ok(css.includes(line), `changed or missing: ${line.slice(0, 60)}`);
-  // The marker colours now live in tokens.css; their values are still pinned to the baseline.
+  // The marker colours now live in tokens.css; their token lines are pinned to the Light/Dark re-theme values (standby = status-caution, off = warm stone); every shape line above is unchanged.
   const tokens = readFileSync(new URL('../assets/css/tokens.css', import.meta.url), 'utf8').split('\n');
   for (const line of [
-    "  --mark-standby: light-dark(#8E6322, #D9A85C);",
+    "  --mark-standby: var(--status-caution);",
     "  --mark-reserve: light-dark(#6E5F51, #C2AF9A);",
-    "  --mark-off: light-dark(#85552F, #D2A273);",
+    "  --mark-off: light-dark(#7D6B57, #B5A48F);",
   ]) assert.ok(tokens.includes(line), `changed or missing: ${line.slice(0, 60)}`);
 });
 

@@ -4,7 +4,7 @@
    Layers
      1. Scale primitives: type, space, radii, motion, layout
      2. Theme mechanics: color-scheme drives light-dark() for every colour token
-     3. Operational state palettes: [data-state] (+ [data-tone] for layover)
+     3. Operational state atmospheres: [data-state] (+ [data-tone] for layover)
      4. Semantic tokens: what components consume (never raw hex in components)
 
    Theme: <html data-theme="light|dark">; no attribute = System (prefers-color-scheme).
@@ -87,170 +87,127 @@
 :root[data-theme="light"] { color-scheme: light; }
 :root[data-theme="dark"] { color-scheme: dark; }
 
-/* 3. Operational state palettes --------------------------------------------
-   Each token is light-dark(<light>, <dark>). Hex only: the contrast test parses these.
-   canvas    app background            surface   quiet raised surface
-   atmos-1…3 hero atmosphere (top → bottom)
-   ink       primary text (fg-1)        ink-2     secondary text (fg-2)
-   ink-3     tertiary/decorative        accent    state accent (UI, large text)
-   line      hairlines                  tint      atmosphere glow colour
-   ------------------------------------------------------------------------- */
+/* 3. Operational state atmospheres -------------------------------------------
+   Duty states are restrained atmospheric overlays over the brand base (section 6),
+   not separate palettes. Each state declares ONLY its own atmosphere:
+     atmos-1…3  hero atmosphere (top → bottom): hue-carrying tints of the base canvas.
+                The top of the screen (atmos-1) stays within OKLab ΔE 0.025 of the base
+                canvas, so switching state never makes Flight Control look like a
+                different app; atmos-3 carries the state's personality.
+     tint       atmosphere glow colour
+     accent     state identity mark (dots, pills; non-text, >= 3:1 on base surfaces)
+   A state never redefines canvas, surfaces, ink or lines: those come from the brand
+   base. Each token is light-dark(<light>, <dark>), hex only: tests/tokens.test.js
+   parses them. -------------------------------------------------------------- */
 
-/* UNKNOWN: neutral graphite / stone (also the default: no evidence, no colour claim) */
+/* The canvas is always the brand base canvas (a registered <color>, used for
+   transitions and theme-color sync). Plain :root, never per-state. */
+:root {
+  --st-canvas: var(--base-canvas);
+}
+
+/* UNKNOWN: neutral brand atmosphere (also the default: no evidence, no colour claim) */
 :root,
 [data-state="unknown"] {
-  --st-canvas:  light-dark(#EDEBE6, #191918);
-  --st-surface: light-dark(#F6F4F0, #232321);
-  --st-atmos-1: light-dark(#E9E6E0, #21211F);
-  --st-atmos-2: light-dark(#DBD7CF, #2A2A28);
-  --st-atmos-3: light-dark(#C9C4BA, #383835);
-  --st-ink:     light-dark(#222221, #EDEDEA);
-  --st-ink-2:   light-dark(#52524C, #ADADA7);
-  --st-ink-3:   light-dark(#858580, #74746F);
+  --st-atmos-1: light-dark(#E5EEF7, #171410);
+  --st-atmos-2: light-dark(#E2EBF4, #1A1713);
+  --st-atmos-3: light-dark(#DDE6EF, #1F1B17);
   --st-accent:  light-dark(#5F5F59, #A3A39C);
-  --st-line:    light-dark(#D3D3CF, #2E2E2C);
-  --st-tint:    light-dark(#9A9A94, #6B6B66);
+  --st-tint:    light-dark(#90A1B1, #6A6258);
 }
 
-/* OFF: stone / tobacco / warm sand / soft bronze */
+/* OFF: warm stone / sand */
 [data-state="off"] {
-  --st-canvas:  light-dark(#EFE9E1, #1A1612);
-  --st-surface: light-dark(#F7F2EC, #241F1A);
-  --st-atmos-1: light-dark(#EDE3D6, #251F19);
-  --st-atmos-2: light-dark(#E1D2BE, #33291F);
-  --st-atmos-3: light-dark(#D3BEA2, #46372A);
-  --st-ink:     light-dark(#2A221B, #F2EAE0);
-  --st-ink-2:   light-dark(#594C40, #C2B5A6);
-  --st-ink-3:   light-dark(#90806B, #85786A);
-  --st-accent:  light-dark(#85552F, #D2A273);
-  --st-line:    light-dark(#DDD0C0, #362E26);
-  --st-tint:    light-dark(#B08A62, #8A6A4A);
+  --st-atmos-1: light-dark(#ECEDEF, #1A130B);
+  --st-atmos-2: light-dark(#EDE9E6, #20150B);
+  --st-atmos-3: light-dark(#EDE2DB, #27180C);
+  --st-accent:  light-dark(#7D6B57, #B5A48F);
+  --st-tint:    light-dark(#B39985, #7F5A3C);
 }
 
-/* FLIGHT: slate / steel / muted sky / cool atmospheric blue */
+/* FLIGHT: cool atmospheric blue */
 [data-state="flight"] {
-  --st-canvas:  light-dark(#E8ECF0, #10151B);
-  --st-surface: light-dark(#F3F6F8, #18202A);
-  --st-atmos-1: light-dark(#E2E9EF, #16202A);
-  --st-atmos-2: light-dark(#CFDAE4, #1E2C3A);
-  --st-atmos-3: light-dark(#BACADA, #2A3D51);
-  --st-ink:     light-dark(#1B232C, #EAF0F5);
-  --st-ink-2:   light-dark(#414F5C, #AAB8C6);
-  --st-ink-3:   light-dark(#778492, #6F7F8F);
-  --st-accent:  light-dark(#3A5B7C, #94B4D2);
-  --st-line:    light-dark(#CDD6DF, #26313D);
-  --st-tint:    light-dark(#6E8AA6, #5A7896);
+  --st-atmos-1: light-dark(#DEF0FF, #101519);
+  --st-atmos-2: light-dark(#D4EDFF, #0D1823);
+  --st-atmos-3: light-dark(#C9E9FF, #0A1D2F);
+  --st-accent:  light-dark(#1D6BAE, #8CC4EE);
+  --st-tint:    light-dark(#6AA4DA, #366794);
 }
 
-/* STANDBY: graphite / taupe / muted amber ("armed but waiting") */
+/* STANDBY: muted amber ("armed but waiting") */
 [data-state="standby"] {
-  --st-canvas:  light-dark(#ECE8E3, #151413);
-  --st-surface: light-dark(#F6F3EF, #1F1D1B);
-  --st-atmos-1: light-dark(#E8E2DA, #1F1C19);
-  --st-atmos-2: light-dark(#DBD2C6, #2B2621);
-  --st-atmos-3: light-dark(#CCBFAE, #3B332B);
-  --st-ink:     light-dark(#23201D, #EFEAE4);
-  --st-ink-2:   light-dark(#514B44, #B8B0A6);
-  --st-ink-3:   light-dark(#888177, #7A7269);
-  --st-accent:  light-dark(#8E6322, #D9A85C);
-  --st-line:    light-dark(#D8D0C6, #312D29);
-  --st-tint:    light-dark(#B58A45, #8F6C36);
+  --st-atmos-1: light-dark(#ECEEEB, #18130B);
+  --st-atmos-2: light-dark(#EDEADF, #1D1609);
+  --st-atmos-3: light-dark(#EDE4D1, #231B09);
+  --st-accent:  light-dark(#A87000, #F49B2F);
+  --st-tint:    light-dark(#B39B6D, #756035);
 }
 
-/* RESERVE: graphite / stone / restrained taupe */
+/* RESERVE: restrained dusk violet-grey atmosphere (its calendar mark, --mark-reserve, stays taupe) */
 [data-state="reserve"] {
-  --st-canvas:  light-dark(#EBE8E4, #151414);
-  --st-surface: light-dark(#F5F3F0, #1F1E1C);
-  --st-atmos-1: light-dark(#E6E1DB, #1E1C1A);
-  --st-atmos-2: light-dark(#D8D0C7, #2A2724);
-  --st-atmos-3: light-dark(#C8BDB1, #39342F);
-  --st-ink:     light-dark(#23201E, #EEEAE5);
-  --st-ink-2:   light-dark(#504A44, #B7AFA7);
-  --st-ink-3:   light-dark(#878078, #79716A);
-  --st-accent:  light-dark(#6E5F51, #C2AF9A);
-  --st-line:    light-dark(#D7D0C8, #302D2A);
-  --st-tint:    light-dark(#9C8B79, #7A6B5C);
+  --st-atmos-1: light-dark(#EAEDF9, #171314);
+  --st-atmos-2: light-dark(#E9E8F7, #1B151B);
+  --st-atmos-3: light-dark(#E7E1F2, #201923);
+  --st-accent:  light-dark(#675E80, #ABA2C4);
+  --st-tint:    light-dark(#A797B3, #6B5C76);
 }
 
 /* LAYOVER: destination-derived earth tone. Default tone = stone */
 [data-state="layover"],
 [data-state="layover"][data-tone="stone"] {
-  --st-canvas:  light-dark(#ECEAE6, #151413);
-  --st-surface: light-dark(#F6F4F1, #1F1E1C);
-  --st-atmos-1: light-dark(#E7E3DD, #1E1C1A);
-  --st-atmos-2: light-dark(#D9D3CA, #2A2724);
-  --st-atmos-3: light-dark(#C9C0B4, #3A3530);
-  --st-ink:     light-dark(#232120, #EEEBE7);
-  --st-ink-2:   light-dark(#504B45, #B6B0A9);
-  --st-ink-3:   light-dark(#868179, #7A746D);
+  --st-atmos-1: light-dark(#EAEEF1, #17130F);
+  --st-atmos-2: light-dark(#EAEAE9, #1B1611);
+  --st-atmos-3: light-dark(#E8E4DF, #201B15);
   --st-accent:  light-dark(#6A6259, #BBB1A5);
-  --st-line:    light-dark(#D6D0C8, #302E2B);
-  --st-tint:    light-dark(#988D80, #776D62);
+  --st-tint:    light-dark(#A89C8F, #6C6155);
 }
 
 [data-state="layover"][data-tone="ocean"] {
-  --st-canvas:  light-dark(#E6ECEC, #0F1617);
-  --st-surface: light-dark(#F1F6F6, #172122);
-  --st-atmos-1: light-dark(#DEE8E8, #142123);
-  --st-atmos-2: light-dark(#C7D9DA, #1A2E31);
-  --st-atmos-3: light-dark(#AFC7C9, #24414A);
-  --st-ink:     light-dark(#172426, #E6F0F0);
-  --st-ink-2:   light-dark(#3A4E51, #A3BCBE);
-  --st-ink-3:   light-dark(#6F8685, #6A8486);
+  --st-atmos-1: light-dark(#DBF2FA, #0E1615);
+  --st-atmos-2: light-dark(#CFF1F9, #081B1B);
+  --st-atmos-3: light-dark(#C1EEF5, #002124);
   --st-accent:  light-dark(#2B5A63, #86BCC3);
-  --st-line:    light-dark(#C9D7D8, #223234);
-  --st-tint:    light-dark(#4F8A93, #3F6F77);
+  --st-tint:    light-dark(#53AEB8, #157079);
 }
 
 [data-state="layover"][data-tone="olive"] {
-  --st-canvas:  light-dark(#EAEBE3, #131410);
-  --st-surface: light-dark(#F4F5EE, #1D1F18);
-  --st-atmos-1: light-dark(#E4E6D9, #1B1E15);
-  --st-atmos-2: light-dark(#D3D7C2, #262B1C);
-  --st-atmos-3: light-dark(#C0C6A8, #353C25);
-  --st-ink:     light-dark(#21231A, #ECEEE3);
-  --st-ink-2:   light-dark(#494E3C, #B2B79F);
-  --st-ink-3:   light-dark(#82876E, #777C64);
-  --st-accent:  light-dark(#56622F, #B5C27F);
-  --st-line:    light-dark(#D3D6C6, #2C2F24);
-  --st-tint:    light-dark(#7C8A4B, #5F6B37);
+  --st-atmos-1: light-dark(#E5F0ED, #15150C);
+  --st-atmos-2: light-dark(#E2EEE1, #16190C);
+  --st-atmos-3: light-dark(#DDE9D3, #191E0D);
+  --st-accent:  light-dark(#56622F, #A4BF78);
+  --st-tint:    light-dark(#95A678, #5B6943);
 }
 
 [data-state="layover"][data-tone="sand"] {
-  --st-canvas:  light-dark(#F0EAE0, #18150F);
-  --st-surface: light-dark(#F8F3EB, #221E17);
-  --st-atmos-1: light-dark(#EFE5D4, #231E15);
-  --st-atmos-2: light-dark(#E5D4B8, #30281B);
-  --st-atmos-3: light-dark(#D8C19B, #433624);
-  --st-ink:     light-dark(#2A2318, #F2EBDF);
-  --st-ink-2:   light-dark(#5B4E3A, #C6B79F);
-  --st-ink-3:   light-dark(#928164, #887A62);
-  --st-accent:  light-dark(#8A6630, #D9B27A);
-  --st-line:    light-dark(#DFD2BD, #382F22);
-  --st-tint:    light-dark(#BC9658, #8E6E3C);
+  --st-atmos-1: light-dark(#ECEEEC, #18130C);
+  --st-atmos-2: light-dark(#EDEAE1, #1C160C);
+  --st-atmos-3: light-dark(#ECE4D3, #221B0D);
+  --st-accent:  light-dark(#76674A, #BFB08A);
+  --st-tint:    light-dark(#B09C77, #716144);
 }
 
 /* 4. Semantic tokens (components use only these) --------------------------- */
 :root,
 [data-state] {
-  --canvas: var(--st-canvas);
-  --surface-1: var(--st-surface);
-  --fg-1: var(--st-ink);
-  --fg-2: var(--st-ink-2);
-  --fg-3: var(--st-ink-3);
-  --accent: var(--st-accent);
-  --line: var(--st-line);
+  --canvas: var(--st-canvas);               /* = brand base canvas */
+  --surface-1: var(--base-surface-1);
+  --fg-1: var(--base-ink-1);
+  --fg-2: var(--base-ink-2);
+  --fg-3: var(--base-ink-3);
+  --accent: var(--brand);                   /* brand identity: icons, emphasis, links */
+  --state-accent: var(--st-accent);         /* duty-state identity marks only */
+  --line: var(--base-line);
   --tint: var(--st-tint);
 
   /* Materials: translucent surfaces carry a trace of the environment's light */
   --glass: color-mix(in oklab, color-mix(in oklab, var(--st-canvas) 90%, var(--st-tint)) 70%, transparent);
-  --glass-strong: color-mix(in oklab, color-mix(in oklab, var(--st-surface) 88%, var(--st-tint)) 70%, transparent);
-  --glass-edge: color-mix(in oklab, var(--st-ink) 9%, transparent);
+  --glass-strong: color-mix(in oklab, color-mix(in oklab, var(--base-surface-1) 88%, var(--st-tint)) 70%, transparent);
+  --glass-edge: color-mix(in oklab, var(--base-ink-1) 9%, transparent);
   --sheen: light-dark(rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.06));   /* top reflection */
   --sheen-edge: light-dark(rgb(255 255 255 / 0.85), rgb(255 255 255 / 0.10)); /* lit top edge */
 
   /* Environment light: the state colour as illumination, not as a flat background */
-  --env-key: light-dark(color-mix(in oklab, var(--st-tint) 30%, transparent), color-mix(in oklab, var(--st-tint) 42%, transparent));
+  --env-key: light-dark(color-mix(in oklab, var(--st-tint) 22%, transparent), color-mix(in oklab, var(--st-tint) 34%, transparent));
   --env-fill: light-dark(color-mix(in oklab, var(--st-atmos-3) 42%, transparent), color-mix(in oklab, var(--st-atmos-3) 60%, transparent));
   --env-horizon: light-dark(color-mix(in oklab, var(--st-atmos-2) 75%, transparent), color-mix(in oklab, var(--st-tint) 16%, transparent));
   --env-ground: light-dark(color-mix(in oklab, var(--st-atmos-2) 55%, var(--st-canvas)), color-mix(in oklab, #000 16%, var(--st-canvas)));
@@ -258,42 +215,47 @@
 
   /* Pass (hero) material */
   --pass-lift: light-dark(color-mix(in oklab, var(--st-tint) 38%, transparent), rgb(0 0 0 / 0.45));
-  --pass-rule: color-mix(in oklab, var(--st-ink) 12%, transparent);
+  --pass-rule: color-mix(in oklab, var(--base-ink-1) 12%, transparent);
 
   /* Quiet chrome: navigation stays stable while the scene changes */
-  --chrome: light-dark(color-mix(in oklab, var(--st-surface) 72%, transparent), color-mix(in oklab, #0E0E0D 62%, transparent));
-  --fill-quiet: color-mix(in oklab, var(--st-ink) 5%, transparent);
-  --fill-hover: color-mix(in oklab, var(--st-ink) 8%, transparent);
-  --fill-selected: color-mix(in oklab, var(--st-accent) 14%, transparent);
-  --focus-ring: color-mix(in oklab, var(--st-accent) 70%, transparent);
+  --chrome: light-dark(color-mix(in oklab, var(--base-surface-1) 72%, transparent), color-mix(in oklab, #0E0E0D 62%, transparent));
+  --fill-quiet: color-mix(in oklab, var(--base-ink-1) 5%, transparent);
+  --fill-hover: color-mix(in oklab, var(--base-ink-1) 8%, transparent);
 
-  --horizon-track: color-mix(in oklab, var(--st-ink) 16%, transparent);
-  --horizon-fill: var(--st-accent);
+  /* Selection: brand-soft fill (cue 1) plus brand edge/icon (cue 2); never an outline alone */
+  --fill-selected: var(--brand-soft);
+  --edge-selected: var(--brand-edge);
+  --focus-ring: color-mix(in oklab, var(--brand) 70%, transparent);
+
+  --horizon-track: color-mix(in oklab, var(--base-ink-1) 16%, transparent);
+  --horizon-fill: var(--route);
 
   /* Functional signals: muted, never saturated alarm colours */
-  --caution: light-dark(#8E6322, #D9A85C);
-  --critical: light-dark(#9A3B2E, #E08C7E);
-  --positive: light-dark(#4F6B45, #A4C097);
+  --caution: var(--status-caution);
+  --critical: var(--status-critical);
+  --positive: var(--status-positive);
 }
 
 /* Registered colours so atmosphere changes cross-fade instead of snapping */
-@property --st-atmos-1 { syntax: "<color>"; inherits: true; initial-value: #E9E6E0; }
-@property --st-atmos-2 { syntax: "<color>"; inherits: true; initial-value: #DBD7CF; }
-@property --st-atmos-3 { syntax: "<color>"; inherits: true; initial-value: #C9C4BA; }
-@property --st-canvas  { syntax: "<color>"; inherits: true; initial-value: #EDEBE6; }
-@property --st-tint    { syntax: "<color>"; inherits: true; initial-value: #9A9A94; }
+@property --st-atmos-1 { syntax: "<color>"; inherits: true; initial-value: #E5EEF7; }
+@property --st-atmos-2 { syntax: "<color>"; inherits: true; initial-value: #E2EBF4; }
+@property --st-atmos-3 { syntax: "<color>"; inherits: true; initial-value: #DDE6EF; }
+@property --st-canvas  { syntax: "<color>"; inherits: true; initial-value: #E8F1FA; }
+@property --st-tint    { syntax: "<color>"; inherits: true; initial-value: #90A1B1; }
 
 /* 5. Fixed operational marks and notices ------------------------------------
    Plain :root, not per-state: these never change with data-state. The marks keep
    roster meanings (flight, layover, standby, reserve, off) stable across every
-   environment. The standby mark is intentionally its own token, separate from
-   --caution, even though the two values currently match. */
+   environment. Flight = route blue, standby = operational amber (both follow the
+   section 6 tokens); off = warm stone, kept apart from brand copper; layover and
+   reserve keep their own earth tones. The standby mark is intentionally its own
+   token, separate from --caution, even though the two currently resolve alike. */
 :root {
-  --mark-flight: light-dark(#3A5B7C, #94B4D2);
+  --mark-flight: var(--route);
   --mark-layover: light-dark(#6A6259, #BBB1A5);
-  --mark-standby: light-dark(#8E6322, #D9A85C);
+  --mark-standby: var(--status-caution);
   --mark-reserve: light-dark(#6E5F51, #C2AF9A);
-  --mark-off: light-dark(#85552F, #D2A273);
+  --mark-off: light-dark(#7D6B57, #B5A48F);
 
   /* Review banner (amber notice) */
   --notice-bg: light-dark(#F3E3C4, #3A2C14);
@@ -313,8 +275,8 @@
    - status-* = operational colours: green = positive/confirmed/on-time,
               amber = caution/standby, red = critical; kept measurably distinct
               from brand (enforced by tests/brand-tokens.test.js).
-   Defined ahead of use: nothing consumes these yet and components migrate in a later
-   step. Duty states will later become tints over this base. Plain :root, never
+   Sections 3-5 consume these: the base canvas, surfaces, ink and lines come from here,
+   and duty states are atmospheric overlays on top (section 3). Plain :root, never
    per-state. */
 :root {
   /* Base */

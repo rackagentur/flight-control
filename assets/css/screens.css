@@ -97,7 +97,7 @@
   transition: background-color var(--dur-instant) var(--ease-standard);
 }
 .cal-day:hover { background: var(--fill-quiet); }
-.cal-day.is-selected { background: var(--fill-selected); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.cal-day.is-selected { background: var(--fill-selected); box-shadow: inset 0 0 0 1.5px var(--edge-selected); }
 .cal-day:focus-visible { outline-offset: -2px; }
 
 .cal-num { display: grid; place-items: center; min-width: 26px; height: 26px; padding: 0 4px; border-radius: 13px;
@@ -303,7 +303,7 @@
 .jr-day-date { font-weight: var(--weight-semibold); color: var(--fg-1); letter-spacing: 0.02em; }
 .jr-day-times b { color: var(--fg-1); font-weight: var(--weight-semibold); }
 .jr-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); min-height: var(--touch-min); padding: 6px var(--space-3) 6px 0; color: inherit; text-decoration: none; border-radius: 12px; }
-.jr-link:hover .jr-route b { color: var(--accent); }
+.jr-link:hover .jr-route b { color: var(--route); }
 .jr-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .jr-node { position: absolute; left: calc(var(--jr-x) - 6px); top: 50%; width: 12px; height: 12px; margin-top: -6px; border-radius: 50%; background: var(--canvas); box-shadow: inset 0 0 0 3px var(--jr-flight); }
 .jr-main { display: grid; gap: 2px; min-width: 0; }
@@ -316,8 +316,8 @@
 .jr-chev { color: var(--fg-2); font-size: 20px; line-height: 1; }
 .jr-sector.is-past .jr-main { opacity: 0.62; }
 .jr-sector.is-past .jr-node { background: var(--jr-flight); }
-.jr-sector.is-active .jr-node { background: var(--accent); box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 25%, transparent); }
-.jr-sector.is-selected .jr-link { background: var(--surface-1); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 60%, transparent); padding-left: var(--space-3); margin-left: calc(-1 * var(--space-3)); }
+.jr-sector.is-active .jr-node { background: var(--route); box-shadow: 0 0 0 4px color-mix(in oklab, var(--route) 25%, transparent); }
+.jr-sector.is-selected .jr-link { background: var(--fill-selected); box-shadow: inset 0 0 0 1px var(--edge-selected); padding-left: var(--space-3); margin-left: calc(-1 * var(--space-3)); }
 .jr-sector.is-selected .jr-node { box-shadow: inset 0 0 0 3px var(--accent); }
 
 .jr-stay { display: grid; gap: 2px; padding-top: 6px; padding-bottom: 8px; font-size: var(--text-callout); }
@@ -354,8 +354,8 @@
 .fl-recent-list { display: grid; padding: 0; margin: 0; list-style: none; }
 .fl-recent-list li + li { box-shadow: inset 0 0.5px 0 var(--line); }
 .fl-recent-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "route tag" "date date" "sub sub"; gap: 2px var(--space-3); padding: 10px var(--space-2); margin: 0 calc(-1 * var(--space-2)); color: inherit; text-decoration: none; border-radius: 12px; }
-.fl-recent-row:hover .fl-recent-route { color: var(--accent); }
-.fl-recent-row.is-selected { background: var(--surface-1); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 60%, transparent); }
+.fl-recent-row:hover .fl-recent-route { color: var(--route); }
+.fl-recent-row.is-selected { background: var(--fill-selected); box-shadow: inset 0 0 0 1px var(--edge-selected); }
 .fl-recent-route { grid-area: route; font-weight: var(--weight-semibold); }
 .fl-recent-date { grid-area: date; color: var(--fg-2); font-size: var(--text-caption); }
 .fl-recent-sub { grid-area: sub; color: var(--fg-2); }
@@ -385,8 +385,8 @@
 .fl-mini { display: grid; gap: 2px; padding: 0; margin: 0; list-style: none; }
 .fl-mini-row { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: var(--space-3); padding: 6px var(--space-2); margin: 0 calc(-1 * var(--space-2)); border-radius: 10px; color: inherit; text-decoration: none; font-size: var(--text-callout); }
 .fl-mini-row .t-code { color: var(--fg-2); font-size: var(--text-caption); }
-.fl-mini-row.is-current { background: var(--surface-1); box-shadow: inset 3px 0 0 var(--accent); font-weight: var(--weight-semibold); }
-.fl-mini-row:hover { color: var(--accent); }
+.fl-mini-row.is-current { background: var(--fill-selected); box-shadow: inset 3px 0 0 var(--accent); font-weight: var(--weight-semibold); }
+.fl-mini-row:hover { color: var(--route); }
 .fl-detail-foot { font-size: var(--text-callout); }
 .fl-detail-empty { padding: var(--space-5); border-radius: var(--radius-card); border: 1px dashed color-mix(in oklab, var(--fg-2) 30%, transparent); }
 .status-pill[data-confidence="remembered"]::before { background: transparent; border: 1.5px dashed var(--fg-2); box-shadow: none; }
@@ -469,8 +469,8 @@
 .rd-row.is-cancelled .rd-flight, .rd-row.is-cancelled .rd-dest { color: var(--fg-2); }
 
 /* "Now": a calm divider, not an alert. */
-.rd-now { display: flex; align-items: center; gap: var(--space-3); margin: var(--space-3) 0 var(--space-1); color: var(--accent); font-size: var(--text-caption); font-weight: var(--weight-semibold); letter-spacing: 0.04em; text-transform: uppercase; }
-.rd-now::before, .rd-now::after { content: ""; height: 1.5px; border-radius: 1px; background: color-mix(in oklab, var(--accent) 55%, transparent); }
+.rd-now { display: flex; align-items: center; gap: var(--space-3); margin: var(--space-3) 0 var(--space-1); color: var(--route); font-size: var(--text-caption); font-weight: var(--weight-semibold); letter-spacing: 0.04em; text-transform: uppercase; }
+.rd-now::before, .rd-now::after { content: ""; height: 1.5px; border-radius: 1px; background: color-mix(in oklab, var(--route) 55%, transparent); }
 .rd-now::before { width: 12px; flex: none; }
 .rd-now::after { flex: 1; }
 

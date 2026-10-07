@@ -1,7 +1,7 @@
 // Gate for the Flight Control brand foundation (section 6 of assets/css/tokens.css).
 // Day Flight (light) / Night Flight (dark): contrast, brand-vs-status distinctness
-// (OKLab Euclidean distance) and a few brief guards. Tokens are defined only; nothing
-// consumes them yet.
+// (OKLab Euclidean distance) and a few brief guards. Sections 3-5 of tokens.css and the
+// component sheets consume these tokens (see tests/tokens.test.js, tests/selection-cues.test.js).
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -104,6 +104,34 @@ function deltaE(hexA, hexB) {
 
 const tokens = parseBrandBlock(css);
 
+// Section-5 fixed operational marks, resolved to hex pairs (a mark is either light-dark(#a, #b)
+// or var(--token) pointing at a section-6 token).
+function parseMarks(source) {
+  const header = source.search(/\/\*\s*5\.\s*Fixed operational marks/);
+  assert.ok(header >= 0, 'tokens.css: section 5 header "5. Fixed operational marks" not found');
+  const m = source.slice(header).match(/:root\s*\{([^}]*)\}/);
+  assert.ok(m, 'tokens.css: no ":root { ... }" block after the section 5 header');
+  const marks = {};
+  for (const [, name, value] of m[1].matchAll(/--(mark-[\w-]+):\s*([^;]+);/g)) {
+    const pair = value.match(/^light-dark\(\s*(#[0-9A-Fa-f]{6})\s*,\s*(#[0-9A-Fa-f]{6})\s*\)$/);
+    const ref = value.trim().match(/^var\(--([\w-]+)\)$/);
+    marks[name] = pair ? { light: pair[1], dark: pair[2] } : ref ? tokens[ref[1]] : null;
+    assert.ok(marks[name], `--${name}: cannot resolve "${value.trim()}"`);
+  }
+  return marks;
+}
+const marks = parseMarks(css);
+
+// [mark, brand-side token, minimum OKLab distance]: roster marks must never read as brand copper.
+const MARK_DISTINCT = [
+  ['mark-off', 'brand', 0.09],
+  ['mark-reserve', 'brand', 0.09],
+  ['mark-layover', 'brand', 0.09],
+];
+// The selection fill must be a perceptible second cue on every base surface (brand-edge is close to
+// caution amber on Day Flight, so selection never relies on the outline colour alone).
+const MIN_SELECTED_FILL_DE = 0.03;
+
 test('brand foundation: all 19 tokens exist as 6-digit light-dark pairs', () => {
   const missing = TOKEN_NAMES.filter((n) => !tokens[n]);
   assert.deepEqual(missing, [], `missing or malformed tokens: ${missing.join(', ')}`);
@@ -195,6 +223,30 @@ test('brand foundation: brand stays measurably distinct from status and route (O
   assert.deepEqual(failures, [], `\n${failures.join('\n')}`);
 });
 
+test('brand foundation: roster marks (off, reserve, layover) stay distinct from brand copper; flight/standby follow route/caution', () => {
+  const failures = [];
+  for (const mode of MODES) {
+    for (const [mark, other, min] of MARK_DISTINCT) {
+      const d = deltaE(marks[mark][mode], tokens[other][mode]);
+      if (d < min) failures.push(`${mode}: ${mark} vs ${other} = ${d.toFixed(3)} < ${min}`);
+    }
+    if (marks['mark-flight'][mode] !== tokens.route[mode]) failures.push(`${mode}: mark-flight must resolve to route`);
+    if (marks['mark-standby'][mode] !== tokens['status-caution'][mode]) failures.push(`${mode}: mark-standby must resolve to status-caution`);
+  }
+  assert.deepEqual(failures, [], `\n${failures.join('\n')}`);
+});
+
+test('brand foundation: selected fill (brand-soft) is a perceptible cue on every base surface', () => {
+  const failures = [];
+  for (const mode of MODES) {
+    for (const bg of SURFACES) {
+      const d = deltaE(tokens['brand-soft'][mode], tokens[bg][mode]);
+      if (d < MIN_SELECTED_FILL_DE) failures.push(`${mode}: brand-soft vs ${bg} = ${d.toFixed(3)} < ${MIN_SELECTED_FILL_DE}`);
+    }
+  }
+  assert.deepEqual(failures, [], `\n${failures.join('\n')}`);
+});
+
 test('brand foundation: brief guards (Day canvas cool, Night canvas warm and dark, ink leaning)', () => {
   const lc = oklab(tokens['base-canvas'].light);
   const dc = oklab(tokens['base-canvas'].dark);
@@ -232,6 +284,14 @@ test('brand foundation: report of every measured ratio and distance', (t) => {
     lines.push('-- OKLab distance --');
     for (const [a, b, min] of DISTINCT) {
       lines.push(`${(a + ' vs ' + b).padEnd(32)} ${deltaE(tokens[a][mode], tokens[b][mode]).toFixed(3).padStart(6)}  (min ${min})`);
+    }
+    lines.push('-- roster marks vs brand (OKLab distance) --');
+    for (const [mark, other, min] of MARK_DISTINCT) {
+      lines.push(`${(mark + ' vs ' + other).padEnd(32)} ${deltaE(marks[mark][mode], tokens[other][mode]).toFixed(3).padStart(6)}  (min ${min})`);
+    }
+    lines.push('-- brand-soft (selected fill) vs base surfaces --');
+    for (const bg of SURFACES) {
+      lines.push(`${('brand-soft vs ' + bg).padEnd(32)} ${deltaE(tokens['brand-soft'][mode], tokens[bg][mode]).toFixed(3).padStart(6)}  (min ${MIN_SELECTED_FILL_DE})`);
     }
   }
   const report = lines.join('\n');
