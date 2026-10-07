@@ -74,13 +74,17 @@ function usable(payload, airport, from, to, carriers) {
 
 /**
  * @param {{endpoint:string, token:string, airport:string, from:number, to:number, carriers?:string[]|null}} query
- * @param {{api?:{postContract:Function}, store?:object|null, now?:()=>number, ttlMs?:number, force?:boolean}} [deps]
+ * @param {{api?:{postContract:Function}, store?:object|null, now?:()=>number, ttlMs?:number, force?:boolean, shouldStore?:()=>boolean}} [deps]
  *   `force` skips the device-cache READ only (a manual refresh); the fresh answer is still written
  *   to the cache, and the backend's own cache and quota protections still apply.
+ *   `shouldStore` (optional) is asked at write time, after the answer arrived. If it returns false
+ *   (e.g. the token was removed while the request ran) nothing is written and the call rejects with
+ *   DeparturesError 'access-changed': the answer is not handed to the caller either, because it
+ *   was requested with credentials that no longer apply.
  * @returns {Promise<import('../model/types.js').DeparturesResult>}
  * @throws {DeparturesError|ApiError}
  */
-export async function loadDepartures(query, { api = { postContract }, store = defaultStore, now = Date.now, ttlMs = DEPARTURES_TTL_MS, force = false } = {}) {
+export async function loadDepartures(query, { api = { postContract }, store = defaultStore, now = Date.now, ttlMs = DEPARTURES_TTL_MS, force = false, shouldStore = null } = {}) {
   const carriers = checkInput(query);
   const { endpoint, token, airport, from, to } = query;
   const key = requestKey(airport, from, to, carriers);
@@ -106,6 +110,9 @@ export async function loadDepartures(query, { api = { postContract }, store = de
   }
   if (!usable(data, airport, from, to, carriers)) throw new DeparturesError('invalid-response', 'The departures response does not match the request.', 'request-mismatch');
 
+  if (typeof shouldStore === 'function' && !shouldStore()) {
+    throw new DeparturesError('access-changed', 'The access changed while the departures request was running; the answer was discarded.');
+  }
   writeEntry(store, key, { fetchedAt: data.fetchedAt, storedAt: at, payload: data });
   return Object.freeze({ ...adaptDepartures(data), fromCache: false });
 }

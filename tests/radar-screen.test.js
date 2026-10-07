@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { radar, resetRadarUi, errorText, TEXT, REFRESH_COOLDOWN_MS } from '../src/ui/screens/radar.js';
 import { today } from '../src/ui/screens/today.js';
 import { calendar, resetCalendarUi } from '../src/ui/screens/calendar.js';
-import { DeparturesError, loadDepartures, DEPARTURES_TTL_MS } from '../src/sources/departures-service.js';
+import { DeparturesError, loadDepartures, purgeDeparturesCache, DEPARTURES_CACHE_KEY, DEPARTURES_TTL_MS } from '../src/sources/departures-service.js';
 import { createStore } from '../src/store.js';
 import { ApiError } from '../src/api/appscript.js';
 import { sampleSnapshot, sampleProfile, sampleDepartures } from '../src/sources/sample.js';
@@ -638,7 +638,7 @@ test('a token that appears while open changes the key from null: one load, then 
   assert.equal(h.calls.length, 1);
 });
 
-test('the pause does not hold back the first load of a window the screen has nothing for', async () => {
+test('the pause outlives the session: a window that vanishes and returns inside the pause shows its error and Retry countdown, asks nothing; a never-loaded key loads at once', async () => {
   const h = harness({ load: (q, o, n) => (n === 1 ? Promise.reject(new DeparturesError('provider-unavailable')) : Promise.resolve(resultFor(q, [flight()]))) });
   h.go();
   await tick();
@@ -646,11 +646,89 @@ test('the pause does not hold back the first load of a window the screen has not
   viewOf(h, { snapshot: { windows: [] } });             // the window goes away: nothing from before stays
   h.update();
   assert.match(h.root.innerHTML, /No standby in your roster/);
+  h.t.now += 5000;
   viewOf(h);                                            // and comes back inside the pause
   h.update();
-  assert.equal(h.calls.length, 2, 'a key with no session is loaded at once');
+  assert.equal(h.calls.length, 1, 'the key still rests: no request');
+  assert.match(h.root.innerHTML, /Flight data is unavailable right now\./);
+  assert.match(h.root.innerHTML, /data-rd-retry\s+disabled>Retry in 25 s</);
+  assert.doesNotMatch(h.root.innerHTML, /Loading scheduled departures/);
+  h.t.now += 25000;                                     // pause over: the next opening asks once
+  h.update(); h.update();
+  assert.equal(h.calls.length, 1, 'ticks never ask');
+  h.leave(); h.reopen();
+  assert.equal(h.calls.length, 2);
   await tick();
   assert.match(h.markup(), /XX100/);
+});
+
+// ---------- the per-key pause across windows (#/radar/A <-> #/radar/B) ----------
+
+const SB_B = sb(NOW + 2 * D, NOW + 2 * D + 5 * H, 'SB91');
+const abHarness = (failA = true) => {
+  const h = harness({
+    windows: [ACTIVE, SB_B], param: String(ACTIVE.start),
+    load: (q) => (failA && q.from === ACTIVE.start ? Promise.reject(new DeparturesError('provider-rate-limited')) : Promise.resolve(resultFor(q, [flight()]))),
+  });
+  const keys = () => h.calls.map((c) => (c.query.from === ACTIVE.start ? 'A' : 'B')).join('');
+  const goTo = (w) => { h.leave(); h.setParam(String(w.start)); h.reopen(); };
+  return { h, keys, goTo };
+};
+
+test('A errors, go to B (loads), back to A within 30 s: no new request, the error and the Retry countdown show', async () => {
+  const { h, keys, goTo } = abHarness();
+  h.go();
+  await tick();
+  assert.equal(keys(), 'A');
+  h.t.now += 4000;
+  goTo(SB_B);
+  await tick();
+  assert.equal(keys(), 'AB');
+  h.t.now += 6000;
+  goTo(ACTIVE);
+  await tick();
+  assert.equal(keys(), 'AB', 'A rests: nothing asked');
+  const m = h.markup();
+  assert.match(m, /The flight-data provider is busy/);
+  assert.match(m, /data-rd-retry\s+disabled>Retry in 20 s</);
+  assert.doesNotMatch(m, /Loading scheduled departures/);
+});
+
+test('10 rapid A/B toggles inside the pause: only B is ever asked (once per visit), A never; after the pause A loads once', async () => {
+  const { h, keys, goTo } = abHarness();
+  h.go();
+  await tick();
+  for (let i = 0; i < 10; i += 1) { h.t.now += 300; goTo(i % 2 ? ACTIVE : SB_B); await tick(); }
+  assert.equal(keys().replace(/B/g, ''), 'A', 'A was asked only by its first open');
+  assert.equal(keys().length, 6, 'B is asked on each of its five visits (device cache answers those), A once');
+  assert.match(h.markup(), /Retry in/);
+  h.leave(); h.t.now += 30000; goTo(SB_B); await tick();
+  const before = h.calls.length;
+  goTo(ACTIVE); await tick();
+  assert.equal(h.calls.length, before + 1, 'after the pause A loads once');
+  assert.equal(h.calls.at(-1).query.from, ACTIVE.start);
+});
+
+test('with real device-cache semantics only B\'s first visit costs network; successful data of another key is unaffected by A\'s pause', async () => {
+  const fx = JSON.parse(readFileSync(join(ROOT, 'tests/fixtures/departures-v2.synthetic.json'), 'utf8'));
+  const data = new Map();
+  const store = createStore({ getItem: (k) => (data.has(k) ? data.get(k) : null), setItem: (k, v) => data.set(k, String(v)), removeItem: (k) => data.delete(k), key: (i) => [...data.keys()][i] ?? null, get length() { return data.size; } });
+  const net = [];
+  const api = { postContract: async (endpoint, body) => {
+    net.push(body.from === ACTIVE.start ? 'A' : 'B');
+    if (body.from === ACTIVE.start) throw new ApiError('network', 'down');
+    const p = structuredClone(fx);
+    Object.assign(p, { airport: body.airport, from: body.from, to: body.to, carriers: body.carriers ?? null, fetchedAt: h.t.now, generatedAt: h.t.now });
+    p.flights = [{ ...fx.flights[0], flightNumber: 'DE9101', scheduledDep: body.from + H, revisedDep: null }];
+    return { data: p, meta: {} };
+  } };
+  const h = harness({ windows: [ACTIVE, SB_B], param: String(ACTIVE.start), load: (q, o) => loadDepartures({ ...q, endpoint: 'https://script.google.com/macros/s/' + 'A'.repeat(30) + '/exec', token: 'test-token-0123456789abcdef' }, { api, store, now: () => h.t.now, force: o.force }) });
+  const goTo = (w) => { h.leave(); h.setParam(String(w.start)); h.reopen(); };
+  h.go(); await tick(); await tick();
+  for (let i = 0; i < 10; i += 1) { h.t.now += 300; goTo(i % 2 ? ACTIVE : SB_B); await tick(); await tick(); }
+  assert.equal(net.join(''), 'AB', 'one request for A (its failing first open), one for B (its first load)');
+  goTo(SB_B); await tick(); await tick();
+  assert.match(h.markup(), /DE9101/, 'B still shows its data');
 });
 
 test('in-flight dedupe: rapid update()s, redraws, reopens and a window that vanishes and returns while a load runs still make one request, and its result lands', async () => {
@@ -755,6 +833,63 @@ test('no token or no endpoint: the access pattern, no request, nothing kept from
   const noEndpoint = harness({ access: 'no-endpoint' });
   assert.match(noEndpoint.go(), /No roster source connected[\s\S]*Connect roster source/);
   assert.equal(noToken.calls.length + noEndpoint.calls.length, 0);
+});
+
+test('token removed while a load is in flight: the late answer is not stored, not shown; the screen stays in the no-access state and nothing more is asked', async () => {
+  const fx = JSON.parse(readFileSync(join(ROOT, 'tests/fixtures/departures-v2.synthetic.json'), 'utf8'));
+  const data = new Map();
+  const store = createStore({ getItem: (k) => (data.has(k) ? data.get(k) : null), setItem: (k, v) => data.set(k, String(v)), removeItem: (k) => data.delete(k), key: (i) => [...data.keys()][i] ?? null, get length() { return data.size; } });
+  store.set('endpoint', 'https://script.google.com/macros/s/' + 'A'.repeat(30) + '/exec');
+  store.set('token.v2', 'test-token-0123456789abcdef');
+  let release; const net = [];
+  const api = { postContract: async (endpoint, body) => {
+    net.push(body);
+    await new Promise((r) => { release = r; });
+    const p = structuredClone(fx);
+    Object.assign(p, { airport: body.airport, from: body.from, to: body.to, carriers: body.carriers ?? null, fetchedAt: NOW, generatedAt: NOW });
+    return { data: p, meta: {} };
+  } };
+  // Wired like main.js: the answer is stored only while the endpoint and token it was asked with still hold.
+  const h = harness({
+    access: 'ready',
+    load: (q, o) => {
+      const endpoint = store.get('endpoint'); const token = store.get('token.v2');
+      return loadDepartures({ ...q, endpoint, token }, { api, store, now: () => NOW, force: o.force, shouldStore: () => store.get('endpoint') === endpoint && store.get('token.v2') === token });
+    },
+  });
+  h.ctx.departuresAccess = () => (store.get('token.v2') ? 'ready' : 'no-token');
+  h.go();
+  await tick();
+  assert.equal(net.length, 1);
+  store.remove('token.v2'); purgeDeparturesCache(store);           // like controller.removeToken()
+  h.update();
+  assert.match(h.root.innerHTML, /Access token required/);
+  release();
+  await tick(); await tick();
+  assert.equal(store.getJSON(DEPARTURES_CACHE_KEY, null), null, 'nothing written to the device cache');
+  h.update(); h.draw();
+  assert.match(h.root.innerHTML, /Access token required/);
+  assert.doesNotMatch(h.root.innerHTML, /DE9|Loading scheduled departures|unavailable/);
+  assert.equal(net.length, 1, 'no further request');
+  assert.equal(h.calls.length, 1);
+  h.t.now += 60000; h.leave(); h.reopen();
+  assert.equal(h.calls.length, 1, 'still no access: still nothing asked');
+});
+
+test('access lost and regained while a load runs: the dropped load neither lands nor starts a pause; the new key state asks afresh', async () => {
+  let rejectFirst;
+  const h = harness({ load: (q, o, n) => (n === 1 ? new Promise((_, rej) => { rejectFirst = rej; }) : Promise.resolve(resultFor(q, [flight({ flightNumber: 'XX777' })]))) });
+  h.go();
+  h.ctx.departuresAccess = () => 'no-token';
+  h.update();
+  h.ctx.departuresAccess = () => 'ready';
+  h.update();
+  assert.equal(h.calls.length, 2, 'the dropped load is not reused');
+  await tick();
+  rejectFirst(new DeparturesError('access-changed'));
+  await tick();
+  assert.match(h.markup(), /XX777/);
+  assert.doesNotMatch(h.markup(), /unavailable/);
 });
 
 test('no roster yet: nothing is requested', () => {
@@ -991,6 +1126,7 @@ test('requests come from one rule only (open, new key, Refresh/Retry): no timers
   }
   const main = read('src/main.js');
   assert.match(main, /loadDepartures: \(query, \{ force = false \} = \{\}\)/);
+  assert.match(main, /shouldStore: \(\) => store\.get\(ENDPOINT_KEY\) === endpoint && store\.get\(TOKEN_KEY\) === token/);
   assert.doesNotMatch(main.slice(main.indexOf('const ctx')), /setInterval\([^)]*[Dd]epartures/);
   assert.doesNotMatch(screen, /localStorage|sessionStorage|store\.get|TOKEN_KEY/, 'the screen never reads storage or the token');
 });

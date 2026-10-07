@@ -627,3 +627,45 @@ test('force does not bypass validation or error handling', async () => {
   await assert.rejects(loadDepartures(Q, { api: failing, store, force: true }), (e) => e.code === 'timeout');
   assert.equal(store.getJSON(DEPARTURES_CACHE_KEY, null), null, 'failures are never cached');
 });
+
+test('shouldStore: false at write time -> nothing is written and the call rejects with access-changed; true or absent -> stored as before', async () => {
+  const b = backend();
+  const store = freshStore();
+  let ask = 0;
+  await assert.rejects(loadDepartures(Q, { api: b.api, store, shouldStore: () => { ask += 1; return false; } }), (e) => e instanceof DeparturesError && e.code === 'access-changed');
+  assert.equal(ask, 1, 'asked once, after the answer');
+  assert.equal(b.calls.length, 1);
+  assert.equal(store.getJSON(DEPARTURES_CACHE_KEY, null), null, 'no cache write');
+  const ok = await loadDepartures(Q, { api: b.api, store, shouldStore: () => true });
+  assert.equal(ok.fromCache, false);
+  assert.ok(store.getJSON(DEPARTURES_CACHE_KEY, null), 'written when allowed');
+});
+
+test('shouldStore is judged when the answer arrives: a token removed mid-request leaves no cache entry', async () => {
+  const store = freshStore();
+  store.set(ENDPOINT_KEY, ENDPOINT); store.set(TOKEN_KEY, TOKEN);
+  const endpoint = store.get(ENDPOINT_KEY); const token = store.get(TOKEN_KEY);
+  let release;
+  const slow = { postContract: async (e, body) => {
+    await new Promise((r) => { release = r; });
+    const p = fixture(); p.airport = body.airport; p.from = body.from; p.to = body.to; p.carriers = body.carriers ?? null;
+    return { data: p, meta: {} };
+  } };
+  const pending = loadDepartures({ ...Q, endpoint, token }, { api: slow, store, shouldStore: () => store.get(ENDPOINT_KEY) === endpoint && store.get(TOKEN_KEY) === token });
+  const settled = pending.then(() => 'resolved', (e) => e.code);
+  await new Promise((r) => setTimeout(r, 0));
+  controllerWith(store).removeToken();
+  release();
+  assert.equal(await settled, 'access-changed');
+  assert.equal(store.getJSON(DEPARTURES_CACHE_KEY, null), null, 'cache stays empty');
+  assert.equal(store.get(ENDPOINT_KEY), ENDPOINT);
+});
+
+test('shouldStore does not affect cache hits, failures or validation order', async () => {
+  const b = backend();
+  const store = freshStore();
+  await loadDepartures(Q, { api: b.api, store });
+  const hit = await loadDepartures(Q, { api: b.api, store, shouldStore: () => false });
+  assert.equal(hit.fromCache, true, 'a cache hit writes nothing, so it is not refused');
+  await assert.rejects(loadDepartures({ ...Q, token: '' }, { api: b.api, store, shouldStore: () => false }), (e) => e.code === 'bad-request');
+});

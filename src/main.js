@@ -106,7 +106,17 @@ const ctx = {
   // Departures (Radar): the screen never reads storage or the token; it only asks. Called on mount of
   // #/radar and on Refresh / Retry, never on a timer. `force` skips the 5-minute device cache read.
   departuresAccess: () => (!store.get(ENDPOINT_KEY) ? 'no-endpoint' : !store.get(TOKEN_KEY) ? 'no-token' : 'ready'),
-  loadDepartures: (query, { force = false } = {}) => loadDepartures({ ...query, endpoint: store.get(ENDPOINT_KEY), token: store.get(TOKEN_KEY) }, { store, force }),
+  // The answer is written to the device cache (and handed back) only while the endpoint and token it was
+  // requested with are still the ones in the store: removing or replacing the token mid-request must not
+  // leave a departures entry behind (the controller purges the cache at that moment).
+  loadDepartures: (query, { force = false } = {}) => {
+    const endpoint = store.get(ENDPOINT_KEY);
+    const token = store.get(TOKEN_KEY);
+    return loadDepartures({ ...query, endpoint, token }, {
+      store, force,
+      shouldStore: () => store.get(ENDPOINT_KEY) === endpoint && store.get(TOKEN_KEY) === token,
+    });
+  },
 };
 
 // --- Theme controls (sidebar quick switch + Settings) share one behaviour ----------

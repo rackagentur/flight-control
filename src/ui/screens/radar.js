@@ -5,7 +5,8 @@
 // is tertiary. Nothing here predicts anything about the user.
 //
 // Data: the screen never reads storage or the token. ctx.loadDepartures() (main.js) does the
-// request; ctx.departuresAccess() says whether one can be made.
+// request (and refuses to write the device cache once the endpoint or token changed);
+// ctx.departuresAccess() says whether one can be made.
 //
 // One rule decides every request (ensure() below). Each render / mount / update first computes a
 // PLAN: {mode, reason, window, key}. `mode` is 'review' or 'production', `window` is chosen again
@@ -17,7 +18,11 @@
 // makes that free. Controller ticks only recompute the plan: same key, no request; a new key (the
 // roster changed the window, review mode ended, a token appeared) gets at most one. Refresh and
 // Retry send one forced load for the current key. A failed load, Refresh and Retry start a 30 s
-// cooldown for that key (module level, so leaving and reopening the screen does not skip it).
+// cooldown for that key. The cooldown (and the last error of a failed key) lives at module level, so
+// leaving and reopening the screen, or visiting another window and coming back, does not skip it: an
+// unexpired failed key starts nothing, not even a "first" load, and shows its error with the Retry
+// countdown. Only a key that never failed (no entry) loads at once. Losing access drops every
+// running load: a late answer is neither shown nor stored.
 // Nothing polls: the only timer re-enables a button and counts the Retry wait down.
 
 import { html, render as domRender } from '../../lib/html.js';
@@ -62,15 +67,16 @@ let mounted = false;
 let lastHtml = '';
 // True from an opening that found no roster yet until the first update() that has one.
 let openPending = false;
-// Module level, so they outlive the screen: key -> instant before which no further load for it starts;
-// key -> the session whose load is running.
+// Module level, so they outlive the screen: key -> {until, error}: the instant before which no further
+// load for it starts, and the error that started the pause (null for a Refresh/Retry pause that has not
+// failed); key -> the session whose load is running.
 const cooldowns = new Map();
 const inflight = new Map();
 
 const newSession = (key, extra = {}) => ({
   key, status: 'loading', result: null, error: null, refreshError: null, busy: false, earlierOpen: false, ...extra,
 });
-const cooldownLeft = (key, now) => Math.max(0, (cooldowns.get(key) ?? 0) - now);
+const cooldownLeft = (key, now) => Math.max(0, (cooldowns.get(key)?.until ?? 0) - now);
 /** A session has something to show for its key: data (also while reloading) or a recorded error. */
 const hasState = (s) => s.status !== 'loading' || Boolean(s.result);
 const WINDOWLESS = new Set(['none', 'ended', 'too-far', 'too-long']);
@@ -108,10 +114,24 @@ function reviewSession(p) {
   return session;
 }
 
-/** The session for the plan's key: the one on screen, a running load's, or a new one. Any other session is dropped. */
+/**
+ * The session for the plan's key: the one on screen, a running load's, or a new one. Any other session
+ * is dropped. A new one for a key that failed and still rests starts in its error state (the module-level
+ * error), so coming back inside the pause shows the Retry countdown, never a bare loading state.
+ */
 function claim(p) {
-  if (session?.key !== p.key) session = inflight.get(p.key) ?? newSession(p.key);
+  if (session?.key !== p.key) {
+    const rest = cooldowns.get(p.key);
+    session = inflight.get(p.key)
+      ?? (rest?.error && cooldownLeft(p.key, p.view.now) > 0 ? newSession(p.key, { status: 'error', error: rest.error }) : newSession(p.key));
+  }
   return session;
+}
+
+/** Drops every running load (access lost): their answers are ignored when they arrive. */
+function dropInflight() {
+  for (const s of inflight.values()) s.dropped = true;
+  inflight.clear();
 }
 
 // --- Loading ---------------------------------------------------------------------------
@@ -131,14 +151,17 @@ function ensure(ctx, p, { open = false } = {}) {
     // Nothing can be requested. A missing roster keeps what is there (it may come back); no window or
     // no access does not: nothing from an earlier visit stays.
     if (p.access !== 'ready' || WINDOWLESS.has(p.reason)) session = null;
-    if (p.access !== 'ready') inflight.clear();
+    if (p.access !== 'ready') dropInflight();
     return;
   }
   const s = claim(p);
   const known = hasState(s);
   if (known && !open) return;                                     // data or a recorded error: nothing to ask
   if (s.busy || inflight.has(p.key)) return;                       // already on its way
-  if (known && cooldownLeft(p.key, p.view.now) > 0) return;       // the first load of a key is never held back
+  // An unexpired pause blocks any load of the key, a first one included, when the key has something
+  // to show or failed (claim() seeds the error). A Refresh pause without a failure leaves a fresh device
+  // cache behind, so a session-less return may still ask (not forced: answered from that cache).
+  if (cooldownLeft(p.key, p.view.now) > 0 && (known || cooldowns.get(p.key)?.error)) return;
   start(ctx, p, s, { force: false });
 }
 
@@ -151,12 +174,19 @@ function start(ctx, p, s, { force }) {
   let pending;
   try { pending = Promise.resolve(ctx.loadDepartures(p.query, { force })); } catch (error) { pending = Promise.reject(error); }
   pending.then(
-    (result) => { s.result = result; s.status = 'ready'; s.error = null; },
+    (result) => {
+      if (s.dropped) return;                      // access was lost meanwhile: the answer is not used
+      s.result = result; s.status = 'ready'; s.error = null;
+      const rest = cooldowns.get(s.key);
+      if (rest) rest.error = null;
+    },
     (error) => {
+      if (s.dropped) return;
       // With data on screen the list stays; otherwise this is an error state with a Retry.
       if (s.result) s.refreshError = error; else { s.status = 'error'; s.error = error; }
-      // Errors are not cached, so a failed key rests for 30 s before anything asks again.
-      cooldowns.set(s.key, ctx.view().now + REFRESH_COOLDOWN_MS);
+      // Errors are not cached, so a failed key rests for 30 s before anything asks again, and the
+      // error is remembered with the pause (the session itself may be dropped by then).
+      cooldowns.set(s.key, { until: ctx.view().now + REFRESH_COOLDOWN_MS, error });
     },
   ).finally(() => {
     s.busy = false;
@@ -171,7 +201,7 @@ function refresh(ctx) {
   if (p.mode !== 'production' || !p.key) return;
   const s = claim(p);
   if (s.busy || inflight.has(p.key) || cooldownLeft(p.key, p.view.now) > 0) return;
-  cooldowns.set(p.key, p.view.now + REFRESH_COOLDOWN_MS);
+  cooldowns.set(p.key, { until: p.view.now + REFRESH_COOLDOWN_MS, error: null });
   start(ctx, p, s, { force: true });
   ctx.rerender?.();
 }
@@ -333,7 +363,11 @@ export const radar = {
   title: RADAR_TITLE,
 
   render(ctx) {
-    const out = bodyFor(plan(ctx));
+    const p = plan(ctx);
+    // main.js renders, then mounts: a key that is not on screen yet is claimed here so the first paint
+    // already shows its remembered error (Retry countdown) instead of a loading state nothing will end.
+    if (p.mode === 'production' && p.key) claim(p);
+    const out = bodyFor(p);
     lastHtml = out.toString();
     return out;
   },
