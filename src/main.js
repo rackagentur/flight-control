@@ -96,6 +96,9 @@ const liveWeather = createWeather({
   onUpdate: () => { if (currentRoute === 'flights' || currentRoute === 'today') show(currentRoute, { quiet: true, param: currentParam }); },
 });
 
+let accessGeneration = 0;
+let seenAccess = { endpoint: store.get(ENDPOINT_KEY), token: store.get(TOKEN_KEY) };
+
 const ctx = {
   view: () => controller.view(),
   controller,
@@ -105,6 +108,15 @@ const ctx = {
   rerender: () => currentRoute && show(currentRoute, { quiet: true, param: currentParam }),
   // Departures (Radar): the screen never reads storage or the token; it only asks. Called on mount of
   // #/radar and on Refresh / Retry, never on a timer. `force` skips the 5-minute device cache read.
+  // Opaque identity of the access (endpoint + token): a counter that moves whenever either is removed or
+  // replaced, in this tab or another (compared lazily against the store on every call). The Radar tags
+  // each load with it and ignores answers of an older identity. It never exposes the token.
+  accessId: () => {
+    const endpoint = store.get(ENDPOINT_KEY);
+    const token = store.get(TOKEN_KEY);
+    if (endpoint !== seenAccess.endpoint || token !== seenAccess.token) { accessGeneration += 1; seenAccess = { endpoint, token }; }
+    return accessGeneration;
+  },
   departuresAccess: () => (!store.get(ENDPOINT_KEY) ? 'no-endpoint' : !store.get(TOKEN_KEY) ? 'no-token' : 'ready'),
   // The answer is written to the device cache (and handed back) only while the endpoint and token it was
   // requested with are still the ones in the store: removing or replacing the token mid-request must not

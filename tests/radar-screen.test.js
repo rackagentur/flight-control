@@ -731,6 +731,183 @@ test('with real device-cache semantics only B\'s first visit costs network; succ
   assert.match(h.markup(), /DE9101/, 'B still shows its data');
 });
 
+// ---------- returning to a key inside its pause shows what was loaded (no request) ----------
+
+/** A and B windows; A loads, then fails on demand. goTo() = leave + reopen another window (param null = like Today). */
+function keptHarness() {
+  const flags = { failA: false };
+  const h = harness({
+    windows: [ACTIVE, SB_B], param: String(ACTIVE.start),
+    load: (q) => (flags.failA && q.from === ACTIVE.start ? Promise.reject(new DeparturesError('provider-unavailable')) : Promise.resolve(resultFor(q, [flight({ flightNumber: q.from === ACTIVE.start ? 'XX100' : 'XX200' })]))),
+  });
+  const goTo = (w) => { h.leave(); h.setParam(w ? String(w.start) : null); h.reopen(); };
+  return { h, flags, goTo };
+}
+const REFRESH_DISABLED = /data-rd-refresh\s+disabled/;
+
+for (const via of ['B', 'Today']) {
+  test(`A loads, Refresh fails, ${via === 'B' ? 'visit B' : 'visit Today'}, back to A inside the pause: A's rows at once with "Refresh failed", Refresh disabled, zero requests; after the pause exactly one load`, async () => {
+    const { h, flags, goTo } = keptHarness();
+    h.go();
+    await tick();
+    flags.failA = true;
+    h.root.press('refresh');
+    await tick();
+    assert.equal(h.calls.length, 2);
+    assert.match(h.markup(), /Refresh failed · showing data fetched/);
+    h.t.now += 4000;
+    if (via === 'B') { goTo(SB_B); await tick(); assert.equal(h.calls.length, 3, 'B loads once'); assert.match(h.markup(), /SB91/); }
+    else { h.leave(); }                                       // Today: the Radar screen is left
+    h.t.now += 4000;
+    const before = h.calls.length;
+    if (via === 'B') goTo(null); else { h.setParam(null); h.reopen(); }
+    assert.equal(h.calls.length, before, 'zero requests while A rests');
+    const m = h.markup();
+    assert.match(m, /XX100/, 'A rows are back at once');
+    assert.match(m, new RegExp(`Refresh failed · showing data fetched ${formatTime(NOW - 2 * M, HOME_TZ)}`));
+    assert.match(m, REFRESH_DISABLED);
+    assert.doesNotMatch(m, /Flight data is unavailable|Loading scheduled departures|data-rd-retry/);
+    await tick();
+    assert.equal(h.calls.length, before, 'still nothing asked');
+    assert.match(h.markup(), /XX100/);
+    // After the pause (30 s from the failed Refresh): the next opening asks exactly once, not forced.
+    h.leave(); h.t.now += 30000;
+    flags.failA = false;
+    h.reopen();
+    assert.equal(h.calls.length, before + 1);
+    assert.equal(h.calls.at(-1).opts.force, false);
+    await tick();
+    assert.doesNotMatch(h.markup(), /Refresh failed/);
+    assert.doesNotMatch(h.markup(), REFRESH_DISABLED);
+  });
+}
+
+test('a key that never had data: the full error state with the Retry countdown (no kept data to show)', async () => {
+  const { h, goTo } = abHarness();                           // A fails on its first load
+  h.go(); await tick();
+  goTo(SB_B); await tick();
+  h.t.now += 5000;
+  const before = h.calls.length;
+  goTo(ACTIVE);
+  assert.equal(h.calls.length, before);
+  const m = h.markup();
+  assert.match(m, /The flight-data provider is busy/);
+  assert.match(m, /data-rd-retry\s+disabled>Retry in 25 s</);
+  assert.doesNotMatch(m, /XX100|Refresh failed/);
+});
+
+test('A loads, a successful Refresh starts its pause, visit B, back to A: data at once, Refresh disabled, zero requests', async () => {
+  const { h, goTo } = keptHarness();
+  h.go(); await tick();
+  h.root.press('refresh'); await tick();
+  assert.equal(h.calls.length, 2);
+  goTo(SB_B); await tick();
+  const before = h.calls.length;
+  h.t.now += 5000;
+  goTo(ACTIVE);
+  assert.equal(h.calls.length, before, 'no request, not even a cache-answered one');
+  assert.match(h.markup(), /XX100/);
+  assert.doesNotMatch(h.markup(), /Refresh failed|unavailable/);
+  assert.match(h.markup(), REFRESH_DISABLED);
+});
+
+// ---------- access identity: replacing the token mid-load ----------
+
+/** A harness whose ctx has an access identity counter like main.js (bump() = endpoint or token removed / replaced). */
+function identityHarness(opts = {}) {
+  const loads = [];
+  const h = harness({
+    ...opts,
+    load: (q) => new Promise((resolve, reject) => { loads.push({ q, resolve, reject }); }),
+  });
+  const id = { n: 0 };
+  h.ctx.accessId = () => id.n;
+  return { h, loads, bump: () => { id.n += 1; }, id };
+}
+
+test('token replaced mid-load (controller path, update()): the old load is neutralised, the new identity loads once and shows its data; the old failure is invisible', async () => {
+  const { h, loads, bump } = identityHarness();
+  h.go();
+  assert.equal(loads.length, 1);
+  bump();                                                    // token replaced; controller onChange -> update()
+  h.update();
+  assert.equal(loads.length, 2, 'one load for the current key under the new identity');
+  loads[1].resolve(resultFor(loads[1].q, [flight({ flightNumber: 'XX555' })]));
+  await tick();
+  assert.match(h.markup(), /XX555/);
+  loads[0].reject(new DeparturesError('access-changed'));    // the old load fails as the service does
+  await tick(); await tick();
+  const m = h.markup();
+  assert.match(m, /XX555/);
+  assert.doesNotMatch(m, /unavailable|Loading scheduled/);
+  assert.doesNotMatch(m, REFRESH_DISABLED, 'no cooldown was started for the new identity');
+  assert.doesNotMatch(m, /Refresh failed/);
+  h.update(); h.draw();
+  await tick();
+  assert.equal(loads.length, 2, 'nothing else was asked');
+  assert.equal(h.calls.length, 2);
+});
+
+test('token replaced mid-load, found at result time only (direct store change, no update): the late failure is ignored, the screen loads under the new identity once', async () => {
+  const { h, loads, bump } = identityHarness();
+  h.go();
+  bump();                                                    // another tab replaced the token; nothing told the screen
+  loads[0].reject(new DeparturesError('access-changed'));
+  await tick(); await tick();
+  assert.equal(loads.length, 2, 'the mounted screen plans again: exactly one load under the new identity');
+  assert.match(h.markup(), /Loading scheduled departures/);
+  assert.doesNotMatch(h.markup(), /unavailable/);
+  loads[1].resolve(resultFor(loads[1].q, [flight({ flightNumber: 'XX556' })]));
+  await tick();
+  assert.match(h.markup(), /XX556/);
+  assert.doesNotMatch(h.markup(), REFRESH_DISABLED);
+  assert.equal(loads.length, 2);
+});
+
+test('an old identity\'s late SUCCESS is ignored too (not shown, not remembered)', async () => {
+  const { h, loads, bump } = identityHarness();
+  h.go();
+  bump(); h.update();
+  loads[0].resolve(resultFor(loads[0].q, [flight({ flightNumber: 'OLD111' })]));
+  await tick();
+  assert.doesNotMatch(h.markup(), /OLD111/);
+  loads[1].reject(new DeparturesError('provider-unavailable'));
+  await tick();
+  assert.match(h.markup(), /unavailable/, 'the new identity\'s own failure is a normal error');
+  assert.doesNotMatch(h.markup(), /OLD111/);
+});
+
+test('a pause, error or result recorded under the old identity never blocks the new one', async () => {
+  const { h, loads, bump } = identityHarness();
+  h.go();
+  loads[0].reject(new DeparturesError('provider-unavailable'));   // a genuine failure: 30 s pause for the key
+  await tick();
+  assert.match(h.markup(), /Retry in 30 s|data-rd-retry\s+disabled/);
+  h.t.now += 5000;
+  bump();                                                    // token replaced inside the pause
+  h.update();
+  assert.equal(loads.length, 2, 'the new identity loads at once');
+  loads[1].resolve(resultFor(loads[1].q, [flight({ flightNumber: 'XX557' })]));
+  await tick();
+  assert.match(h.markup(), /XX557/);
+  assert.doesNotMatch(h.markup(), REFRESH_DISABLED);
+});
+
+test('token removed mid-load with an identity counter: no-access state, late failure ignored, nothing asked, nothing stored', async () => {
+  const { h, loads, bump } = identityHarness();
+  h.go();
+  h.ctx.departuresAccess = () => 'no-token';
+  bump();
+  h.update();
+  assert.match(h.root.innerHTML, /Access token required/);
+  loads[0].reject(new DeparturesError('access-changed'));
+  await tick(); await tick();
+  h.update(); h.draw();
+  assert.match(h.root.innerHTML, /Access token required/);
+  assert.doesNotMatch(h.root.innerHTML, /unavailable|Loading scheduled/);
+  assert.equal(loads.length, 1, 'no further request');
+});
+
 test('in-flight dedupe: rapid update()s, redraws, reopens and a window that vanishes and returns while a load runs still make one request, and its result lands', async () => {
   let release;
   const h = harness({ load: (q) => new Promise((r) => { release = () => r(resultFor(q, [flight({ flightNumber: 'XX555' })])); }) });

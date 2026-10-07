@@ -21,8 +21,18 @@
 // cooldown for that key. The cooldown (and the last error of a failed key) lives at module level, so
 // leaving and reopening the screen, or visiting another window and coming back, does not skip it: an
 // unexpired failed key starts nothing, not even a "first" load, and shows its error with the Retry
-// countdown. Only a key that never failed (no entry) loads at once. Losing access drops every
-// running load: a late answer is neither shown nor stored.
+// countdown. Only a key that never failed (no entry) loads at once. The last successful result of every
+// key is kept beside its cooldown (module level, this app session): coming back to a key inside its
+// pause shows that data at once (with "Refresh failed · showing data fetched HH:MM" when the pause came
+// from a failed Refresh), Refresh disabled, no request. A key that never loaded shows the error state.
+// ACCESS IDENTITY: ctx.accessId() (main.js) is an opaque counter that changes whenever the endpoint or
+// token is removed or replaced (never exposes either). Every load is tagged with the identity it started
+// under. On a change (seen in render / mount / update / refresh, or when a load's answer arrives) every
+// running load of the old identity is neutralised (its answer or error is ignored entirely: no state,
+// no error text, no cooldown), and the cooldowns, remembered errors, last results and the session are
+// cleared, so nothing recorded under the old identity can block the new one. The screen then plans for
+// the new identity normally: one load for the current key. Losing access (no token / endpoint) drops
+// every running load too: a late answer is neither shown nor stored.
 // Nothing polls: the only timer re-enables a button and counts the Retry wait down.
 
 import { html, render as domRender } from '../../lib/html.js';
@@ -72,6 +82,10 @@ let openPending = false;
 // failed); key -> the session whose load is running.
 const cooldowns = new Map();
 const inflight = new Map();
+// key -> last successful result (this app session). Not written by review mode, cleared on access change.
+const loaded = new Map();
+// The access identity last seen (undefined until the first plan; ctx.accessId() may be absent in tests).
+let accessId;
 
 const newSession = (key, extra = {}) => ({
   key, status: 'loading', result: null, error: null, refreshError: null, busy: false, earlierOpen: false, ...extra,
@@ -87,6 +101,7 @@ const WINDOWLESS = new Set(['none', 'ended', 'too-far', 'too-long']);
  * 'access'). `key` is null whenever no request is possible. Nothing is remembered between calls.
  */
 function plan(ctx) {
+  syncAccess(ctx);
   const view = ctx.view();
   const { profile, now, snapshot, review } = view;
   const mode = review ? 'review' : 'production';
@@ -122,8 +137,13 @@ function reviewSession(p) {
 function claim(p) {
   if (session?.key !== p.key) {
     const rest = cooldowns.get(p.key);
+    const resting = cooldownLeft(p.key, p.view.now) > 0;
+    const last = loaded.get(p.key);
+    // Inside a pause, data already loaded for the key is shown again at once (no request); the failure
+    // that started the pause, if any, becomes the "Refresh failed" line. Only without data: the error state.
     session = inflight.get(p.key)
-      ?? (rest?.error && cooldownLeft(p.key, p.view.now) > 0 ? newSession(p.key, { status: 'error', error: rest.error }) : newSession(p.key));
+      ?? (resting && last ? newSession(p.key, { status: 'ready', result: last, refreshError: rest?.error ?? null })
+        : rest?.error && resting ? newSession(p.key, { status: 'error', error: rest.error }) : newSession(p.key));
   }
   return session;
 }
@@ -132,6 +152,20 @@ function claim(p) {
 function dropInflight() {
   for (const s of inflight.values()) s.dropped = true;
   inflight.clear();
+}
+
+/**
+ * Notices an access change (endpoint or token removed or replaced) and forgets everything that belongs
+ * to the old identity: running loads (ignored when they answer), pauses, remembered errors and results,
+ * the session. Cheap and idempotent; every entry point goes through plan(), which calls it first.
+ */
+function syncAccess(ctx) {
+  const id = ctx.accessId?.();
+  if (id === undefined) return false;
+  const changed = accessId !== undefined && id !== accessId;
+  accessId = id;
+  if (changed) { dropInflight(); cooldowns.clear(); loaded.clear(); session = null; }
+  return changed;
 }
 
 // --- Loading ---------------------------------------------------------------------------
@@ -171,17 +205,31 @@ function start(ctx, p, s, { force }) {
   inflight.set(s.key, s);
   s.refreshError = null;
   if (!s.result) { s.status = 'loading'; s.error = null; }
+  const startedUnder = ctx.accessId?.();                 // read right before the loader reads endpoint and token
+  let renew = false;
+  // True when the answer belongs to an access identity that no longer applies: it is ignored entirely.
+  const outdated = () => {
+    if (s.dropped) return true;
+    if (ctx.accessId?.() === startedUnder) return false;
+    s.dropped = true;
+    syncAccess(ctx);                                      // forget the old identity's state
+    renew = true;                                         // and plan again for the new one (if mounted)
+    return true;
+  };
   let pending;
   try { pending = Promise.resolve(ctx.loadDepartures(p.query, { force })); } catch (error) { pending = Promise.reject(error); }
   pending.then(
     (result) => {
-      if (s.dropped) return;                      // access was lost meanwhile: the answer is not used
+      if (outdated()) return;                     // access was lost or replaced meanwhile: the answer is not used
       s.result = result; s.status = 'ready'; s.error = null;
+      loaded.set(s.key, result);
       const rest = cooldowns.get(s.key);
       if (rest) rest.error = null;
     },
     (error) => {
-      if (s.dropped) return;
+      if (outdated()) return;
+      // Data loaded earlier for this key (the session was dropped since) still counts as data on screen.
+      if (!s.result && loaded.has(s.key)) { s.result = loaded.get(s.key); s.status = 'ready'; }
       // With data on screen the list stays; otherwise this is an error state with a Retry.
       if (s.result) s.refreshError = error; else { s.status = 'error'; s.error = error; }
       // Errors are not cached, so a failed key rests for 30 s before anything asks again, and the
@@ -191,7 +239,7 @@ function start(ctx, p, s, { force }) {
   ).finally(() => {
     s.busy = false;
     if (inflight.get(s.key) === s) inflight.delete(s.key);
-    if (session === s && mounted) ctx.rerender?.();
+    if ((session === s || renew) && mounted) ctx.rerender?.();
   });
 }
 
@@ -439,7 +487,7 @@ export const radar = {
   },
 };
 
-/** Test hook: forget the in-memory session, cooldowns and running loads. */
+/** Test hook: forget the in-memory session, cooldowns, last results and running loads. */
 export function resetRadarUi() {
   session = null;
   mounted = false;
@@ -447,4 +495,6 @@ export function resetRadarUi() {
   openPending = false;
   cooldowns.clear();
   inflight.clear();
+  loaded.clear();
+  accessId = undefined;
 }
