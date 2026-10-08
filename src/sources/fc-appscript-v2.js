@@ -5,7 +5,8 @@
 //   and per-day coverage (rostered / empty / unpublished).
 // Provenance is carried through; nothing is upgraded. An empty day stays UNKNOWN.
 
-import { startOfLocalDay } from '../lib/time.js';
+import { formatTime, startOfLocalDay } from '../lib/time.js';
+import { airport } from '../data/airports.js';
 
 export const V2_CAPABILITIES = Object.freeze({
   sectors: true,
@@ -67,6 +68,15 @@ function hotelOf(h) {
 }
 
 /**
+ * The zone of a sector end: the backend's when it states one, else the airport table's, else null (never guessed).
+ * v5 always takes the table (fc-appscript-v5.js); v2 used to take only the backend and show UTC when it was silent.
+ */
+// A zone is used only if it is a real IANA zone: the backend's first, else the airport table's, else none
+// (null: times are labelled UTC and a warning is raised; never the device zone, never a guess).
+const validZone = (z) => typeof z === 'string' && z.length > 0 && formatTime(0, z) !== null;
+const zoneOf = (stated, iata) => (validZone(stated) ? stated : null) ?? (validZone(airport(iata)?.tz) ? airport(iata).tz : null);
+
+/**
  * @param {object} p  validated fc.roster v2 roster payload
  * @param {{profile: object, fetchedAt: number, kind?: string}} options
  * @returns {import('../model/types.js').RosterSnapshot}
@@ -86,8 +96,8 @@ export function adaptV2(p, { profile, fetchedAt, kind = 'live' }) {
       dep: s.dep,
       arr: s.arr,
       blockMin: finite(s.blockMin) ? s.blockMin : Math.round((s.arr - s.dep) / 60000),
-      originTz: s.originTz ?? null,
-      destTz: s.destTz ?? null,
+      originTz: zoneOf(s.originTz, s.origin),
+      destTz: zoneOf(s.destTz, s.destination),
       pickup: duty && finite(duty.pickup?.at) ? duty.pickup.at : null,
       report: duty && finite(duty.report?.at) ? duty.report.at : null,
       aircraft: aircraftOf(s.aircraft),
@@ -96,6 +106,18 @@ export function adaptV2(p, { profile, fetchedAt, kind = 'live' }) {
       legacy: null,
     };
   }).sort((a, b) => a.dep - b.dep);
+
+  // An airport with no zone from the backend and none in the table keeps a null zone (its times are shown
+  // in UTC and say so); one warning per airport, as in the v5 adapter.
+  const unzoned = new Set();
+  for (const s of sectors) {
+    for (const [code, tzValue] of [[s.origin, s.originTz], [s.destination, s.destTz]]) {
+      if (tzValue === null && !unzoned.has(code)) {
+        unzoned.add(code);
+        warnings.push({ code: 'unknown-airport', message: `${code} has no time zone from the backend or the airport table; its times are shown in UTC` });
+      }
+    }
+  }
 
   const windows = [];
   // A standby/reserve window keeps the id of its roster event and that event's stated airport (IATA
@@ -174,7 +196,7 @@ export function adaptHistoryV2(p, fetchedAt) {
     .filter((s) => typeof s?.flightNumber === 'string' && IATA.test(s.origin ?? '') && IATA.test(s.destination ?? '') && finite(s.dep) && finite(s.arr) && s.arr > s.dep)
     .map((s) => ({
       id: s.id, flightNumber: s.flightNumber, origin: s.origin, destination: s.destination, dep: s.dep, arr: s.arr,
-      blockMin: Math.round((s.arr - s.dep) / 60000), originTz: s.originTz ?? null, destTz: s.destTz ?? null,
+      blockMin: Math.round((s.arr - s.dep) / 60000), originTz: zoneOf(s.originTz, s.origin), destTz: zoneOf(s.destTz, s.destination),
       seenAt: fetchedAt, historySource: 'roster-calendar',
     }));
 }

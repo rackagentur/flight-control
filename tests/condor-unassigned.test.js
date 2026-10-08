@@ -285,7 +285,7 @@ test('Condor profile renders the compact STR in the calendar cell, key and week 
   assert.doesNotMatch(cal, /tok-unassigned" aria-hidden="true">STRICHTAG</, 'the long word is not a cell code any more');
   assert.match(cal, /cal-key-item key-unassigned"><span class="cal-key-sample" aria-hidden="true">STR<\/span>STR · STRICHTAG · unassigned day, not off</);
   assert.match(cal, /<h2 class="t-title-2" id="cal-detail-title">Strichtag<\/h2>/);
-  assert.match(cal, /<p class="t-eyebrow">Strichtag · from roster<\/p>/);
+  assert.match(cal, /<p class="t-eyebrow">Strichtag · from roster(<span class="tz-mode" aria-hidden="true">UTC<\/span>)?<\/p>/);
   assert.match(cal, /aria-label="Today, [^"]*: Strichtag, confirmed"/);
   assert.match(cal, /<li><span class="t-tabular">1<\/span> Strichtage<\/li>/);
   assert.match(cal, /status-pill" data-confidence="confirmed">Confirmed</);

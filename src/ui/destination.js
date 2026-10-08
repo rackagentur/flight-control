@@ -93,6 +93,8 @@ export function destinationView(dest, weather, { now, review = false, titleId = 
   const wText = weatherText(weather, dest.tz);
   const weatherDate = weather?.date ? formatDate(Date.parse(`${weather.date}T12:00:00Z`), 'UTC') : null;
   const showHotel = Boolean(dest.hotel);
+  // The "Local time" row is a labelled location clock (the time at the destination now, not an event time):
+  // it shows that place's zone in both Time Display modes.
   return html`
     <section class="dest" aria-labelledby="${titleId ?? ''}" data-tone="${dest.tone ?? ''}">
       <header class="dest-head">

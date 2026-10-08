@@ -4,17 +4,19 @@
 // Not a progress bar: positions follow the sequence of the duty, not a percentage.
 
 import { html } from '../lib/html.js';
-import { formatTime } from '../lib/time.js';
+import { opTime, opTimeSpoken, tzModeChip } from '../lib/op-time.js';
+import { getTimeDisplay } from '../time-display.js';
 
 const pct = (x) => `${(x * 100).toFixed(2)}%`;
-const time = (stop) => (stop.tz ? formatTime(stop.at, stop.tz) : `${formatTime(stop.at, 'UTC')}Z`);
+// Compact stop time: the stop's own zone (or UTC in UTC mode); an unknown zone is marked "Z".
+const time = (stop, mode) => opTime(stop.at, stop.tz, mode, { compact: true });
 
 const STOP_LABEL = { wakeup: 'Wake-up', pickup: 'Pickup', briefing: 'Briefing' };
 
-function summary(h) {
+function summary(h, mode) {
   const parts = h.stops.map((s) => {
     const what = STOP_LABEL[s.kind] ?? `${s.kind === 'departure' ? 'Depart' : 'Arrive'} ${s.code}`;
-    return `${what} ${time(s)}${s.status === 'past' ? ' (done)' : s.next ? ' (next)' : ''}`;
+    return `${what} ${opTimeSpoken(s.at, s.tz, mode, { compact: true })}${s.status === 'past' ? ' (done)' : s.next ? ' (next)' : ''}`;
   });
   const current = h.spans.find((s) => s.status === 'current');
   return `Duty Horizon. ${current?.label ? `Now: ${current.label}. ` : ''}${parts.join(', ')}.`;
@@ -38,7 +40,7 @@ function markMinor(items, x, priority, gap) {
  * @param {ReturnType<import('../model/horizon.js').buildHorizon>} h
  * @param {{variant?: 'full'|'compact'}} [options]
  */
-export function horizonView(h, { variant = 'full' } = {}) {
+export function horizonView(h, { variant = 'full', mode = getTimeDisplay() } = {}) {
   if (!h) return '';
   const labelled = h.spans.filter((s) => s.label && s.kind !== 'before');
   const mid = (s) => (s.x0 + s.x1) / 2;
@@ -46,7 +48,8 @@ export function horizonView(h, { variant = 'full' } = {}) {
   const stopRank = (s) => (s.next ? 0 : s === h.stops.at(-1) ? 1 : s.kind === 'departure' ? 2 : s.kind === 'arrival' ? 3 : 4);
   const timeMinor = markMinor(h.stops, (s) => s.x, stopRank, 0.24);
   return html`
-    <figure class="horizon horizon-${variant} horizon-${h.mode}" role="img" aria-label="${summary(h)}">
+    <figure class="horizon horizon-${variant} horizon-${h.mode}" role="img" aria-label="${summary(h, mode)}">
+      ${tzModeChip()}
       <div class="hz-labels" aria-hidden="true">
         ${labelled.map((s) => html`
           <span class="hz-phase is-${s.status} ${phaseMinor.has(s) ? 'is-minor' : ''}" style="left:${pct((s.x0 + s.x1) / 2)}">${s.label}</span>`)}
@@ -62,7 +65,7 @@ export function horizonView(h, { variant = 'full' } = {}) {
         ${h.stops.map((s) => html`
           <span class="hz-time hz-time-${s.kind} is-${s.status} ${s.next ? 'is-next' : ''} ${timeMinor.has(s) ? 'is-minor' : ''}" style="left:${pct(s.x)}">
             <span class="hz-time-label">${STOP_LABEL[s.kind] ?? s.code}</span>
-            <span class="hz-time-value">${time(s)}</span>
+            <span class="hz-time-value">${time(s, mode)}</span>
           </span>`)}
       </div>
     </figure>`;

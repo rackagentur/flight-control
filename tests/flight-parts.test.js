@@ -91,11 +91,11 @@ test('sectorStatus: active → In the air, past → Flown, upcoming → nothing;
 test('sectorCard keeps the journey link contract and the exact accessible label', () => {
   const { first, second } = entries();
   const card = sectorCard({ sector: first.sector, entry: first, selected: true, href: '#/flights/x' }).toString();
-  assert.match(card, /^<a class="jr-link" href="#\/flights\/x" data-sector="DE2074-1791618000000-1791649200000" aria-label="DE2074, FRA 09:40 to YYZ 12:20, Sat 10 Oct" aria-current="true">/);
-  assert.equal(sectorLabel(first), 'DE2074, FRA 09:40 to YYZ 12:20, Sat 10 Oct');
+  assert.match(card, /^<a class="jr-link" href="#\/flights\/x" data-sector="DE2074-1791618000000-1791649200000" aria-label="DE2074, FRA 09:40 to YYZ 12:20 UTC−4, Sat 10 Oct" aria-current="true">/);
+  assert.equal(sectorLabel(first), 'DE2074, FRA 09:40 to YYZ 12:20 UTC−4, Sat 10 Oct');
   const plain = sectorCard({ sector: second.sector, entry: second, href: '#/flights/y' }).toString();
   assert.doesNotMatch(plain, /aria-current/);
-  assert.match(plain, /aria-label="DE2075, YYZ 18:30 to FRA 08:00 \(\+1 day\), Mon 12 Oct"/);
+  assert.match(plain, /aria-label="DE2075, YYZ 18:30 to FRA 08:00 UTC\+2 \(\+1 day\), Mon 12 Oct"/);
   // The visual children are hidden from assistive tech; the link name carries the information.
   assert.match(plain, /<span class="jr-main" aria-hidden="true">/);
   assert.match(plain, /<span class="sc-mark" aria-hidden="true"><svg[^>]*aria-hidden="true"/);

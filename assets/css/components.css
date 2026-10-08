@@ -461,6 +461,7 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
   gap: 6px;
   margin: 0;
   padding: var(--space-2) var(--space-1) 0;
+  position: relative;
 }
 .hz-labels, .hz-track, .hz-times { position: relative; }
 .hz-labels { height: 16px; }
@@ -733,3 +734,26 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
 /* Static sector card (no link): no chevron column, no hover recolour, default cursor. */
 .jr-link.is-static { grid-template-columns: auto minmax(0, 1fr); cursor: default; }
 .jr-link.is-static:hover .jr-route b { color: inherit; }
+
+/* --- Time display (Local | UTC) ------------------------------------------------------------------------
+   One restrained mode chip per operational block header, shown only when the page is in UTC mode
+   (main.js / time-display.js set :root[data-time-display]). Local mode shows nothing extra here; a sector
+   whose arrival zone differs in offset from its departure zone carries a small offset tag instead. */
+.tz-mode { display: none; }
+:root[data-time-display="utc"] .tz-mode {
+  display: inline-flex;
+  align-items: center;
+  margin-left: var(--space-2);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--fill-quiet);
+  color: var(--fg-2);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-eyebrow);
+  line-height: 1.3;
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+:root[data-time-display="utc"] .horizon > .tz-mode { position: absolute; top: 0; right: 0; margin: 0; z-index: 1; }
+.tz-tag { margin-left: 4px; font-size: var(--text-mini); font-weight: var(--weight-regular); color: var(--fg-2); white-space: nowrap; }

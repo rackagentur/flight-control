@@ -10,7 +10,7 @@
 // Each sector is a card (flight-parts.sectorCard) on the rail: route blue line and node, copper ring when selected.
 
 import { html } from '../lib/html.js';
-import { formatDate } from '../lib/time.js';
+import { opDate } from '../lib/op-time.js';
 import { hrefFor } from '../router.js';
 import { clock } from './duty.js';
 import { sectorCard } from './flight-parts.js';
@@ -41,8 +41,9 @@ function stayLeg(leg, weatherFor) {
 }
 
 function dutyLeg(leg, homeTz) {
-  // Dates follow the clock shown: local time, or UTC when the airport's zone is unknown.
-  const date = formatDate(leg.duty.sectors[0].dep, leg.originTz ?? 'UTC');
+  // The date pairs with the times beside it, so it follows the display mode (opDate): the origin's
+  // local date in Local mode (UTC when its zone is unknown), the UTC date in UTC mode.
+  const date = opDate(leg.duty.sectors[0].dep, leg.originTz);
   const times = [
     leg.wakeup !== null ? html`Wake-up <b>${clock(leg.wakeup, leg.originTz)}</b>` : null,
     leg.pickup !== null ? html`Pickup <b>${clock(leg.pickup, leg.originTz)}</b>` : null,

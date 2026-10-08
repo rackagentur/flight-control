@@ -8,9 +8,11 @@
 // aviation blue = routes and flight progression (the rail, drawn by the journey); status colour = state only.
 
 import { html } from '../lib/html.js';
-import { formatDate, formatDuration } from '../lib/time.js';
+import { formatDuration } from '../lib/time.js';
 import { icon } from './icons.js';
-import { clock } from './duty.js';
+import { clock, sectorTagSub } from './duty.js';
+import { opDate, opShift, opTimeSpoken, tzTag } from '../lib/op-time.js';
+import { getTimeDisplay } from '../time-display.js';
 
 const SIZES = new Set(['hero', 'title', 'inline']);
 
@@ -55,10 +57,21 @@ export function sectorStatus(entry, sector = entry?.sector) {
   return null;
 }
 
-/** Accessible name of a sector link (read as one phrase; the visual children are aria-hidden). */
-export function sectorLabel(e, s = e.sector) {
+/**
+ * The "+N" day mark of a sector in the chosen Time Display mode. Local mode keeps the roster-model value
+ * (each end on its own local date); UTC mode compares the UTC dates of the two instants.
+ */
+export function displayShift(e, s = e.sector, mode = getTimeDisplay()) {
+  if (mode !== 'utc' && e.shift !== undefined) return e.shift;
+  return opShift(s.dep, s.originTz, s.arr, s.destTz, mode);
+}
+
+/** Accessible name of a sector link (read as one phrase; the visual children are aria-hidden). In UTC mode the times say "UTC". */
+export function sectorLabel(e, s = e.sector, mode = getTimeDisplay()) {
   const status = sectorStatus(e, s);
-  return `${s.flightNumber}, ${s.origin} ${clock(s.dep, s.originTz)} to ${s.destination} ${clock(s.arr, s.destTz)}${e.shift ? ` (${e.shift > 0 ? '+' : ''}${e.shift} day)` : ''}, ${formatDate(s.dep, s.originTz ?? 'UTC')}${status ? `, ${status.label.toLowerCase()}` : ''}${s.provenance === 'history' ? ', remembered on this device' : ''}`;
+  const shift = displayShift(e, s, mode);
+  const tag = tzTag(s.dep, s.originTz, s.arr, s.destTz, mode);
+  return `${s.flightNumber}, ${s.origin} ${opTimeSpoken(s.dep, s.originTz, mode)} to ${s.destination} ${opTimeSpoken(s.arr, s.destTz, mode)}${tag ? ` ${tag}` : ''}${shift ? ` (${shift > 0 ? '+' : ''}${shift} day)` : ''}, ${opDate(s.dep, s.originTz, mode)}${status ? `, ${status.label.toLowerCase()}` : ''}${s.provenance === 'history' ? ', remembered on this device' : ''}`;
 }
 
 /**
@@ -75,8 +88,8 @@ export function sectorCard({ sector: s, entry: e, selected = false, href, compac
   const inner = html`${compact ? '' : html`<span class="jr-node" aria-hidden="true"></span>`}
         <span class="sc-mark" aria-hidden="true">${icon('aircraft')}</span>
         <span class="jr-main"${isLink ? html` aria-hidden="true"` : ''}>
-          <span class="jr-route t-tabular"><span class="jr-end"><b>${s.origin}</b> ${clock(s.dep, s.originTz)}</span><span class="jr-end"><span class="jr-arrow"${isLink ? '' : html` aria-hidden="true"`}>→</span> <b>${s.destination}</b> ${clock(s.arr, s.destTz)}${shiftMark(e.shift)}</span></span>
-          <span class="jr-sub"><span class="t-code">${s.flightNumber}</span><span class="jr-dot">·</span><span>${formatDuration(s.blockMin)}</span>${status ? html`<span class="jr-status">${statusChip(status)}</span>` : ''}${s.provenance === 'history' ? html`<span class="fl-tag tag-remembered jr-tag">Remembered</span>` : ''}</span>
+          <span class="jr-route t-tabular"><span class="jr-end"><b>${s.origin}</b> ${clock(s.dep, s.originTz)}</span><span class="jr-end"><span class="jr-arrow"${isLink ? '' : html` aria-hidden="true"`}>→</span> <b>${s.destination}</b> ${clock(s.arr, s.destTz)}${shiftMark(displayShift(e, s))}</span></span>
+          <span class="jr-sub"><span class="t-code">${s.flightNumber}</span><span class="jr-dot">·</span><span>${formatDuration(s.blockMin)}</span>${sectorTagSub(s)}${status ? html`<span class="jr-status">${statusChip(status)}</span>` : ''}${s.provenance === 'history' ? html`<span class="fl-tag tag-remembered jr-tag">Remembered</span>` : ''}</span>
         </span>
         ${isLink ? html`<span class="jr-chev" aria-hidden="true">›</span>` : ''}`;
   if (!isLink) return html`<div class="${cls}" data-sector="${s.id}">${inner}</div>`;

@@ -2,7 +2,7 @@
 
 import { html } from '../../lib/html.js';
 import { html as h, render } from '../../lib/html.js';
-import { pageHeader, listRow, themeControl } from '../components.js';
+import { pageHeader, listRow, themeControl, timeDisplayControl } from '../components.js';
 import { store } from '../../store.js';
 import { applyTheme } from '../../theme.js';
 import { validateEndpoint, fetchStatsSecure, contractGaps, postContract } from '../../api/appscript.js';
@@ -104,6 +104,13 @@ export const settings = {
                   <span class="t-caption">System follows your device. Your choice is remembered on this device.</span>
                 </div>
                 ${themeControl()}
+              </div>
+              <div class="setting-row">
+                <div class="setting-copy">
+                  <span class="list-label">Time display</span>
+                  <span class="t-caption">Local — Airport time zones. UTC — Coordinated Universal Time.</span>
+                </div>
+                ${timeDisplayControl()}
               </div>
             </div>
           </section>

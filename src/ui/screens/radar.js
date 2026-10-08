@@ -41,6 +41,7 @@
 
 import { html, render as domRender } from '../../lib/html.js';
 import { formatDate } from '../../lib/time.js';
+import { opDate, opDateKey, tzModeChip } from '../../lib/op-time.js';
 import { pageHeader } from '../components.js';
 import { icon } from '../icons.js';
 import { hrefFor } from '../../router.js';
@@ -274,11 +275,12 @@ function refresh(ctx) {
 
 // --- Markup ----------------------------------------------------------------------------
 
+/** The window in home time, or in UTC (with its UTC dates) in UTC mode; the date always matches the time beside it. */
 function windowLine(window, tz) {
-  const same = formatDate(window.start, tz) === formatDate(window.end - 1, tz);
+  const same = opDateKey(window.start, tz) === opDateKey(window.end - 1, tz);
   return same
-    ? `${formatDate(window.start, tz)}, ${clock(window.start, tz)}–${clock(window.end, tz)}`
-    : `${formatDate(window.start, tz)} ${clock(window.start, tz)} → ${formatDate(window.end, tz)} ${clock(window.end, tz)}`;
+    ? `${opDate(window.start, tz)}, ${clock(window.start, tz)}–${clock(window.end, tz)}`
+    : `${opDate(window.start, tz)} ${clock(window.start, tz)} → ${opDate(window.end, tz)} ${clock(window.end, tz)}`;
 }
 
 /** "Departures from <airport> · <pack> flights (<basis note>)": airport, carriers, where the airport comes from. */
@@ -296,7 +298,7 @@ function frame(view, body, { window = null, head = null } = {}) {
   return html`
     <div class="page rd">
       <a class="rd-back" href="${hrefFor('today')}"><span aria-hidden="true">‹ </span>Today</a>
-      ${pageHeader({ eyebrow: view.review ? 'Sample data · not your roster' : 'Standby', title: RADAR_TITLE, subtitle: parts.length ? parts.join(' · ') : null })}
+      ${pageHeader({ eyebrow: view.review ? 'Sample data · not your roster' : 'Standby', title: RADAR_TITLE, subtitle: parts.length ? html`${parts.join(' · ')}${window ? tzModeChip() : ''}` : null })}
       ${body}
     </div>`;
 }

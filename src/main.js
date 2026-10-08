@@ -5,6 +5,7 @@
 
 import { store } from './store.js';
 import { applyTheme, setThemePreference, watchSystemTheme, applyEnvironment, getThemePreference } from './theme.js';
+import { getTimeDisplay, setTimeDisplay, applyTimeDisplay, watchTimeDisplay } from './time-display.js';
 import { startRouter, routeById, hrefFor } from './router.js';
 import { render } from './lib/html.js';
 import { formatTime, countdown, addDays, localDateKey } from './lib/time.js';
@@ -31,6 +32,8 @@ const SCREENS = { today, calendar, flights, radar, map, more, weather, statistic
 store.ensureSchema();
 applyTheme();
 watchSystemTheme();
+applyTimeDisplay();
+watchTimeDisplay();
 
 const profile = loadProfile();
 const shell = mountShell();
@@ -147,6 +150,22 @@ document.addEventListener('click', (event) => {
   setThemePreference(button.dataset.themeValue);
 });
 
+// --- Time display control (Settings): Local | UTC, separate from the theme -----------------
+function syncTimeDisplayControls() {
+  const current = getTimeDisplay();
+  for (const button of document.querySelectorAll('[data-time-display-control] [data-time-display-value]')) {
+    const on = button.dataset.timeDisplayValue === current;
+    button.setAttribute('aria-checked', String(on));
+    button.tabIndex = on ? 0 : -1;
+  }
+}
+
+document.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-time-display-control] [data-time-display-value]');
+  if (!button) return;
+  setTimeDisplay(button.dataset.timeDisplayValue);
+});
+
 document.addEventListener('keydown', (event) => {
   // Radio-group arrow-key navigation for every segmented control.
   const button = event.target.closest('[role="radiogroup"] [role="radio"]');
@@ -160,6 +179,16 @@ document.addEventListener('keydown', (event) => {
 });
 
 document.documentElement.addEventListener('fc:theme', syncThemeControls);
+// A Time Display change (here or in another tab) only changes how instants are written: draw the current
+// screen again from the same data. Focus and scroll stay where they are (quiet render).
+const TIME_ROUTES = new Set(['today', 'calendar', 'flights', 'radar']);
+document.documentElement.addEventListener('fc:time-display', (event) => {
+  const hadFocus = document.activeElement?.closest?.('[data-time-display-control]');
+  // Screens without operational times (Settings keeps typed input) are left alone; the others redraw.
+  if (TIME_ROUTES.has(currentRoute)) show(currentRoute, { quiet: true, param: currentParam });
+  syncTimeDisplayControls();
+  if (hadFocus) document.querySelector(`[data-time-display-control] [data-time-display-value="${event.detail.mode}"]`)?.focus();
+});
 
 // --- Live elements: countdowns tick every second, clocks every 15 s ---------------------
 function tickLive() {
@@ -170,6 +199,8 @@ function tickLive() {
     if (el.textContent !== text) el.textContent = text;
   }
 }
+// These are labelled location clocks ("local time" at home / the outstation): they show the time at that
+// place in both Time Display modes, so they deliberately do not go through the operational time layer.
 function tickClocks() {
   const now = controller.now();
   for (const el of document.querySelectorAll('[data-clock-tz]')) {
@@ -199,6 +230,7 @@ function show(routeId, { quiet = false, param = null, soft = false } = {}) {
   cleanup = screen.mount?.(shell.main, ctx, { quiet }) ?? null;
   shell.setActive(routeId);
   syncThemeControls();
+  syncTimeDisplayControls();
   document.title = `${review.current() ? 'Sample · ' : ''}${routeById(routeId)?.title ?? 'Today'} · Flight Control`;
   if (quiet && !soft) window.scrollTo({ top: keepScroll });
   if (!firstRender && !quiet) {

@@ -14,7 +14,8 @@ import { buildFlights, defaultSector } from '../../model/flights.js';
 import { horizonView } from '../horizon.js';
 import { alarmLink, city, clock, field, zoneNote } from '../duty.js';
 import { journeyView } from '../journey.js';
-import { milestoneList, milestoneRow, relativeIn, routeHero, sectorStatus, statusChip } from '../flight-parts.js';
+import { milestoneList, milestoneRow, relativeIn, routeHero, sectorStatus, statusChip, displayShift } from '../flight-parts.js';
+import { opDate, tzModeChip, tzTag } from '../../lib/op-time.js';
 import { destinationView } from '../destination.js';
 import { focusCalendar } from './calendar.js';
 
@@ -57,7 +58,7 @@ function rotationView(r, i, view, selectedId, weatherFor) {
   return html`
     <article class="fl-rot ${lead ? 'is-lead' : ''}" aria-labelledby="fl-rot-${i}">
       <header class="fl-rot-head">
-        <p class="t-eyebrow">${rotationEyebrow(r, i, now, tz)}</p>
+        <p class="t-eyebrow">${rotationEyebrow(r, i, now, tz)}${tzModeChip()}</p>
         <h3 class="fl-rot-route ${lead ? 't-title-2' : 't-headline'}" id="fl-rot-${i}"><span class="visually-hidden">Rotation </span>${routeHero({ codes: r.route, size: lead ? 'title' : 'inline', as: 'span' })}</h3>
         <p class="fl-rot-meta t-tabular">${meta}</p>
       </header>
@@ -143,7 +144,10 @@ function provenancePill(e) {
 function timingView(e, view) {
   const { profile, now, review } = view;
   const s = e.sector;
-  const shift = e.shift ? html`<sup class="pass-shift">${e.shift > 0 ? `+${e.shift}` : e.shift}</sup>` : '';
+  const dayMark = displayShift(e, s);
+  const shift = dayMark ? html`<sup class="pass-shift">${dayMark > 0 ? `+${dayMark}` : dayMark}</sup>` : '';
+  const tag = tzTag(s.dep, s.originTz, s.arr, s.destTz);
+  const arrTag = tag ? html` <span class="tz-tag">${tag}</span>` : '';
   const upcoming = e.status === 'upcoming';
   const alarm = (ms, label) => (upcoming && !review ? alarmLink(profile, ms, s.originTz, label) : clock(ms, s.originTz));
   const zone = (ms, tz) => (zoneNote(ms, tz, profile) ? html` · ${zoneNote(ms, tz, profile)}` : '');
@@ -152,14 +156,14 @@ function timingView(e, view) {
     e.wakeup !== null ? { icon: 'bell', time: alarm(e.wakeup, 'wake-up'), label: 'Wake-up', relative: relativeIn(now, e.wakeup) } : null,
     e.pickup !== null ? { icon: 'car', time: alarm(e.pickup, 'pickup'), label: 'Pickup', relative: relativeIn(now, e.pickup) } : null,
     { icon: 'takeoff', time: clock(s.dep, s.originTz), label: 'Departure', relative: relativeIn(now, s.dep),
-      note: html`${city(s.origin)} · ${formatDate(s.dep, s.originTz ?? 'UTC')}${zone(s.dep, s.originTz)}` },
-    { icon: 'landing', time: html`${clock(s.arr, s.destTz)}${shift}`, label: 'Arrival', relative: relativeIn(now, s.arr),
-      note: html`${city(s.destination)} · ${formatDate(s.arr, s.destTz ?? 'UTC')}${zone(s.arr, s.destTz)}` },
+      note: html`${city(s.origin)} · ${opDate(s.dep, s.originTz)}${zone(s.dep, s.originTz)}` },
+    { icon: 'landing', time: html`${clock(s.arr, s.destTz)}${shift}${arrTag}`, label: 'Arrival', relative: relativeIn(now, s.arr),
+      note: html`${city(s.destination)} · ${opDate(s.arr, s.destTz)}${zone(s.arr, s.destTz)}` },
   ].filter(Boolean);
   const next = rows.find((row) => row.relative);
   return html`
     <section class="fl-section" aria-labelledby="fl-timing">
-      <p class="t-eyebrow" id="fl-timing">Timing</p>
+      <p class="t-eyebrow" id="fl-timing">Timing${tzModeChip()}</p>
       ${milestoneList(rows.map((row) => milestoneRow({ ...row, emphasis: row === next })))}
       <dl class="pass-fields fl-fields fl-facts">
         ${field('Block', formatDuration(s.blockMin))}
