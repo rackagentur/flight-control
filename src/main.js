@@ -1,3 +1,4 @@
+import { refreshControls, mountPullRefresh } from './ui/pull-refresh.js';
 // Flight Control V2: boot.
 // Order: storage schema → theme → profile → shell → review dock → data controller → router.
 // The operational environment (atmosphere) always follows the derived state of whatever the
@@ -7,7 +8,10 @@ import { store } from './store.js';
 import { applyTheme, setThemePreference, watchSystemTheme, applyEnvironment, getThemePreference } from './theme.js';
 import { getTimeDisplay, setTimeDisplay, applyTimeDisplay, watchTimeDisplay } from './time-display.js';
 import { startRouter, routeById, hrefFor } from './router.js';
-import { render } from './lib/html.js';
+import { html, render } from './lib/html.js';
+import { syncStatus, syncStatusText } from './ui/sync-status.js';
+import { watchOfflineShell } from './offline-shell.js';
+import { ROSTER_KEY, SIGNED_OUT_KEY } from './roster-storage.js';
 import { formatTime, countdown, addDays, localDateKey } from './lib/time.js';
 import { airport } from './data/airports.js';
 import { loadProfile } from './config/profile.js';
@@ -39,6 +43,9 @@ const profile = loadProfile();
 const shell = mountShell();
 let currentRoute = null;
 let currentParam = null;
+let renderingView = null;
+let pullRefresh = null;
+let latestView = null;
 const LIVE_ROUTES = new Set(['today', 'calendar', 'flights']);
 
 // --- Data -----------------------------------------------------------------------------
@@ -51,10 +58,14 @@ function environmentFor(view) {
 const controller = createController({
   profile,
   onChange(view) {
+    latestView = view;
     const env = environmentFor(view);
     applyEnvironment(env.state, env.tone);
     shell.setStatus(view);
-    if (LIVE_ROUTES.has(currentRoute)) show(currentRoute, { quiet: true, param: currentParam });
+    pullRefresh?.update(`${currentRoute}/${currentParam ?? ""}`);
+    const status = shell.main.querySelector('[data-sync-status]');
+    if (status) status.textContent = syncStatusText(view);
+    if (LIVE_ROUTES.has(currentRoute)) show(currentRoute, { quiet: true, param: currentParam, view });
     // Other screens may refresh in place (Settings: the contract status line).
     else SCREENS[currentRoute]?.update?.(shell.main, ctx);
   },
@@ -62,7 +73,11 @@ const controller = createController({
 
 // S6: the token was removed in another tab (or storage cleared): purge this tab's roster too.
 window.addEventListener('storage', (event) => {
-  if ((event.key === null || event.key === `fc.v2.${TOKEN_KEY}`) && !store.get(TOKEN_KEY)) controller.removeToken();
+  if (event.key === null || [TOKEN_KEY, ENDPOINT_KEY, SIGNED_OUT_KEY, 'profile'].some((key) => event.key === `fc.v2.${key}`) || (event.key === `fc.v2.${ROSTER_KEY}` && event.newValue === null)) {
+    liveWeather.clear();
+    controller.accessChanged();
+    if (currentRoute) show(currentRoute, { quiet: true, param: currentParam });
+  }
 });
 
 const review = mountReviewDock(
@@ -103,8 +118,9 @@ let accessGeneration = 0;
 let seenAccess = { endpoint: store.get(ENDPOINT_KEY), token: store.get(TOKEN_KEY) };
 
 const ctx = {
-  view: () => controller.view(),
+  view: () => renderingView ?? controller.view(),
   controller,
+  clearPersonalMemory: () => liveWeather.clear(),
   review: () => review.current(),
   param: () => currentParam,
   weather: (query) => (review.current() ? sampleWeather(query) : liveWeather.lookup(query)),
@@ -118,7 +134,7 @@ const ctx = {
     const endpoint = store.get(ENDPOINT_KEY);
     const token = store.get(TOKEN_KEY);
     if (endpoint !== seenAccess.endpoint || token !== seenAccess.token) { accessGeneration += 1; seenAccess = { endpoint, token }; }
-    return accessGeneration;
+    return `${accessGeneration}:${controller.accessRevision()}`;
   },
   departuresAccess: () => (!store.get(ENDPOINT_KEY) ? 'no-endpoint' : !store.get(TOKEN_KEY) ? 'no-token' : 'ready'),
   // The answer is written to the device cache (and handed back) only while the endpoint and token it was
@@ -127,9 +143,10 @@ const ctx = {
   loadDepartures: (query, { force = false } = {}) => {
     const endpoint = store.get(ENDPOINT_KEY);
     const token = store.get(TOKEN_KEY);
+    const revision = controller.accessRevision();
     return loadDepartures({ ...query, endpoint, token }, {
       store, force,
-      shouldStore: () => store.get(ENDPOINT_KEY) === endpoint && store.get(TOKEN_KEY) === token,
+      shouldStore: () => store.get(ENDPOINT_KEY) === endpoint && store.get(TOKEN_KEY) === token && controller.accessRevision() === revision,
     });
   },
 };
@@ -187,6 +204,8 @@ document.documentElement.addEventListener('fc:time-display', (event) => {
   // Screens without operational times (Settings keeps typed input) are left alone; the others redraw.
   if (TIME_ROUTES.has(currentRoute)) show(currentRoute, { quiet: true, param: currentParam });
   syncTimeDisplayControls();
+  const status = shell.main.querySelector('[data-sync-status]');
+  if (status) status.textContent = syncStatusText(controller.view());
   if (hadFocus) document.querySelector(`[data-time-display-control] [data-time-display-value="${event.detail.mode}"]`)?.focus();
 });
 
@@ -217,17 +236,24 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 let cleanup = null;
 let firstRender = true;
 
-function show(routeId, { quiet = false, param = null, soft = false } = {}) {
+function show(routeId, { quiet = false, param = null, soft = false, view = null } = {}) {
   currentRoute = routeId;
   currentParam = param;
   // A detail change inside the same screen keeps the page in place; the screen handles focus/scroll.
   if (soft) quiet = true;
   const screen = SCREENS[routeId] ?? SCREENS.today;
   const keepScroll = quiet ? window.scrollY : 0;
+  const refreshFocused = document.activeElement?.matches('[data-roster-manual-refresh]');
   cleanup?.();
   cleanup = null;
-  render(shell.main, screen.render(ctx));
-  cleanup = screen.mount?.(shell.main, ctx, { quiet }) ?? null;
+  const previousView = renderingView;
+  renderingView = view ?? controller.view();
+  try {
+    render(shell.main, html`${syncStatus(renderingView)}${LIVE_ROUTES.has(routeId) && !renderingView.review ? refreshControls() : ""}${screen.render(ctx)}`);
+    cleanup = screen.mount?.(shell.main, ctx, { quiet }) ?? null;
+  } finally { renderingView = previousView; }
+  pullRefresh?.update(`${routeId}/${param ?? ""}`);
+  if (refreshFocused) shell.main.querySelector('[data-roster-manual-refresh]')?.focus({ preventScroll: true });
   shell.setActive(routeId);
   syncThemeControls();
   syncTimeDisplayControls();
@@ -241,5 +267,14 @@ function show(routeId, { quiet = false, param = null, soft = false } = {}) {
   firstRender = false;
 }
 
+pullRefresh = mountPullRefresh({ root: shell.main, enabled: () => LIVE_ROUTES.has(currentRoute) && !review.current(),
+  refresh: () => controller.refresh({ force: true }), view: () => latestView ?? controller.view() });
+
 startRouter((id, param) => show(id, { param, soft: id === currentRoute && param !== currentParam }));
 controller.setMode(reviewMode(review.current()));
+
+window.addEventListener('online', () => controller.connectivityChanged());
+window.addEventListener('offline', () => controller.connectivityChanged());
+watchOfflineShell((ready) => controller.setShellReady(ready));
+// Persistence is a best-effort request; readiness still depends on verified writes.
+if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});

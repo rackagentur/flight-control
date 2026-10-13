@@ -220,3 +220,38 @@
 @media (min-width: 1680px) {
   :root { --content-max: 1180px; --context-width: 360px; }
 }
+
+/* Step 6.6: same typography and palette, visible above every screen on iPhone too. */
+.sync-status {
+  max-width: var(--content-max);
+  margin: 0 auto var(--space-3);
+  color: var(--fg-2);
+  overflow-wrap: anywhere;
+}
+.sync-status:empty { display: none; }
+
+/* Scoped refresh feedback: no page translation or global overscroll suppression. */
+.roster-refresh {
+  max-width: var(--content-max);
+  margin: 0 auto var(--space-3);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  color: var(--fg-2);
+}
+.roster-refresh button { min-height: 44px; min-width: 44px; gap: var(--space-2); }
+.refresh-mark {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 1px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+}
+.roster-refresh[data-phase="armed"] .refresh-mark { transform: rotate(180deg); }
+.roster-refresh[data-phase="refreshing"] .refresh-mark { animation: roster-refresh-spin 900ms linear infinite; }
+@keyframes roster-refresh-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .roster-refresh[data-phase] .refresh-mark { animation: none; transform: none; }
+}

@@ -3,6 +3,19 @@
 Newest first. One entry per working session (see the checkpoint procedure in `docs/NEXT_STEPS.md`).
 Facts only; link to decisions/issues by ID. Never paste URLs with tokens, calendar ids, names or employee numbers.
 
+## 2026-10-14 (later) — Claude Code: Step 6.6 completion audit and final corrections
+
+- Audit: no product/security defect; blocker was the S6 test (failed 40/40 in isolation: one `setTimeout(0)` vs the
+  WebCrypto `sourceIdentity()` await before the request) plus an assertion on legacy keys only.
+- Owner decisions D-011 implemented: Sign out keeps non-sensitive preferences, removes `name`/`hotelListUrl`;
+  Reset removes everything; token change purges previous-source data (already correct, now tested).
+  Settings copy distinguishes Sign out from Reset. `sw.js` regenerated.
+- Tests: S6 file 30× → 0 failures; in-flight test alone 30× → 0; `npm test` 5× → 766/766; `build-offline --check`
+  current; desktop browser harness 15/15 (system Chrome, installed Playwright, synthetic, localhost).
+  Unverified: physical iPhone/Home Screen, Safari.
+- Known limitations recorded: I-006 service-worker update latency, I-007 empty roster (before multi-user).
+- One local Step 6.6 commit on `v2-redesign`; not pushed, not merged, no deploy, no feed access.
+
 ## 2026-10-14 — Claude Code: calendar audit, direct-feed Phase 0, onboarding proposal, continuity docs
 
 - Branch `v2-redesign` @ `7bb7f54`; Step 6.6 uncommitted in the working tree (untouched this session).

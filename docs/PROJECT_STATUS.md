@@ -10,10 +10,10 @@ taken from notes or docs and not re-checked.
 |---|---|---|
 | Production frontend | GitHub Pages serves branch **`main`** (`/`). Any merge/fast-forward of `main` is a production change. `origin/main` = `0ae7d58` (Radar slice 1 + airport fix) — verified 2026-10-14 | `git log -1 origin/main`, `gh api repos/{owner}/{repo}/pages` |
 | Development branch | **`v2-redesign`**, 7 commits ahead of `origin/main` and **not pushed** (two-theme restyle Steps 1–6.5: `be48054` … `7bb7f54`) — verified 2026-10-14 | `git log --oneline origin/main..v2-redesign` |
-| Uncommitted work | **Step 6.6 offline-first persistence**: 25 files modified/untracked in the working tree, under review, not committed (`docs/STEP-6.6-OFFLINE.md`) — verified 2026-10-14 | `git status --short` |
-| Tests | `npm test`: 763/763 pass on the 2026-10-14 tree (incl. uncommitted 6.6). **Flaky:** `S6` in `tests/token-removal.test.js` failed once ("the pre-removal live read is in flight"), passed on rerun — see I-003 | `npm test` |
+| Step 6.6 | **Offline-first persistence committed locally on `v2-redesign`** (one commit after `c8b0996`, not pushed) with the D-011 Sign out / Reset / token-change corrections (`docs/STEP-6.6-OFFLINE.md`). Physical iPhone acceptance outstanding — 2026-10-14 | `git log --oneline -3` |
+| Tests | `npm test`: **766/766** on 5 consecutive runs; S6 file 30× with 0 failures; `build-offline --check` current; desktop browser harness 15/15 (Chrome via installed Playwright, synthetic) — 2026-10-14. iPhone/Safari **unverified** | `npm test`, `node scripts/build-offline.mjs --check` |
 | Backend (Apps Script) | Contract fc.roster v2 installed privately; docs state **Version 29** (departures action), rollback Version 27, pre-v2 baseline 22. Live deployment **unverified** by agents (private) | `backend/apps-script/README.md`, `docs/BACKEND-HARDENING.md`; ask the owner |
-| Current phase | Two-theme restyle, **Step 6.6 review**. Step 7 (destination/layover) not started. In parallel: **Phase 0 of the direct ICS feed investigation** (preparation only) and **proposals** for multi-user onboarding (not approved) | `docs/NEXT_STEPS.md` |
+| Current phase | Two-theme restyle, **Step 6.6 committed locally, awaiting owner review** (then physical iPhone acceptance). Step 7 (destination/layover) not started. In parallel: **Phase 0 of the direct ICS feed investigation** (preparation only) and **proposals** for multi-user onboarding (not approved) | `docs/NEXT_STEPS.md` |
 | Direct ICS probe | **PREPARED — NOT EXECUTED.** Private, outside Git: `~/.config/flight-control/feed-probe/`; offline tests 23/23 (2026-10-14); three independent review rounds, last verdict PASS_WITH_NOTES, final two fixes self-tested only. No request to the feed has ever been made by an agent | `cd ~/.config/flight-control/feed-probe && node --test feed-probe.test.mjs` |
 | Onboarding / multi-user | **PROPOSED — not approved, not implemented** (`docs/ARCHITECTURE.md` §5) | — |
 | Unresolved owner decisions | **Permission** for automated feed access (unknown); **hosting** for a multi-user service (P-003 vs D-003) | `docs/NEXT_STEPS.md` §3 |
@@ -37,7 +37,7 @@ On `main` (production) unless marked *v2-redesign* or *uncommitted*:
 - **Airline registry** (`src/airlines/`): Condor pack + neutral generic fallback; core carries no airline wording.
 - *v2-redesign:* brand Light/Dark theme (tokens + contrast tests), shell, component foundation, aviation components,
   Local/UTC time display (`src/lib/op-time.js`).
-- *uncommitted:* Step 6.6 offline-first roster persistence, service worker, sync status, pull-to-refresh.
+- *v2-redesign (local commit):* Step 6.6 offline-first roster persistence, service worker, sync status, pull-to-refresh, Sign out (keeps non-sensitive preferences) vs Reset (removes everything).
 
 Not implemented (do not describe as existing): direct ICS feed access, multi-user accounts/onboarding, allowances,
 duty end/check-out, crew data (excluded by decision D3), rotation ids, the calendar display preferences in
@@ -52,7 +52,9 @@ duty end/check-out, crew data (excluded by decision D3), rotation ids, the calen
 | B3 | Monthly dashboard to re-check on **2026-11-01** | pending date | Owner check after 1 Nov |
 | I-001 | `README.md` status block stale on `main` (says V2 not live). The working tree's README is part of the uncommitted 6.6 change | open | Update with the next approved docs/frontend commit |
 | I-002 | Unrecognised live-feed codes stay `unknown`: `U1`, `SBX`, `HS5`, `EM`, `RE10S`, `DH/<flight>`, other carriers' flights | investigated | Owner to confirm meanings (handbook) before mapping; `DH/` (positioning) first |
-| I-003 | Flaky test `S6` (token removal vs in-flight load) on the 6.6 tree | new 2026-10-14 | Investigate before committing 6.6 (timing-dependent assertion) |
+| I-003 | Flaky test `S6` (token removal vs in-flight load) | **resolved 2026-10-14** | Test waited one `setTimeout(0)` while `runLoad` awaits WebCrypto first; now polls until the request starts |
+| I-006 | Service-worker updates wait until every old client closes (no `skipWaiting`); Home Screen app may serve the old shell long after a deploy | known limitation | Release checklist step; "update available" prompt later |
+| I-007 | A valid but completely empty roster is refused (shows refresh failure) | known limitation | **Must be resolved before multi-user onboarding** (contract signal "published, no events") |
 | I-004 | Google refreshes the subscribed Condor calendar on its own schedule; delay unmeasured | under investigation (Phase 0) | `docs/ARCHITECTURE.md` §4 |
 | I-005 | v5 sync still scans event title+description for colleagues' employee numbers ("colleague history", v5 `Code.gs`); V2 never reads it (D3) | known, out of scope | Owner decision whether to retire in v5 |
 

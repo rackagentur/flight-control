@@ -55,3 +55,9 @@ npm test             # node --test, no dependencies (Node ≥ 21: test globs)
 | `tests/` | Node test suites and synthetic fixtures |
 | `docs/` | Audit, plan, data gaps, backend-hardening plan |
 | `legacy/index-v1.html` | The original GitHub frontend, preserved (no longer functional against the current backend) |
+
+## Offline roster (Step 6.6)
+
+After synchronization **in this browser or installed app**, wait for “Available offline” before relying on an airplane-mode restart. Saved roster data and the static application shell are stored separately; authenticated API responses are never placed in the service-worker cache. Sign out clears personal roster data; Reset also removes connection and preferences.
+
+After changing frontend files, run `npm run build:offline` to regenerate the content-verified static precache, then `npm test` (which checks that it is current). See [Step 6.6 implementation and iPhone acceptance](docs/STEP-6.6-OFFLINE.md) for migration, storage limitations, verification, and the physical-device checklist. No closed-app background synchronization is assumed.

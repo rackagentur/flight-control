@@ -20,7 +20,7 @@ export function createStore(storage) {
     try { return target ? target.getItem(PREFIX + key) : null; } catch { return null; }
   };
   const write = (key, value) => {
-    try { if (target) target.setItem(PREFIX + key, value); return true; } catch { return false; }
+    try { if (!target) return false; target.setItem(PREFIX + key, value); return target.getItem(PREFIX + key) === value; } catch { return false; }
   };
 
   return {
@@ -37,10 +37,10 @@ export function createStore(storage) {
       try { return JSON.parse(value); } catch { return fallback; }
     },
     setJSON(key, value) {
-      return write(key, JSON.stringify(value));
+      try { return write(key, JSON.stringify(value)); } catch { return false; }
     },
     remove(key) {
-      try { target?.removeItem(PREFIX + key); } catch { /* unavailable */ }
+      try { if (!target) return false; target.removeItem(PREFIX + key); return target.getItem(PREFIX + key) === null; } catch { return false; }
     },
     /** Removes every fc.v2.* key, leaving other origins' data untouched. */
     clearAll() {
@@ -55,6 +55,19 @@ export function createStore(storage) {
         for (const key of keys) { target.removeItem(key); removed += 1; }
       } catch { /* unavailable */ }
       return removed;
+    },
+    /** Explicit reset must report deletion failures, including blocked storage. */
+    clearAllChecked() {
+      if (!target) return false;
+      try {
+        const keys = [];
+        for (let i = 0; i < target.length; i += 1) {
+          const key = target.key(i);
+          if (key?.startsWith(PREFIX)) keys.push(key);
+        }
+        for (const key of keys) target.removeItem(key);
+        return keys.every((key) => target.getItem(key) === null);
+      } catch { return false; }
     },
     /** Records the schema version; returns the previously stored version (or null). */
     ensureSchema() {

@@ -63,7 +63,7 @@ function writeEntry(store, key, entry) {
 
 /** Removes the departures cache (token changed or removed). */
 export function purgeDeparturesCache(store = defaultStore) {
-  store?.remove(DEPARTURES_CACHE_KEY);
+  return store?.remove(DEPARTURES_CACHE_KEY);
 }
 
 /** A cached payload only counts when it still validates and still answers this exact request. */

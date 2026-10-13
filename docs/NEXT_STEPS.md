@@ -4,7 +4,7 @@ Last updated: 2026-10-14. Agents act only on items marked **approved**; everythi
 
 ## 1. Next approved agent action
 
-**None is pending without a further owner instruction.** Approved scope today:
+**None is pending without a further owner instruction.** Step 6.6 is committed locally and waits for owner review (no push). Approved scope today:
 
 - Phase 0 direct feed: preparation and read-only **local** investigation only (D-010). Done; the probe is prepared.
 - **No** request to the Condor feed, no production change, no deploy, no push.
@@ -16,7 +16,7 @@ Last updated: 2026-10-14. Agents act only on items marked **approved**; everythi
 | 1 | **Permission:** confirm that automated retrieval of the CUBE roster feed is permitted (employer IT / works agreement / CUBE terms) | Probe execution, P-001, P-002 |
 | 2 | Set up the probe project (`~/.config/flight-control/feed-probe/SETUP.md` A–C), run `probeDryRun` only | — |
 | 3 | **Authorize** the probe explicitly (set `FC_PROBE_AUTHORIZED_UNTIL`, tell the agent) | `probeRun`, then optional monitor |
-| 4 | Review Step 6.6 (`docs/STEP-6.6-OFFLINE.md`); approve fixing I-003 and committing | A5 |
+| 4 | Review the local Step 6.6 commit; approve push of `v2-redesign` and the isolated physical-iPhone preview acceptance (`docs/STEP-6.6-OFFLINE.md` checklist) | A5 |
 | 5 | Read the Apps Script Executions log for the 05:00 sync (B2-sync) | B3 |
 | 6 | **Hosting decision** for multi-user (P-003: keep D-003 vs separate service, provider, EU region) and legal/privacy review | Track C |
 | 7 | Approve D-008 implementation (Condor pack wording `–` / `U`, subdued completed flights; screenshots first) | A6 |

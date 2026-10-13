@@ -310,11 +310,12 @@ test('regression: the Settings status line updates when a roster load completes 
   assert.match(root.line.textContent, /^In use: contract v2/);
   assert.equal(root.input.value, 'half-typed text', 'refreshing the line never touches the forms');
 
-  // Fallback is reflected the same way.
+  // Step 6.6: a failed v2 refresh preserves the saved richer contract.
   const c5 = createController({ profile: PROFILE, onChange: () => settingsScreen.update(root, ctx), store, api: { ...api, postContract: async () => ({ data: { ok: false, error: 'unauthorized' }, meta: {} }) }, clock: () => NOW });
   ctx = { view: () => c5.view() };
   await c5.load({ force: true });
-  assert.match(root.line.textContent, /^In use: v5 \(fallback: /);
+  assert.match(root.line.textContent, /^In use: contract v2/);
+  assert.equal(c5.view().error.code, 'auth-required');
 });
 
 test('Settings update is a no-op without its status line; main.js routes changes to it', () => {
@@ -448,7 +449,7 @@ test('regression: an explicitly coded rest day outranks an inferred layover; gen
   assert.equal(state.status, 'off');
 });
 
-test('regression: the newer cache wins at start-up; changing the token keeps device memory', async () => {
+test('regression: the newer cache wins at start-up; changing the token clears prior-source device memory', async () => {
   const h = harness({ post: async () => { throw new ApiError('network', 'offline'); }, stats: async () => { throw new ApiError('network', 'offline'); } });
   h.store.setJSON('cache.v2', { payload, fetchedAt: NOW - 20 * 86400000 });
   h.store.setJSON('cache.v5', { payload: loadFixture(), fetchedAt: NOW - 3600000 });
@@ -456,7 +457,8 @@ test('regression: the newer cache wins at start-up; changing the token keeps dev
   await h.c.load({ force: true });
   assert.equal(h.c.view().snapshot.source.id, 'fc-appscript-v5', 'fresher v5 cache shown');
   h.c.forgetContractData();
-  assert.ok(Array.isArray(h.store.getJSON('history.v5')), 'device memory kept');
+  assert.equal(h.store.getJSON('history.v5'), null, 'old device memory cleared');
+  assert.equal(h.store.getJSON('roster.v1'), null, 'bound record cleared');
   assert.equal(h.store.getJSON('cache.v2'), null);
 });
 

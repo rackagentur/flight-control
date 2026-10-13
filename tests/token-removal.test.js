@@ -1,5 +1,7 @@
-// S6: removing the access token clears every roster-derived key and the in-memory roster;
-// only non-sensitive preferences (theme, endpoint, profile, schema) stay.
+// S6: removing the access token clears every roster-derived key and the in-memory roster.
+// Step 6.6 (owner decision D-011): Sign out keeps non-sensitive preferences (theme, time display,
+// endpoint, operational profile fields) and removes the account-specific profile fields (name,
+// saved-hotel-list link); Reset removes everything; a token change purges the previous source's data.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,7 +17,9 @@ import { PROFILE, loadFixture, at } from './helpers.js';
 const NOW = at(loadFixture()._now);
 const TOKEN = 'test-token-0123456789abcdef';
 const ENDPOINT = `https://script.google.com/macros/s/${'A'.repeat(30)}/exec`;
-const ROSTER_KEYS = ['cache.v5', 'history.v5', 'cache.v2', 'history.v2'];
+const ROSTER_KEYS = ['roster.v1', 'cache.v5', 'history.v5', 'cache.v2', 'history.v2'];
+const PREFS = { base: 'MUC', homeBases: ['MUC'], wakeupOffsetMin: 45, airlineId: 'condor' };
+const PRIVATE_PROFILE = { name: 'Test', hotelListUrl: 'https://example.test/saved-list' };
 const HISTORY = [{ id: 'k', flightNumber: 'DE5555', origin: 'FRA', destination: 'BER', dep: NOW - 5 * 86400000, arr: NOW - 5 * 86400000 + 3600000 }];
 
 function memoryStorage() {
@@ -29,7 +33,9 @@ function seeded({ token = TOKEN } = {}) {
   store.set(ENDPOINT_KEY, ENDPOINT);
   if (token) store.set(TOKEN_KEY, token);
   store.set('theme', 'dark');
-  store.setJSON('profile', { name: 'Test' });
+  store.setJSON('profile', { ...PREFS, ...PRIVATE_PROFILE });
+  store.set('timeDisplay', 'utc');
+  store.setJSON('departures.v2', { cached: true });
   store.setJSON('cache.v5', { payload: loadFixture(), fetchedAt: NOW - 3600000 });
   store.setJSON('history.v5', HISTORY);
   store.setJSON('cache.v2', { payload: { stale: true }, fetchedAt: NOW - 3600000 });
@@ -50,8 +56,16 @@ function harness(store, { stats, post } = {}) {
 
 const refuse = () => { throw new ApiError('auth-required', 'This roster backend requires the access token (Settings → Roster contract v2).'); };
 const tick = () => new Promise((r) => setTimeout(r, 0));
+/** Waits until a condition holds (bounded); never assumes a fixed number of turns of the event loop. */
+async function until(condition, message, limitMs = 2000) {
+  const start = Date.now();
+  while (!condition()) {
+    if (Date.now() - start > limitMs) assert.fail(`timed out waiting: ${message}`);
+    await new Promise((r) => setTimeout(r, 1));
+  }
+}
 
-test('S6: removing the token purges all four roster keys and keeps theme, endpoint, profile', async () => {
+test('Sign out: purges credentials, roster, history and operational caches; keeps non-sensitive preferences', async () => {
   const store = seeded();
   const h = harness(store, { stats: refuse });
   await h.c.load({ force: true });
@@ -62,7 +76,35 @@ test('S6: removing the token purges all four roster keys and keeps theme, endpoi
   assert.equal(store.get(TOKEN_KEY), null);
   assert.equal(store.get('theme'), 'dark');
   assert.equal(store.get(ENDPOINT_KEY), ENDPOINT);
-  assert.deepEqual(store.getJSON('profile'), { name: 'Test' });
+  assert.equal(store.get('timeDisplay'), 'utc');
+  assert.equal(store.get('departures.v2'), null, 'departures cache removed');
+  assert.equal(store.get('signedOut'), 'true', 'tombstone revokes access in other tabs');
+  assert.deepEqual(store.getJSON('profile'), PREFS, 'home base, wake-up offset and airline kept; name and saved-list link removed');
+  assert.equal(h.c.view().profile.base, 'MUC');
+  assert.equal(h.c.view().profile.wakeupOffsetMin, 45);
+  assert.equal(h.c.view().profile.name, '');
+  assert.equal(h.c.view().profile.hotelListUrl, '');
+});
+
+test('Sign out: a profile holding only account-specific fields is removed entirely', async () => {
+  const store = seeded();
+  store.setJSON('profile', PRIVATE_PROFILE);
+  const h = harness(store, { stats: refuse });
+  h.c.removeToken();
+  assert.equal(store.getJSON('profile'), null);
+});
+
+test('Reset: removes credentials, roster, history, preferences and caches, back to initial setup', async () => {
+  const store = seeded();
+  const h = harness(store, { stats: refuse });
+  await h.c.load({ force: true });
+  assert.equal(h.c.resetLocalData(), true);
+  for (const key of [...ROSTER_KEYS, TOKEN_KEY, ENDPOINT_KEY, 'profile', 'theme', 'timeDisplay', 'departures.v2'])
+    assert.equal(store.get(key), null, `${key} removed`);
+  const v = h.c.view();
+  assert.equal(v.snapshot, null);
+  assert.equal(v.error, null, 'initial setup: no endpoint, no error');
+  assert.equal(v.profile.base, 'FRA', 'profile back to defaults');
 });
 
 test('S6: after token removal view() exposes no roster, and no screen renders roster data', async () => {
@@ -92,8 +134,7 @@ test('S6: removing the token drops a roster that is already on screen, and an in
   // First read hangs (the pre-removal load); the post-removal read is refused.
   const h = harness(store, { stats: () => (release ? refuse() : new Promise((r) => { release = () => r({ data: loadFixture(), meta: {} }); })) });
   const pending = h.c.load({ force: true });
-  await tick();
-  assert.ok(release, 'the pre-removal live read is in flight');
+  await until(() => release, 'the pre-removal live read is in flight');
   assert.ok(h.c.view().snapshot, 'cache visible while the live read is pending');
   h.c.removeToken();
   assert.equal(h.c.view().snapshot, null);
@@ -101,7 +142,8 @@ test('S6: removing the token drops a roster that is already on screen, and an in
   await pending;
   await tick();
   assert.equal(h.c.view().snapshot, null, 'stale live result is not shown');
-  assert.equal(store.get('cache.v5'), null, 'stale live result is not written back');
+  assert.equal(store.get('roster.v1'), null, 'stale live result is not written back');
+  assert.equal(store.get('cache.v5'), null);
   assert.equal(store.get('history.v5'), null);
 });
 
@@ -126,7 +168,7 @@ test('S6: with a token stored, an auth-required failure keeps the cache (existin
   const v = h.c.view();
   assert.ok(v.snapshot, 'cached roster kept');
   assert.equal(v.error.code, 'auth-required');
-  assert.ok(store.getJSON('cache.v5'));
+  assert.ok(store.getJSON('roster.v1'));
 });
 
 test('S6: open backend without a token still works: a successful live read shows and caches the roster', async () => {
@@ -135,18 +177,38 @@ test('S6: open backend without a token still works: a successful live read shows
   await h.c.load();
   assert.equal(h.c.view().error, null);
   assert.ok(h.c.view().snapshot);
-  assert.ok(store.getJSON('cache.v5'));
+  assert.ok(store.getJSON('roster.v1'));
 });
 
-test('S6: replacing the token keeps device history (only contract caches are forgotten)', async () => {
+test('S6.6: replacing the token purges all previous-source history', async () => {
   const store = seeded();
   const h = harness(store, { stats: refuse });
   await h.c.load({ force: true });
   h.c.forgetContractData();
-  assert.deepEqual(store.getJSON('history.v5'), HISTORY);
-  assert.ok(store.getJSON('cache.v5'));
+  assert.equal(store.getJSON('history.v5'), null);
+  assert.equal(store.getJSON('roster.v1'), null);
   assert.equal(store.getJSON('cache.v2'), null);
   assert.equal(store.getJSON('history.v2'), null);
+  assert.equal(store.get('departures.v2'), null, 'operational cache of the previous source removed');
+  assert.deepEqual(store.getJSON('profile'), { ...PREFS, ...PRIVATE_PROFILE }, 'a token change keeps preferences');
+  assert.equal(store.get('theme'), 'dark');
+  assert.equal(store.get('timeDisplay'), 'utc');
+  assert.equal(store.get(ENDPOINT_KEY), ENDPOINT);
+});
+
+test('Token change: an in-flight load under the previous token cannot write its roster back', async () => {
+  const store = seeded();
+  let release = null;
+  const h = harness(store, { stats: () => (release ? refuse() : new Promise((r) => { release = () => r({ data: loadFixture(), meta: {} }); })) });
+  const pending = h.c.load({ force: true });
+  await until(() => release, 'the old-token live read is in flight');
+  store.set(TOKEN_KEY, 'another-token-0123456789abcdef');
+  h.c.forgetContractData();
+  release();
+  await pending;
+  await tick();
+  assert.equal(store.get('roster.v1'), null, 'no roster from the previous credentials');
+  assert.equal(h.c.view().snapshot, null);
 });
 
 test('S6: history repopulates after the token is restored', async () => {
@@ -159,7 +221,7 @@ test('S6: history repopulates after the token is restored', async () => {
   h.c.forgetContractData();
   await h.c.load({ force: true });
   assert.ok(h.c.view().snapshot);
-  assert.ok(Array.isArray(store.getJSON('history.v5')), 'device history written again');
+  assert.ok(Array.isArray(store.getJSON('roster.v1')?.history), 'device history written again');
 });
 
 test('S6: after token removal and an auth-required rejection, Calendar and Flights say "Access token required", not "No roster source connected"', async () => {
