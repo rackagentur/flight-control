@@ -4,7 +4,7 @@ Last updated: 2026-10-14. Agents act only on items marked **approved**; everythi
 
 ## 1. Next approved agent action
 
-**None is pending without a further owner instruction.** Step 6.6 is committed locally and waits for owner review (no push). Approved scope today:
+**None is pending without a further owner instruction.** `v2-redesign` is pushed (`5db9381`); the iPhone preview tooling is prepared but **not deployed**. Approved scope today:
 
 - Phase 0 direct feed: preparation and read-only **local** investigation only (D-010). Done; the probe is prepared.
 - **No** request to the Condor feed, no production change, no deploy, no push.
@@ -16,8 +16,8 @@ Last updated: 2026-10-14. Agents act only on items marked **approved**; everythi
 | 1 | **Permission:** confirm that automated retrieval of the CUBE roster feed is permitted (employer IT / works agreement / CUBE terms) | Probe execution, P-001, P-002 |
 | 2 | Set up the probe project (`~/.config/flight-control/feed-probe/SETUP.md` A–C), run `probeDryRun` only | — |
 | 3 | **Authorize** the probe explicitly (set `FC_PROBE_AUTHORIZED_UNTIL`, tell the agent) | `probeRun`, then optional monitor |
-| 4 | **Approve push** of `v2-redesign` (fast-forward `0ae7d58` → HEAD; public repo; no deploy: Pages serves `main` only) | backup + preview |
-| 4a | **Approve iPhone preview setup** (`docs/IPHONE-ACCEPTANCE.md`): staged Vercel preview in a separate project + synthetic Apps Script test backend | A5 acceptance |
+| 4 | ~~Push `v2-redesign`~~ — done 2026-10-14 (`5db9381`, fast-forward, after history cleanup) | — |
+| 4a | **Approve deploying the isolated preview** (`docs/IPHONE-ACCEPTANCE.md` Setup A–B): synthetic Apps Script test backend + Vercel preview in a separate project `flight-control-preview` with Vercel Authentication off for that project only | A5 acceptance |
 | 4b | Run the iPhone acceptance run sheet; report results | release of A5 |
 | 5 | Read the Apps Script Executions log for the 05:00 sync (B2-sync) | B3 |
 | 6 | **Hosting decision** for multi-user (P-003: keep D-003 vs separate service, provider, EU region) and legal/privacy review | Track C |

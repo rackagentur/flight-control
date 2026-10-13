@@ -3,6 +3,19 @@
 Newest first. One entry per working session (see the checkpoint procedure in `docs/NEXT_STEPS.md`).
 Facts only; link to decisions/issues by ID. Never paste URLs with tokens, calendar ids, names or employee numbers.
 
+## 2026-10-14 (final) — Claude Code: history cleanup, push, iPhone preview tooling
+
+- History cleanup (unpublished commits only; no remote ref, tag, fork, PR, other branch or worktree contained them):
+  `c8b0996` → `7c6488a`, `bb6c0f5` → `c999cef`, `6959311` → `5db9381`; the seven earlier commits unchanged. Final tree
+  byte-identical to `6959311`; the credential-location line removed from history. Backup: local branch
+  `backup/v2-redesign-pre-rewrite-20261014` (I-008).
+- Checks before push: `npm test` 766/766, repo hygiene 5/5, `build-offline --check` current; scan of all 6,128
+  added lines in the 10 commits: 0 generic hits, 0 of 7 exact production values.
+- **Pushed** `v2-redesign` `0ae7d58..5db9381` (fast-forward, no force). `origin/main` still `0ae7d58`; Pages source
+  `main`; backup branch not pushed.
+- Preview tooling (local commit, not pushed): `scripts/preview/stage.mjs`, `scripts/preview/gen-test-backend.mjs`,
+  `tests/preview.test.js` (8 tests); setup steps in `docs/IPHONE-ACCEPTANCE.md`. Nothing deployed.
+
 ## 2026-10-14 (latest) — Claude Code: iPhone acceptance preparation
 
 - Verified: `v2-redesign` @ `bb6c0f5`, clean tree; `origin/v2-redesign` = `origin/main` = `0ae7d58`; push would be a

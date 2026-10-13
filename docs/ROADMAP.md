@@ -12,7 +12,7 @@ Every step needs the owner's review/approval before commit; any change to `main`
 | A2 | Phase 3 departures data + Radar slice 1 (read-only standby window) | DONE |
 | A3 | Two-theme restyle Steps 1–5 (tokens, brand base, shell, component foundation) | BRANCH (`be48054`…`97dbea9`) |
 | A4 | Step 6 aviation components; Step 6.5 Local/UTC display | BRANCH (`7d1db67`, `7bb7f54`) |
-| A5 | Step 6.6 offline-first roster persistence, service worker, sync status, Sign out vs Reset (D-011) | BRANCH (local commit, not pushed; iPhone acceptance prepared: `docs/IPHONE-ACCEPTANCE.md`) |
+| A5 | Step 6.6 offline-first roster persistence, service worker, sync status, Sign out vs Reset (D-011) | BRANCH (pushed `c999cef`; iPhone preview tooling ready, not deployed; acceptance not started) |
 | A6 | Calendar display preferences D-008 (`STR`→`–`, `LEAVE`→`U`, subdued completed flights) | approved, not implemented |
 | A7 | Show report time + aircraft in duty/calendar detail (data already received) | PROPOSED (audit §3) |
 | A8 | Step 7 destination/layover; Step 8 theme-color/manifest polish | LATER |

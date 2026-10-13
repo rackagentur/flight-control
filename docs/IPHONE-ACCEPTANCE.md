@@ -1,7 +1,7 @@
 # Step 6.6 — physical iPhone acceptance plan
 
-Status (2026-10-14): **PREPARED — not started.** Build under test: `v2-redesign` @ `bb6c0f5` (or later docs-only
-commits). The detailed engineering checklist remains in `docs/STEP-6.6-OFFLINE.md`; this is the run sheet.
+Status (2026-10-14): **PREPARED — tooling ready, nothing deployed, acceptance not started.** Build under test:
+`v2-redesign` @ `5db9381` (pushed; Step 6.6 = `c999cef`, formerly `bb6c0f5` before the history cleanup). The detailed engineering checklist remains in `docs/STEP-6.6-OFFLINE.md`; this is the run sheet.
 
 ## 1. Test environment (isolated; never production)
 
@@ -11,8 +11,38 @@ commits). The detailed engineering checklist remains in `docs/STEP-6.6-OFFLINE.m
 | Backend | **Synthetic test backend**: a separate private Apps Script web app returning the synthetic fc.roster v2 payload (generated from `tests/fixtures/condor-feed.synthetic.mjs` via the test harness), its own throwaway token, and a Script Property switch for `valid` / `timeout` / `malformed` / `empty` / `auth-required` | The frontend only accepts `script.google.com/…/exec` endpoints; the checklist needs failure modes; the production roster and token are never used on a test host |
 | Protection | Preview protection **off** for that preview project only, with synthetic data only | iOS Home Screen apps have their own cookie/storage jar, so a Safari login cookie (Vercel Authentication) does not reach the installed app and blocks service-worker installation. With synthetic data there is nothing sensitive to protect; the code is already public on GitHub |
 
-Not yet built: the staged-deploy script and the synthetic Apps Script backend (need approval). No tunnel tool
-(cloudflared/ngrok/Tailscale) is installed; installing one is the alternative to Vercel.
+Prepared tooling (tested in `tests/preview.test.js`; neither script deploys anything):
+
+- `node scripts/preview/stage.mjs <dir>` — refuses a stale `sw.js`, a directory inside the repo or a non-empty
+  directory; copies exactly `sw.js` + the worker's precache list (hash-verified) and writes the preview `vercel.json`
+  (`no-cache` for `/`, `index.html`, `sw.js`; `noindex`).
+- `node scripts/preview/gen-test-backend.mjs <dir>` — writes `FlightControlTestBackend.gs` (the unchanged v2 backend
+  sources + a synthetic environment over `tests/fixtures/condor-feed.synthetic.mjs`, shifted to today; no calendar,
+  Sheet, provider or production id) and `appsscript.json` (web app, anyone, execute as deployer).
+
+### Setup (only after approval; owner runs or authorizes each step)
+
+**A. Synthetic test backend (separate Apps Script project)**
+1. Generate: `node scripts/preview/gen-test-backend.mjs ~/fc-test-backend` (outside the repo).
+2. <https://script.new> → name it `FC test backend (synthetic)`. Never use the production project.
+3. Paste `FlightControlTestBackend.gs` as the only script file; Project settings → show manifest → paste `appsscript.json`.
+4. Script property `FC_TEST_TOKEN` = a new throwaway value (`openssl rand -hex 24`), **never** the production token.
+   Optional `FC_TEST_MODE` = `valid` (default) / `timeout` / `malformed` / `empty` / `auth`.
+5. Deploy → New deployment → Web app → Execute as *Me*, access *Anyone* → copy the `/exec` URL (synthetic; still keep
+   it out of Git).
+
+**B. Frontend preview (separate Vercel project)**
+1. Once: `vercel project add flight-control-preview`; then in the Vercel dashboard for **that project only**:
+   Settings → Deployment Protection → Vercel Authentication **off** (see Protection above).
+2. Each build: `DIR="$(mktemp -d)/site" && node scripts/preview/stage.mjs "$DIR" && vercel deploy "$DIR" --project flight-control-preview --yes`
+   (preview target; **never** `--prod`, never the production project). Note the printed `https://…vercel.app` URL.
+
+**C. iPhone**
+1. Safari → preview URL → Share → *Add to Home Screen* → open the icon.
+2. Settings → roster source: paste the synthetic `/exec` URL → *Save and test* (answers "token required").
+3. Roster contract v2: paste the throwaway `FC_TEST_TOKEN` → *Save and test*. Then follow the run sheet.
+
+**D. Teardown after acceptance**: delete the Vercel preview project and the test Apps Script deployment/project.
 
 ## 2. Run sheet (record pass/fail + notes per line)
 
