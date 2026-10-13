@@ -3,6 +3,14 @@
 Newest first. One entry per working session (see the checkpoint procedure in `docs/NEXT_STEPS.md`).
 Facts only; link to decisions/issues by ID. Never paste URLs with tokens, calendar ids, names or employee numbers.
 
+## 2026-10-14 (latest) — Claude Code: iPhone acceptance preparation
+
+- Verified: `v2-redesign` @ `bb6c0f5`, clean tree; `origin/v2-redesign` = `origin/main` = `0ae7d58`; push would be a
+  fast-forward of 9 commits; branch unprotected; only workflow is Pages build for `main`; repo is public.
+- Scanned unpushed commits: no credentials/ids; reworded two lines that named where the feed credential is kept.
+- iPhone plan `docs/IPHONE-ACCEPTANCE.md`: staged Vercel preview (separate project) + synthetic Apps Script test
+  backend; run sheet of 12 checks. Nothing pushed or deployed; awaiting approval.
+
 ## 2026-10-14 (later) — Claude Code: Step 6.6 completion audit and final corrections
 
 - Audit: no product/security defect; blocker was the S6 test (failed 40/40 in isolation: one `setTimeout(0)` vs the

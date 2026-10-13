@@ -10,7 +10,7 @@ taken from notes or docs and not re-checked.
 |---|---|---|
 | Production frontend | GitHub Pages serves branch **`main`** (`/`). Any merge/fast-forward of `main` is a production change. `origin/main` = `0ae7d58` (Radar slice 1 + airport fix) — verified 2026-10-14 | `git log -1 origin/main`, `gh api repos/{owner}/{repo}/pages` |
 | Development branch | **`v2-redesign`**, 7 commits ahead of `origin/main` and **not pushed** (two-theme restyle Steps 1–6.5: `be48054` … `7bb7f54`) — verified 2026-10-14 | `git log --oneline origin/main..v2-redesign` |
-| Step 6.6 | **Offline-first persistence committed locally on `v2-redesign`** (one commit after `c8b0996`, not pushed) with the D-011 Sign out / Reset / token-change corrections (`docs/STEP-6.6-OFFLINE.md`). Physical iPhone acceptance outstanding — 2026-10-14 | `git log --oneline -3` |
+| Step 6.6 | **Offline-first persistence committed locally on `v2-redesign`** (one commit after `c8b0996`, not pushed) with the D-011 Sign out / Reset / token-change corrections (`docs/STEP-6.6-OFFLINE.md`). Physical iPhone acceptance **PREPARED, not started** (`docs/IPHONE-ACCEPTANCE.md`) — 2026-10-14 | `git log --oneline -3` |
 | Tests | `npm test`: **766/766** on 5 consecutive runs; S6 file 30× with 0 failures; `build-offline --check` current; desktop browser harness 15/15 (Chrome via installed Playwright, synthetic) — 2026-10-14. iPhone/Safari **unverified** | `npm test`, `node scripts/build-offline.mjs --check` |
 | Backend (Apps Script) | Contract fc.roster v2 installed privately; docs state **Version 29** (departures action), rollback Version 27, pre-v2 baseline 22. Live deployment **unverified** by agents (private) | `backend/apps-script/README.md`, `docs/BACKEND-HARDENING.md`; ask the owner |
 | Current phase | Two-theme restyle, **Step 6.6 committed locally, awaiting owner review** (then physical iPhone acceptance). Step 7 (destination/layover) not started. In parallel: **Phase 0 of the direct ICS feed investigation** (preparation only) and **proposals** for multi-user onboarding (not approved) | `docs/NEXT_STEPS.md` |
@@ -64,6 +64,7 @@ duty end/check-out, crew data (excluded by decision D3), rotation ids, the calen
 - Contract and data gaps: `docs/CONTRACT-V2.md`, `docs/DATA-GAPS.md`, `docs/PARITY-V2-V5.md`
 - Backend deploy log/rollback: `backend/apps-script/README.md`, `docs/BACKEND-HARDENING.md`
 - Architecture, calendar audit, proposals: `docs/ARCHITECTURE.md`
+- iPhone acceptance plan: `docs/IPHONE-ACCEPTANCE.md`
 - Next actions and checkpoint procedure: `docs/NEXT_STEPS.md`
 - Roadmap and session history: `docs/ROADMAP.md`, `docs/SESSION_LOG.md`
 - Private, git-ignored: `reference/` (v5 Apps Script with personal identifiers). Never copy from it into tracked files.

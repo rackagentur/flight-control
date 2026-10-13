@@ -16,7 +16,9 @@ Last updated: 2026-10-14. Agents act only on items marked **approved**; everythi
 | 1 | **Permission:** confirm that automated retrieval of the CUBE roster feed is permitted (employer IT / works agreement / CUBE terms) | Probe execution, P-001, P-002 |
 | 2 | Set up the probe project (`~/.config/flight-control/feed-probe/SETUP.md` A–C), run `probeDryRun` only | — |
 | 3 | **Authorize** the probe explicitly (set `FC_PROBE_AUTHORIZED_UNTIL`, tell the agent) | `probeRun`, then optional monitor |
-| 4 | Review the local Step 6.6 commit; approve push of `v2-redesign` and the isolated physical-iPhone preview acceptance (`docs/STEP-6.6-OFFLINE.md` checklist) | A5 |
+| 4 | **Approve push** of `v2-redesign` (fast-forward `0ae7d58` → HEAD; public repo; no deploy: Pages serves `main` only) | backup + preview |
+| 4a | **Approve iPhone preview setup** (`docs/IPHONE-ACCEPTANCE.md`): staged Vercel preview in a separate project + synthetic Apps Script test backend | A5 acceptance |
+| 4b | Run the iPhone acceptance run sheet; report results | release of A5 |
 | 5 | Read the Apps Script Executions log for the 05:00 sync (B2-sync) | B3 |
 | 6 | **Hosting decision** for multi-user (P-003: keep D-003 vs separate service, provider, EU region) and legal/privacy review | Track C |
 | 7 | Approve D-008 implementation (Condor pack wording `–` / `U`, subdued completed flights; screenshots first) | A6 |
