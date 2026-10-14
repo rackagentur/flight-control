@@ -1,6 +1,8 @@
 # Step 6.6 — physical iPhone acceptance plan
 
-Status (2026-10-14): **PREPARED — tooling ready, nothing deployed, acceptance not started.** Build under test:
+Status (2026-10-15): **Frontend preview DEPLOYED** (Vercel project `flight-control-preview`, alias
+`https://flight-control-preview.vercel.app`, synthetic use only; SSO protection off for that project only).
+**Synthetic backend: generated, awaiting owner setup in Apps Script.** Acceptance not started. Build under test:
 `v2-redesign` @ `5db9381` (pushed; Step 6.6 = `c999cef`, formerly `bb6c0f5` before the history cleanup). The detailed engineering checklist remains in `docs/STEP-6.6-OFFLINE.md`; this is the run sheet.
 
 ## 1. Test environment (isolated; never production)
@@ -35,7 +37,10 @@ Prepared tooling (tested in `tests/preview.test.js`; neither script deploys anyt
 1. Once: `vercel project add flight-control-preview`; then in the Vercel dashboard for **that project only**:
    Settings → Deployment Protection → Vercel Authentication **off** (see Protection above).
 2. Each build: `DIR="$(mktemp -d)/site" && node scripts/preview/stage.mjs "$DIR" && vercel deploy "$DIR" --project flight-control-preview --yes`
-   (preview target; **never** `--prod`, never the production project). Note the printed `https://…vercel.app` URL.
+   Never use `--prod` deliberately and never another project. Note: the **first** deployment of a new CLI project
+   becomes that project's own production target (alias `flight-control-preview.vercel.app`); this is still the
+   isolated preview project, not Flight Control production (GitHub Pages, `main`).
+   An older project `flight-control-step66-preview` (earlier 6.6 work, SSO-protected) also exists; it is not used.
 
 **C. iPhone**
 1. Safari → preview URL → Share → *Add to Home Screen* → open the icon.

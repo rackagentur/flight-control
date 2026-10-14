@@ -17,7 +17,7 @@ Last updated: 2026-10-14. Agents act only on items marked **approved**; everythi
 | 2 | Set up the probe project (`~/.config/flight-control/feed-probe/SETUP.md` A–C), run `probeDryRun` only | — |
 | 3 | **Authorize** the probe explicitly (set `FC_PROBE_AUTHORIZED_UNTIL`, tell the agent) | `probeRun`, then optional monitor |
 | 4 | ~~Push `v2-redesign`~~ — done 2026-10-14 (`5db9381`, fast-forward, after history cleanup) | — |
-| 4a | **Approve deploying the isolated preview** (`docs/IPHONE-ACCEPTANCE.md` Setup A–B): synthetic Apps Script test backend + Vercel preview in a separate project `flight-control-preview` with Vercel Authentication off for that project only | A5 acceptance |
+| 4a | Isolated preview: Vercel `flight-control-preview` **deployed 2026-10-15**; owner sets up the synthetic Apps Script backend (`docs/IPHONE-ACCEPTANCE.md` Setup A), then the agent verifies it | A5 acceptance |
 | 4b | Run the iPhone acceptance run sheet; report results | release of A5 |
 | 5 | Read the Apps Script Executions log for the 05:00 sync (B2-sync) | B3 |
 | 6 | **Hosting decision** for multi-user (P-003: keep D-003 vs separate service, provider, EU region) and legal/privacy review | Track C |

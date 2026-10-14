@@ -3,6 +3,18 @@
 Newest first. One entry per working session (see the checkpoint procedure in `docs/NEXT_STEPS.md`).
 Facts only; link to decisions/issues by ID. Never paste URLs with tokens, calendar ids, names or employee numbers.
 
+## 2026-10-15 — Claude Code: isolated preview deployment
+
+- Vercel project `flight-control-preview` created; SSO protection disabled for it only (other projects untouched,
+  `flight-control-step66-preview` still SSO-protected). Staged 70 files from the clean tree @ `53850e0` and deployed;
+  the first CLI deployment became the project's own production target (alias `flight-control-preview.vercel.app`).
+- Verified: 200 + `no-cache` for `/`, `index.html`, `sw.js`; `noindex`; 8 non-allowlisted paths 404 (docs, reference,
+  tests, backend, scripts, package.json, .git, vercel.json); served bytes equal the repo; headless Chrome (phone
+  viewport): service worker active, 68 cached entries, no page errors, no third-party requests.
+- Production unchanged: Pages source `main` @ `0ae7d58`, served `controller.js` equals `origin/main`.
+- Synthetic backend + throwaway token generated in `~/.config/flight-control/test-backend/` (private); Apps Script
+  setup needs the owner (no clasp). `53850e0` and this docs commit are local only.
+
 ## 2026-10-14 (final) — Claude Code: history cleanup, push, iPhone preview tooling
 
 - History cleanup (unpublished commits only; no remote ref, tag, fork, PR, other branch or worktree contained them):
