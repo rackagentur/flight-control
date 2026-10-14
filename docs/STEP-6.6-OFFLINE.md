@@ -195,3 +195,55 @@ Verification (2026-10-14):
 - `npm test` 5×: **766 passed, 0 failed** each run.
 - `node scripts/build-offline.mjs --check`: current (68 files).
 - Desktop browser harness (`tests/browser/offline.mjs`, system Chrome via an already installed Playwright, localhost, synthetic data, external requests intercepted): **15/15 PASS**, including sign-out across two tabs and reset. **Not verified:** physical iPhone / Home Screen behaviour, Safari, real hosting; the harness does not itself assert profile-field preservation (covered by Node tests).
+
+## Emergency rollback (prepared 2026-10-15, never activated)
+
+Once a device has the Step 6.6 service worker, reverting `main` alone is **not** a rollback: the installed
+worker keeps serving its cached shell. The rollback artifact is `scripts/rollback/sw.js`, a self-removing
+worker. It is not part of the normal build, so it is never precached and never deployed by accident.
+
+What it does, once a browser fetches it as the app's `sw.js`:
+1. Activates at once (`skipWaiting`).
+2. Deletes only caches whose names start with `fc-shell-`. Other caches on the shared GitHub Pages
+   origin, such as the `roadmap` site, are kept.
+3. Unregisters only its own registration (scope `/flight-control/`).
+4. Reloads its open windows, which then load the restored application from the network.
+
+It has no fetch handler and never touches `localStorage`, IndexedDB or cookies. The saved roster, the access
+token, the endpoint and all settings survive. The restored pre-6.6 app (`0ae7d58`) uses the same `token.v2` and
+`endpoint` keys and reconnects. It has no offline copy and no device history of its own: the 6.6 migration
+deleted the legacy cache keys.
+
+**Activation (owner approval required at every step):**
+1. Choose the restore target `R` (the last good release, e.g. `0ae7d58`).
+2. `git switch -c rollback/<date> origin/main && git revert --no-commit R..origin/main`
+3. `git show <release-commit>:scripts/rollback/sw.js > sw.js && git add sw.js && git commit -m "rollback: restore R, retire offline shell"`
+4. Verify locally before deploying: `PLAYWRIGHT_MODULE_PATH=… node tests/browser/rollback-subpath.mjs R`. The test
+   restores the tree of `R` with the rollback worker served as `sw.js`.
+5. Fast-forward `main` to the rollback branch. GitHub Pages deploys it.
+6. Leave the rollback `sw.js` deployed until every device has updated (suggested ≥ 30 days). Never delete it
+   while 6.6 shells may still be installed. A later re-release replaces it with a new generated `sw.js`.
+
+**Limitation (verified in desktop Chrome; iPhone not yet tested):** the rollback reaches a device only through the
+browser's own service-worker lifecycle:
+1. *Update check:* the browser must fetch the new `sw.js`. Chrome usually does this on launch. Browsers promise a
+   check at least every 24 h on navigation.
+2. *Activation:* in a final run of 30 (desktop Chrome, `/flight-control/`), 28 completed on the first launch. In 2,
+   the rollback worker installed but stayed **waiting**, despite `skipWaiting()` and three explicit
+   `registration.update()` calls, while the old shell still controlled the open page. **One relaunch** (all
+   pages closed, app reopened) completed the rollback in both. Earlier runs, before the harness fixes, showed the
+   same pattern once without an update check.
+
+Practical rule for an emergency: after deploying the rollback, **force-close and reopen** the Home Screen app,
+and do it again if the old version still shows. The harness models exactly this: launch, up to 3 update calls,
+then up to 2 relaunches. A rollback that a relaunch cannot complete fails the test. The 6.6 shell does not call
+`update()` itself; adding that on launch and on foregrounding (I-006) would shorten step 1, but it would not remove
+the waiting case.
+
+**Verification:** `tests/rollback-worker.test.js` (unit, part of `npm test`) and `tests/browser/rollback-subpath.mjs`
+(desktop Chrome, served under `/flight-control/`, synthetic data). The browser test covers:
+- the subpath: startup, asset loading, worker registration and scope, manifest `start_url`/scope, offline
+  startup and navigation, cached roster;
+- the rollback: an installed 6.6 shell with a full cache; same-origin neighbour app and caches; rollback
+  deployed; shell caches and registration removed; neighbours, roster, token and settings intact; the
+  restored `0ae7d58` app loads from the network and shows its roster; no worker re-registered.

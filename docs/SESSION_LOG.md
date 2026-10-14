@@ -3,6 +3,19 @@
 Newest first. One entry per working session (see the checkpoint procedure in `docs/NEXT_STEPS.md`).
 Facts only; link to decisions/issues by ID. Never paste URLs with tokens, calendar ids, names or employee numbers.
 
+## 2026-10-15 (later) — Claude Code: release safety (rollback worker, Pages subpath)
+
+- Added `scripts/rollback/sw.js` (self-removing worker: deletes only `fc-shell-*` caches, unregisters its own
+  scope, reloads windows; no fetch handler, no storage access) and the emergency procedure in
+  `docs/STEP-6.6-OFFLINE.md`. Not activated, not deployed.
+- New tests: `tests/rollback-worker.test.js` (unit) and `tests/browser/rollback-subpath.mjs` (desktop Chrome under
+  `/flight-control/` + rollback to the real `0ae7d58` tree; synthetic data; neighbour same-origin app at `/roadmap/`).
+- Found (documented as I-009): the update check on launch is not guaranteed, and in 2 of the final 30 runs the
+  installed rollback worker stayed waiting despite `skipWaiting()` until one relaunch. The test models launch → up
+  to 3 `update()` calls → up to 2 relaunches and fails otherwise; final 30/30 pass (28 on launch, 2 after one relaunch). Three test-harness bugs fixed (async predicates passed to
+  `waitForFunction`; readiness wait across navigations; reload before the worker was active).
+- Committed locally (not pushed); nothing deployed; no production access.
+
 ## 2026-10-15 — Claude Code: isolated preview deployment
 
 - Vercel project `flight-control-preview` created; SSO protection disabled for it only (other projects untouched,
