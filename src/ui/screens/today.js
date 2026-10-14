@@ -124,8 +124,8 @@ function statusPass(view) {
       <section class="pass" aria-labelledby="status-title">
         <div class="pass-head">
           ${kicker(ort ? kind.name : kind && state.offSubtype !== 'off' ? kind.name : 'Off today', state, review, { times: Boolean(duty) })}
-          <h2 class="pass-state t-display" id="status-title">${ort ? kind.short : state.offSubtype === 'leave' ? 'Leave' : 'Off'}</h2>
-          ${ort ? html`<p class="pass-lede">Assigned by the company; it cannot be taken away or reassigned.</p>` : ''}
+          <h2 class="pass-state t-display" id="status-title">${ort ? kind.short : state.offSubtype === 'leave' ? kind?.name ?? 'Leave' : 'Off'}</h2>
+          ${ort ? html`<p class="pass-lede">Assigned by the company; it cannot be taken away or reassigned.</p>` : kind?.lede ? html`<p class="pass-lede">${kind.lede}</p>` : ''}
           ${duty ? html`<p class="pass-lede">Next duty ${routeTitle(duty)} · ${relativeDayLabel(now, duty.sectors[0].dep, tz)}</p>` : ''}
         </div>
         ${nextEventBlock(state, now, tz)}
@@ -141,6 +141,7 @@ function statusPass(view) {
         <div class="pass-head">
           ${kicker(term.name, state, review, { times: Boolean(duty) })}
           <h2 class="pass-state t-display" id="status-title">${term.short}</h2>
+          ${term.lede ? html`<p class="pass-lede">${term.lede}</p>` : ''}
           ${duty ? html`<p class="pass-lede">Next duty ${routeTitle(duty)} · ${relativeDayLabel(now, duty.sectors[0].dep, tz)}</p>` : ''}
         </div>
         ${nextEventBlock(state, now, tz)}

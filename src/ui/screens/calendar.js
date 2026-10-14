@@ -144,7 +144,7 @@ const keyRows = (term) => [
   ['key-re', 'Reserve', 'RE'],
   ['key-off', 'Off · stated by roster', term.offSubtype.off.short],
   ['key-ort', term.protectedLegend, term.offSubtype.ort.short],
-  ['key-leave', 'Leave', term.offSubtype.leave.short],
+  ['key-leave', `${term.offSubtype.leave.name}${term.offSubtype.leave.lede ? ` · ${term.offSubtype.leave.lede.toLowerCase()}` : ''}`, term.offSubtype.leave.short],
   ['key-unassigned', term.unassigned.legend, term.unassigned.cell],
   ['key-duty', 'Duty · type not given', 'Duty'],
   ['key-unknown', 'Unknown', '?'],

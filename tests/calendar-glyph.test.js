@@ -153,7 +153,7 @@ test('the aircraft is decorative, a sibling after the band (so fade masks never 
   }
 });
 
-test('markers OFF / FREE / ORT / SB / RE / LEAVE render exactly as before', () => {
+test('markers OFF / FREE / ORT / SB / RE render exactly as before; Condor leave shows its roster code U (D-012)', () => {
   const grid = cells(render(scenario(), '2026-10'));
   const code = (date) => grid.get(date).match(/<span class="(cal-code[^"]*)" aria-hidden="true">([^<]*)<\/span>/).slice(1, 3);
   assert.deepEqual(code('2026-10-01'), ['cal-code tok-sb', 'SB']);
@@ -161,7 +161,7 @@ test('markers OFF / FREE / ORT / SB / RE / LEAVE render exactly as before', () =
   assert.deepEqual(code('2026-10-03'), ['cal-code tok-off', 'OFF']);
   assert.deepEqual(code('2026-10-04'), ['cal-code tok-off tok-ort', 'ORT']);
   assert.deepEqual(code('2026-10-26'), ['cal-code tok-off', 'FREE']);
-  assert.deepEqual(code('2026-10-27'), ['cal-code tok-off tok-leave', 'LEAVE']);
+  assert.deepEqual(code('2026-10-27'), ['cal-code tok-off tok-leave', 'U']);
   for (const date of ['2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04', '2026-10-26', '2026-10-27']) {
     assert.match(grid.get(date), /<span class="cal-track" aria-hidden="true"><span class="cal-mark"><\/span><\/span>/, date);
   }
@@ -308,7 +308,7 @@ test('calendar key: one line per rotation, with the aircraft in the sample; othe
   assert.match(markup, /Flight · one line per rotation</);
   assert.ok(!/one aircraft per sector/.test(markup));
   assert.match(markup, /class="cal-key-plane"/);
-  for (const label of ['Layover · inferred (dotted)', 'Layover · from roster (double line)', 'Standby', 'Reserve', 'Off · stated by roster', 'ORT · protected free day', 'Leave', 'Duty · type not given', 'Unknown', 'No data']) {
+  for (const label of ['Layover · inferred (dotted)', 'Layover · from roster (double line)', 'Standby', 'Reserve', 'Off · stated by roster', 'ORT · protected free day', 'Urlaub · holiday', 'Duty · type not given', 'Unknown', 'No data']) {
     assert.ok(markup.includes(label), label);
   }
 });

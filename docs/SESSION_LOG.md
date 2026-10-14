@@ -3,6 +3,15 @@
 Newest first. One entry per working session (see the checkpoint procedure in `docs/NEXT_STEPS.md`).
 Facts only; link to decisions/issues by ID. Never paste URLs with tokens, calendar ids, names or employee numbers.
 
+## 2026-10-15 (latest) — Claude Code: Condor display terminology (D-012)
+
+- Read-only audit first: classification of `-` (unassigned) and `U` (off/leave) correct in every layer; display wrong
+  (`STR` / `LEAVE`). Then implemented D-012 in the Condor pack and pack-driven UI: calendar cell/key, 7-day strip,
+  Today titles + descriptions. Generic pack unchanged; no backend, contract or classification change.
+- Tests: 10 pinned assertions in 4 test files updated to the approved wording (lone-dash rule kept absolute for generic, restricted
+  to the code elements for Condor); new `tests/condor-display.test.js` (7 tests; 4 fail against the old code).
+- `sw.js` rebuilt (precached `profile.js` and UI files changed). Committed locally (not pushed); nothing deployed.
+
 ## 2026-10-15 (later) — Claude Code: release safety (rollback worker, Pages subpath)
 
 - Added `scripts/rollback/sw.js` (self-removing worker: deletes only `fc-shell-*` caches, unregisters its own

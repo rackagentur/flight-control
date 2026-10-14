@@ -14,7 +14,7 @@ const EVIDENCE_TEXT = {
 };
 
 function dayLabel(day, term) {
-  if (day.status === 'off') return 'OFF';
+  if (day.status === 'off') return term.offSubtype[day.offSubtype]?.cell ?? 'OFF';
   if (day.status === 'unassigned') return term.unassigned.cell;
   if (day.status === 'standby') return 'SB';
   if (day.status === 'reserve') return 'RE';
@@ -29,7 +29,7 @@ function dayDescription(day, term) {
     layover: `Layover ${day.label}${day.confidence === 'inferred' ? ' (inferred)' : ''}${day.evidence === 'duty-unspecified' ? ', duty also listed' : ''}`,
     standby: 'Standby',
     reserve: 'Reserve',
-    off: 'Off',
+    off: term.offSubtype[day.offSubtype]?.cell ? term.offSubtype[day.offSubtype].name : 'Off',
     unassigned: term.unassigned.name,
   }[day.status];
   return base ?? EVIDENCE_TEXT[day.evidence] ?? 'Unknown';

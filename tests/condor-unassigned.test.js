@@ -232,7 +232,7 @@ test('state engine: today on a Strichtag is status unassigned with the airline r
   const roster = buildRoster(snap, PROFILE, NOW_UNASSIGNED);
   const state = deriveState(snap, roster, PROFILE, NOW_UNASSIGNED);
   assert.deepEqual([state.status, state.confidence, state.provenance, state.phase], ['unassigned', 'confirmed', 'source', 'unassigned']);
-  assert.deepEqual(state.reasons, ['The roster lists today as STRICHTAG: no duty is assigned. This is not a day off.']);
+  assert.deepEqual(state.reasons, ['The roster lists today as a Strichtag: no duty is assigned. This is not a day off.']);
   assert.equal(state.offSubtype, undefined);
   assert.notEqual(state.status, 'off');
   const generic = deriveState(snapshotFor(GENERIC_PROFILE), buildRoster(snapshotFor(GENERIC_PROFILE), GENERIC_PROFILE, NOW_UNASSIGNED), GENERIC_PROFILE, NOW_UNASSIGNED);
@@ -279,11 +279,11 @@ const renderToday = (profile, p = payload) => todayScreen.render({ view: () => v
 const textOf = (markup) => markup.replace(/<[^>]*>/g, ' ');
 const cellOf = (markup, date) => markup.match(new RegExp(`<button[^>]*data-date="${date}"[\\s\\S]*?</button>`))[0];
 
-test('Condor profile renders the compact STR in the calendar cell, key and week strip; the full STRICHTAG / Strichtag elsewhere', () => {
+test('Condor profile renders the roster code - in the calendar cell, key and week strip; Strichtag elsewhere (D-012)', () => {
   const cal = renderCal(PROFILE);
-  assert.match(cal, /cal-code tok-unassigned" aria-hidden="true">STR</);
-  assert.doesNotMatch(cal, /tok-unassigned" aria-hidden="true">STRICHTAG</, 'the long word is not a cell code any more');
-  assert.match(cal, /cal-key-item key-unassigned"><span class="cal-key-sample" aria-hidden="true">STR<\/span>STR · STRICHTAG · unassigned day, not off</);
+  assert.match(cal, /cal-code tok-unassigned" aria-hidden="true">-</);
+  assert.doesNotMatch(cal, /\bSTR\b|STRICHTAG/, 'neither STR nor STRICHTAG appears anywhere in the Condor calendar');
+  assert.match(cal, /cal-key-item key-unassigned"><span class="cal-key-sample" aria-hidden="true">-<\/span>- · Strichtag · no duty assigned</);
   assert.match(cal, /<h2 class="t-title-2" id="cal-detail-title">Strichtag<\/h2>/);
   assert.match(cal, /<p class="t-eyebrow">Strichtag · from roster(<span class="tz-mode" aria-hidden="true">UTC<\/span>)?<\/p>/);
   assert.match(cal, /aria-label="Today, [^"]*: Strichtag, confirmed"/);
@@ -291,13 +291,14 @@ test('Condor profile renders the compact STR in the calendar cell, key and week 
   assert.match(cal, /status-pill" data-confidence="confirmed">Confirmed</);
   const today = renderToday(PROFILE);
   assert.match(today, /<span class="t-eyebrow">Strichtag<\/span>/);
-  assert.match(today, /<h2 class="pass-state t-display" id="status-title">STRICHTAG<\/h2>/);
+  assert.match(today, /<h2 class="pass-state t-display" id="status-title">Strichtag<\/h2>\s*<p class="pass-lede">No duty assigned<\/p>/);
   assert.match(today, /Next duty/, 'the next known duty is still shown');
   assert.match(today, /week-day is-unassigned[^>]*aria-label="Today, [^"]*: Strichtag"/);
-  assert.match(today, /<span class="week-code" aria-hidden="true">STR<\/span>/);
-  assert.doesNotMatch(today, /week-code" aria-hidden="true">STRICHTAG</);
-  // Screen readers get the full name, never only the abbreviation.
-  assert.doesNotMatch(cellOf(cal, '2026-10-19').match(/aria-label="([^"]*)"/)[1], /\bSTR\b/);
+  assert.match(today, /<span class="week-code" aria-hidden="true">-<\/span>/);
+  assert.doesNotMatch(today, /\bSTR\b|STRICHTAG/);
+  // Screen readers get the full name, never only the symbol.
+  assert.match(cellOf(cal, '2026-10-19').match(/aria-label="([^"]*)"/)[1], /Strichtag/);
+  assert.doesNotMatch(cellOf(cal, '2026-10-19').match(/aria-label="([^"]*)"/)[1], /: -[,\s]|: -$/);
 });
 
 test('generic profile renders UNAS / Unassigned day / UNASG and never STRICHTAG, STR or Strichtag', () => {
@@ -318,21 +319,29 @@ test('generic profile renders UNAS / Unassigned day / UNASG and never STRICHTAG,
   }
 });
 
-test("the roster symbol '-' is never rendered for an unassigned day (cell, label, detail, Today, week strip)", () => {
+test("a lone '-' appears only as the Condor Strichtag code (cell, key sample, week strip); never in labels or detail; never for generic", () => {
+  // Generic: the roster symbol is never rendered (unchanged rule).
+  for (const markup of [renderCal(GENERIC_PROFILE), renderCal(GENERIC_PROFILE, '2026-10-20'), renderToday(GENERIC_PROFILE)]) {
+    assert.doesNotMatch(markup, />\s*-\s*</, 'generic: no element whose text is a lone dash');
+  }
+  // Condor (D-012): every lone '-' is exactly a Strichtag code element.
+  const allowed = /<span class="(?:cal-code tok-unassigned|cal-key-sample|week-code)" aria-hidden="true">-<\/span>/g;
+  for (const markup of [renderCal(PROFILE), renderCal(PROFILE, '2026-10-20'), renderToday(PROFILE)]) {
+    assert.doesNotMatch(markup.replace(allowed, ''), />\s*-\s*</, 'Condor: no lone dash outside the code elements');
+  }
+  const cal = renderCal(PROFILE);
+  assert.equal((cal.match(/cal-code tok-unassigned" aria-hidden="true">-</g) ?? []).length, view(PROFILE).roster.days.filter((d) => d.status === 'unassigned' && d.date.startsWith('2026-10')).length, 'one code per Strichtag cell');
+  assert.match(cal, /<span class="cal-key-sample" aria-hidden="true">-<\/span>/);
   for (const profile of [PROFILE, GENERIC_PROFILE]) {
     const code = airlineOf(profile).terminology.unassigned.cell;
-    for (const markup of [renderCal(profile), renderCal(profile, '2026-10-20'), renderToday(profile)]) {
-      assert.doesNotMatch(markup, />\s*-\s*</, 'no element whose text is a lone dash');
-    }
     const cell = cellOf(renderCal(profile), '2026-10-19');
     assert.match(cell, new RegExp(`<span class="cal-code tok-unassigned" aria-hidden="true">${code}</span>`));
     assert.doesNotMatch(cell.match(/aria-label="([^"]*)"/)[1], /: -[,\s]|: -$/);
-    const v = view(profile);
-    const strip = weekView(v.roster.days.filter((d) => d.status === 'unassigned'), profile.homeTz, airlineOf(profile).terminology).toString();
+    const strip = weekView(view(profile).roster.days.filter((d) => d.status === 'unassigned'), profile.homeTz, airlineOf(profile).terminology).toString();
     assert.match(strip, new RegExp(`<span class="week-code" aria-hidden="true">${code}</span>`));
-    assert.doesNotMatch(strip, />\s*-\s*</);
   }
 });
+
 
 test("a '-' day is not in Today's rest/off lists and is not counted as an off day", () => {
   const today = renderToday(PROFILE);
@@ -356,11 +365,11 @@ test("'--' is shown as unknown (never Strichtag, off or duty); 'XYZ' likewise", 
   assert.match(label, /^Tue 20 Oct: Unknown --: The roster lists a code Flight Control does not recognise/);
   assert.doesNotMatch(label, /Strichtag/);
   // The unassigned day next to it is still Strichtag.
-  assert.match(cellOf(cal, '2026-10-19'), /tok-unassigned" aria-hidden="true">STR</);
+  assert.match(cellOf(cal, '2026-10-19'), /tok-unassigned" aria-hidden="true">-</);
   const v = view(PROFILE, NOW_UNASSIGNED, pd);
   const strip = weekView(v.roster.days.filter((d) => d.date === '2026-10-20'), PROFILE.homeTz, airlineOf(PROFILE).terminology).toString();
   assert.match(strip, /week-day is-unknown/);
-  assert.doesNotMatch(strip, /is-unassigned|>STR</);
+  assert.doesNotMatch(strip, /is-unassigned|>-</);
   // 'XYZ' goes the same way.
   const px = backendRoster(extendedFeed({ withUnknown: false, extra: [dayEv('XYZ', '2026-10-26T23:00:00Z', '2026-10-27T23:00:00Z')] }));
   const xcell = cellOf(renderCal(PROFILE, '2026-10-27', px), '2026-10-27');

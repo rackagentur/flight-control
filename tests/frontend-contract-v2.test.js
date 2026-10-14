@@ -82,9 +82,9 @@ test('ORT: explicit protected free day through the whole stack, distinct from OF
   const html = renderCalendar(s, '2026-10', '2026-10-04');
   assert.match(html, /cal-code tok-off tok-ort" aria-hidden="true">ORT</);
   assert.match(html, /cal-code tok-off" aria-hidden="true">OFF</);
-  assert.match(html, /cal-code tok-off tok-leave" aria-hidden="true">LEAVE</);
+  assert.match(html, /cal-code tok-off tok-leave" aria-hidden="true">U</, "Condor leave shows its roster code U (D-012)");
   // A single dash is the unassigned day (Strichtag, cell STR), never a FREE capsule.
-  assert.match(html, /cal-code tok-unassigned" aria-hidden="true">STR</);
+  assert.match(html, /cal-code tok-unassigned" aria-hidden="true">-</, "Condor Strichtag shows its roster code - (D-012)");
   assert.doesNotMatch(html, />FREE</);
   assert.match(html, /cannot be taken away or reassigned/);
 });
