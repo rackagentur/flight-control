@@ -13,6 +13,7 @@ import { AdapterError } from './sources/fc-appscript-v5.js';
 import { adaptHistoryV2 } from './sources/fc-appscript-v2.js';
 import { request as v2Request, validateRoster, validateHistory } from './sources/contract-v2.js';
 import { purgeDeparturesCache } from './sources/departures-service.js';
+import { purgeFlightInfoCache } from './sources/flight-info-service.js';
 import { sampleSnapshot, sampleProfile } from './sources/sample.js';
 import { withHistory, rememberSectors, validEntry } from './model/history.js';
 import { normalizeProfile } from './config/profile.js';
@@ -83,11 +84,13 @@ export function createController({ profile, onChange, store = defaultStore, api 
   function purgeRoster() {
     const ok = purgeRecords(store);
     const departuresCleared = purgeDeparturesCache(store);
+    purgeFlightInfoCache();   // in memory only; cannot fail
     record = snapshot = null; saved = false; loading = false;
     contract = { active: null, fallback: null }; v2RetryAt = 0; historyAttemptAt = 0;
     return ok && departuresCleared;
   }
   function invalidate() { generation += 1; accessRevision += 1; pending = null; reconnectPending = false; loading = false; }
+  const clearStorageError = () => new ApiError('storage', 'Local data could not be fully cleared. Clear website data in browser settings.');
   function loadProduction(opts = {}) {
     if (pending) return pending;
     const task = runLoad(opts);
@@ -102,6 +105,9 @@ export function createController({ profile, onChange, store = defaultStore, api 
     return task;
   }
   async function runLoad({ force = false, manual = false } = {}) {
+    // A failed local sign-out stays closed until explicit reconnection, even if storage
+    // could not retain the tombstone or remove the endpoint/credential.
+    if (signedOut && storageError) { error = clearStorageError(); emit(); return; }
     const gen = ++generation;
     const endpoint = store.get(ENDPOINT_KEY), token = store.get(TOKEN_KEY);
     const current = () => gen === generation && endpoint === store.get(ENDPOINT_KEY) && token === store.get(TOKEN_KEY) && !signedOut;
@@ -225,15 +231,20 @@ export function createController({ profile, onChange, store = defaultStore, api 
   function removeToken({ reset = false, disconnect = false } = {}) {
     invalidate(); signedOut = true;
     // Tombstone prevents a legacy open GET from repopulating data after explicit sign-out.
-    store.set(SIGNED_OUT_KEY, true);
+    let marked = store.set(SIGNED_OUT_KEY, true);
     const removed = [store.remove(TOKEN_KEY), reset ? store.remove('profile') : signOutProfile(), purgeRoster()];
-    profile = normalizeProfile(reset ? {} : store.getJSON('profile', {}) ?? {});
+    profile = normalizeProfile(reset ? {} : { ...store.getJSON('profile', {}), name: '', hotelListUrl: '' });
     if (disconnect) removed.push(store.remove(ENDPOINT_KEY));
     if (reset) { removed.push(store.remove(ENDPOINT_KEY), store.clearAllChecked()); }
-    access = { endpoint: store.get(ENDPOINT_KEY), token: store.get(TOKEN_KEY) };
-    storageError = removed.some((ok) => !ok);
-    if (storageError) store.set(SIGNED_OUT_KEY, true);
-    error = storageError ? new ApiError('storage', 'Local data could not be fully cleared. Clear website data in browser settings.')
+    // Cleanup can free quota. set() verifies the stored value; retry only after removal.
+    // Reset instead secures access by clearing the entire namespace, including endpoint.
+    if (!reset && !marked) marked = store.set(SIGNED_OUT_KEY, true);
+    const markerFailed = !reset && !marked;
+    if (markerFailed) removed.push(store.remove(ENDPOINT_KEY));
+    access = { endpoint: store.get(ENDPOINT_KEY), token: null };
+    storageError = markerFailed || removed.some((ok) => !ok);
+    if (reset && storageError) store.set(SIGNED_OUT_KEY, true);
+    error = storageError ? clearStorageError()
       : store.get(ENDPOINT_KEY) ? new ApiError('auth-required', 'Access token required. Reconnect in Settings.') : null;
     if (mode.kind === 'sample') snapshot = sampleSnapshot(mode.state, mode.tone, now(), sampleProfile(profile), mode.variant ?? null);
     emit(); return !storageError;
@@ -269,6 +280,8 @@ export function createController({ profile, onChange, store = defaultStore, api 
     forgetRosterData() { invalidate(); purgeRoster(); },
     // Invoked for changes in other tabs, including deletion of the roster record.
     accessChanged() {
+      // A storage event cannot undo a failed explicit sign-out in this page.
+      if (signedOut && storageError) { invalidate(); error = clearStorageError(); emit(); return; }
       invalidate(); record = snapshot = null; saved = false; profile = normalizeProfile(store.getJSON('profile', {}));
       access = { endpoint: store.get(ENDPOINT_KEY), token: store.get(TOKEN_KEY) };
       signedOut = store.get(SIGNED_OUT_KEY) === 'true' || !access.endpoint;

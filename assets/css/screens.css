@@ -405,8 +405,9 @@
 .dest-row { display: grid; grid-template-columns: minmax(96px, 34%) minmax(0, 1fr); gap: var(--space-3); padding: 8px 0; }
 .dest-row + .dest-row { border-top: 0.5px solid var(--line); }
 .dest-label { color: var(--fg-2); font-size: var(--text-caption); padding-top: 2px; }
-.dest-value { display: grid; gap: 2px; margin: 0; font-size: var(--text-callout); color: var(--fg-1); }
+.dest-value { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; margin: 0; font-size: var(--text-callout); color: var(--fg-1); }
 .dest-note { color: var(--fg-2); font-size: var(--text-caption); }
+.dest-hotel-address { display: block; margin-top: 2px; }
 .dest-actions { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
 .dest-link { color: var(--accent); font-weight: var(--weight-semibold); text-decoration: none; font-size: var(--text-callout); }
 .dest-link:hover { text-decoration: underline; }
@@ -502,3 +503,39 @@
 @media (min-width: 1200px) {
   .rd-row { grid-template-columns: 4.6rem minmax(0, 1fr) minmax(0, max-content); padding: 12px 0; }
 }
+
+/* --- Flight Detail · live gates & terminals (provider data beside the roster) ------------- */
+.fl-ops { min-width: 0; }
+.fo-legs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4) var(--space-5); }
+.fo-leg { display: grid; align-content: start; gap: var(--space-1); min-width: 0; overflow-wrap: anywhere; }
+.fo-leg > * { min-width: 0; }
+.fo-leg + .fo-leg { padding-left: var(--space-5); border-left: 0.5px solid var(--line); }
+.fo-leg-head { color: var(--fg-2); }
+.fo-leg[data-leg="departure"] .fo-leg-head { color: var(--fg-1); }
+.fo-city { color: var(--fg-2); margin-top: -2px; }
+.fo-gate { display: grid; gap: 0; margin-top: var(--space-2); }
+.fo-gate-value { font-family: var(--font-display); font-size: var(--text-title-2); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-title); line-height: var(--leading-tight); color: var(--fg-1); }
+.fo-leg[data-leg="departure"] .fo-gate-value { font-size: var(--text-title-1); }
+.fo-gate-none { line-height: var(--leading-snug); }
+.fo-terminal { color: var(--fg-1); }
+.fo-extra { color: var(--fg-1); }
+.fo-times { display: grid; gap: 2px; margin-top: var(--space-2); }
+.fo-time { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 var(--space-3); }
+.fo-time dt, .fo-time dd { white-space: nowrap; }
+.fo-time dd { margin: 0; font-size: var(--text-callout); color: var(--fg-1); }
+.fo-time.is-revised dd { color: var(--route); font-weight: var(--weight-semibold); }
+.fo-status { margin: 0; }
+.fo-status .chip-status { max-width: 100%; height: auto; min-height: 24px; white-space: normal; }
+.fo-foot { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-3); padding-top: var(--space-3); border-top: 0.5px solid var(--line); }
+.fo-stale { color: var(--fg-1); font-weight: var(--weight-medium); }
+.fo-refresh { flex: none; min-height: var(--touch-min); margin: calc(var(--space-3) * -1) calc(var(--space-2) * -1); padding: 0 var(--space-2); border: 0; background: none; color: var(--accent); font-weight: var(--weight-semibold); cursor: pointer; }
+.fo-refresh:hover:not(:disabled) { text-decoration: underline; }
+.fo-refresh:disabled { color: var(--fg-2); cursor: default; }
+.fo-refresh:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--radius-control); }
+.fl-ops.is-quiet { gap: var(--space-2); }
+@media (max-width: 380px) { .fo-leg + .fo-leg { padding-left: var(--space-4); } }
+.attr { white-space: nowrap; }
+.fo-foot > p { flex: 1 1 10rem; min-width: 0; overflow-wrap: anywhere; }
+.fo-foot .attr { display: inline-block; max-width: 100%; white-space: normal; }
+.attr-link { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.attr-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }

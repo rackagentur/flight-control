@@ -5,6 +5,7 @@
 
 import { request, CONTRACT, VERSION } from './contract-v2.js';
 import { airport as airportEntry } from '../data/airports.js';
+import { readAttribution } from './attribution.js';
 
 export const DEPARTURE_STATUSES = Object.freeze(['scheduled', 'delayed', 'boarding', 'departed', 'cancelled', 'unknown']);
 const STATUS = new Set(DEPARTURE_STATUSES);
@@ -51,6 +52,7 @@ export function validateDepartures(p) {
   if (typeof p.airportTz !== 'string' || p.airportTz === '' || typeof p.provider !== 'string' || p.provider === '') return fail('bad-meta');
   if (!finite(p.fetchedAt) || !finite(p.generatedAt) || !Number.isInteger(p.dropped) || p.dropped < 0) return fail('bad-meta');
   if (!(p.carriers === null || (Array.isArray(p.carriers) && p.carriers.every((c) => typeof c === 'string' && CARRIER.test(c))))) return fail('bad-carriers');
+  if ('attribution' in p && readAttribution(p.attribution) === null) return fail('bad-attribution');
   if (!Array.isArray(p.flights)) return fail('missing-flights');
   for (const f of p.flights) {
     const reason = badFlight(f);
@@ -92,5 +94,6 @@ export function adaptDepartures(p) {
     generatedAt: p.generatedAt,
     dropped: p.dropped,
     flights: Object.freeze(flights),
+    attribution: readAttribution(p.attribution),
   });
 }

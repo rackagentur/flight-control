@@ -116,7 +116,7 @@ export function destinationView(dest, weather, { now, review = false, titleId = 
           note: weather?.status === 'ok' ? (weather.sample ? 'Sample forecast' : `Forecast · ${weather.source}`) : null,
           attrs: html`data-weather="${weather?.status ?? 'none'}"`,
         }) : ''}
-        ${showHotel && dest.hotel.record ? row('Hotel · from roster', html`${dest.hotel.record.name}${dest.hotel.record.address ? html`<span class="dest-note">${dest.hotel.record.address}</span>` : ''}`, {
+        ${showHotel && dest.hotel.record ? row('Hotel · from roster', html`<span class="dest-hotel-name">${dest.hotel.record.name}</span>${dest.hotel.record.address ? html` <span class="dest-note dest-hotel-address">${dest.hotel.record.address}</span>` : ''}`, {
           note: dest.hotel.record.phone ? html`<a class="dest-link" href="tel:${dest.hotel.record.phone.replace(/[^\d+]/g, '')}">${dest.hotel.record.phone}</a>` : null,
         }) : ''}
         ${showHotel && !dest.hotel.record ? row('Hotel', 'Not provided by your roster source', {

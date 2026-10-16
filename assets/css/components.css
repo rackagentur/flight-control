@@ -688,6 +688,7 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
 
 /* Milestones: icon | time | label (+ note) | relative. Rows share columns through subgrid so times and labels line up. */
 .ms-list {
+  container-type: inline-size;
   display: grid;
   grid-template-columns: var(--size-ms-icon) auto minmax(0, 1fr) auto;
   column-gap: var(--space-3);
@@ -727,6 +728,17 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
 .ms-note { grid-row: 2; grid-column: 3 / -1; margin-top: 2px; font-size: var(--text-caption); line-height: 1.4; color: var(--fg-2); }
 .ms-rel { grid-column: 4; justify-self: end; white-space: nowrap; font-size: var(--text-callout); font-weight: var(--weight-semibold); color: var(--accent); }
 
+/* Keep every time, label and countdown readable in a narrow card or enlarged text.
+   The desktop subgrid remains unchanged; the countdown gets its own line here. */
+@container (max-width: 36rem) {
+  .ms-row { grid-template-columns: var(--size-ms-icon) minmax(0, 1fr); row-gap: 2px; }
+  .ms-icon { grid-column: 1; grid-row: 1; }
+  .ms-time { grid-column: 2; grid-row: 1; min-width: 0; overflow-wrap: anywhere; }
+  .ms-label { grid-column: 2; grid-row: 2; overflow-wrap: anywhere; }
+  .ms-rel { grid-column: 2; grid-row: 3; justify-self: start; white-space: normal; overflow-wrap: anywhere; }
+  .ms-note { grid-column: 2; grid-row: 4; min-width: 0; overflow-wrap: anywhere; }
+}
+
 /* Field-label glyph (wake-up, pickup, departure, arrival): decorative, copper, sits on the label's baseline. */
 .pf-icon { display: inline-block; margin-right: 6px; color: var(--accent); vertical-align: -3px; line-height: 1; }
 .pf-icon svg { width: 14px; height: 14px; }
@@ -755,5 +767,5 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
   vertical-align: 1px;
   white-space: nowrap;
 }
-:root[data-time-display="utc"] .horizon > .tz-mode { position: absolute; top: 0; right: 0; margin: 0; z-index: 1; }
+:root[data-time-display="utc"] .horizon > .tz-mode { justify-self: end; margin: 0; }
 .tz-tag { margin-left: 4px; font-size: var(--text-mini); font-weight: var(--weight-regular); color: var(--fg-2); white-space: nowrap; }

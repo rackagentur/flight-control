@@ -22,6 +22,20 @@
 }
 .main:focus { outline: none; }
 
+/* Padding protects the initial position; this opaque inset also protects content
+   while the document scrolls beneath iOS's status bar. Zero-height on other screens. */
+body::after {
+  content: "";
+  position: fixed;
+  z-index: 30;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top, 0px);
+  background: var(--canvas);
+  pointer-events: none;
+}
+
 .page {
   max-width: var(--content-max);
   margin: 0 auto;

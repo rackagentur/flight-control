@@ -10,6 +10,7 @@ import { validateEndpoint, fetchStatsSecure, contractGaps, postContract } from '
 import { ENDPOINT_KEY, TOKEN_KEY, fallbackReason } from '../../controller.js';
 import { SIGNED_OUT_KEY } from '../../roster-storage.js';
 import { request as v2Request } from '../../sources/contract-v2.js';
+import { workerDiagnosticsView, mountWorkerDiagnostics, updateWorkerDiagnostics } from '../worker-diagnostics.js';
 
 const ERROR_HELP = {
   network: 'The browser could not read the response. If the URL opens normally in a browser tab, the backend is blocking cross-origin requests (CORS) from this page.',
@@ -189,6 +190,7 @@ export const settings = {
             <div class="section-head"><h2 class="t-eyebrow" id="set-about">About</h2></div>
             <div class="list">
               ${listRow({ iconName: 'info', label: 'Flight Control', detail: 'Version 2.0 · operational preview (Phase 4)' })}
+              <div data-worker-diagnostics aria-live="polite">${workerDiagnosticsView()}</div>
             </div>
           </section>
         </div>
@@ -197,9 +199,10 @@ export const settings = {
 
   /**
    * Data changed while Settings is open (e.g. a roster load finished). Only the status
-   * line is refreshed: a full re-render would discard what is being typed into the forms.
+   * line and diagnostics are refreshed: a full re-render would discard form input.
    */
   update(root, ctx) {
+    updateWorkerDiagnostics(root);
     const line = root.querySelector('[data-contract-state]');
     if (!line) return;
     const text = contractLine(ctx.view(), Boolean(store.get(TOKEN_KEY)));
@@ -207,6 +210,7 @@ export const settings = {
   },
 
   mount(root, ctx) {
+    const stopDiagnostics = mountWorkerDiagnostics(root, () => ctx.view());
     let alive = true, operation = 0;
     const identity = () => JSON.stringify([store.get(ENDPOINT_KEY), store.get(TOKEN_KEY), store.get(SIGNED_OUT_KEY), ctx.controller.accessRevision?.()]);
     const form = root.querySelector('[data-endpoint-form]');
@@ -307,6 +311,7 @@ export const settings = {
     };
     button.addEventListener('click', onClick);
     return () => {
+      stopDiagnostics();
       alive = false; operation += 1;
       clearTimeout(timer);
       button.removeEventListener('click', onClick);

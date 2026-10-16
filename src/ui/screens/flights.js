@@ -18,9 +18,10 @@ import { milestoneList, milestoneRow, relativeIn, routeHero, sectorStatus, statu
 import { opDate, tzModeChip, tzTag } from '../../lib/op-time.js';
 import { destinationView } from '../destination.js';
 import { focusCalendar } from './calendar.js';
+import { flightOpsView, flightOpsState, refreshFlightOps, setFlightOpsMounted } from '../flight-ops.js';
 
 // Session UI state (not persisted).
-const ui = { lastParam: undefined, returnTo: null };
+const ui = { lastParam: undefined, returnTo: null, opsEntry: null };
 
 const monthName = (key) => new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(Date.parse(`${key}-15T12:00:00Z`));
 
@@ -195,7 +196,7 @@ function rotationSection(e, view, weatherFor) {
 /** City under an airport code; null when only the code is known (no repeated code). */
 const cityName = (iata) => (city(iata) !== iata ? city(iata) : null);
 
-function detailView(e, view, weatherFor, { explicit }) {
+function detailView(e, view, weatherFor, { explicit, ops = null }) {
   if (!e) return html`<div class="fl-detail-empty"><p class="t-callout t-secondary">Select a flight to see its details.</p></div>`;
   const { profile, now } = view;
   const s = e.sector;
@@ -213,6 +214,7 @@ function detailView(e, view, weatherFor, { explicit }) {
         <p class="cal-detail-meta">${provenancePill(e)}${status ? statusChip(status) : ''}<span class="t-caption t-secondary">${[status ? null : when, seen].filter(Boolean).join(' · ')}</span></p>
       </header>
       ${timingView(e, view)}
+      ${flightOpsView(ops, s, view)}
       ${rotationSection(e, view, weatherFor)}
       ${e.destination ? html`<div class="fl-section">${destinationView(e.destination, weatherFor(e.destination), { now, review: view.review, titleId: 'fl-dest' })}</div>` : ''}
       <p class="fl-detail-foot"><a class="dest-link" href="${hrefFor('calendar')}" data-fl-calendar="${localDateKey(s.dep, tz)}">Show this day in Calendar</a></p>
@@ -243,6 +245,9 @@ export const flights = {
     const explicit = Boolean(param && f.sectors.has(param));
     const selectedId = explicit ? param : defaultSector(f);
     const selected = selectedId ? f.sectors.get(selectedId) : null;
+    // Live gates/terminals (provider data beside the roster, never instead of it); loads on demand.
+    const ops = selected ? flightOpsState(ctx, selected, view) : null;
+    ui.opsEntry = ops ? selected : null;
     return html`
       <div class="page">
         ${pageHeader({ eyebrow: view.review ? 'Sample data · not your roster' : 'Roster', title: 'Flights' })}
@@ -258,7 +263,7 @@ export const flights = {
             ${recentView(f.recent, view, explicit ? selectedId : null)}
           </div>
           <aside class="fl-side" aria-label="Flight detail">
-            ${detailView(selected, view, weatherFor, { explicit })}
+            ${detailView(selected, view, weatherFor, { explicit, ops })}
           </aside>
         </div>
       </div>`;
@@ -275,7 +280,13 @@ export const flights = {
     if (changed && param) root.querySelector('#fl-detail-title')?.focus({ preventScroll: !mobile });
     if (param) ui.returnTo = param;
     ui.lastParam = param;
+    setFlightOpsMounted(true);
     const onClick = (event) => {
+      if (event.target.closest('[data-fo-refresh]')) {
+        event.preventDefault();
+        if (ui.opsEntry) refreshFlightOps(ctx, ui.opsEntry, ctx.view());
+        return;
+      }
       const cal = event.target.closest('[data-fl-calendar]');
       if (cal) {
         event.preventDefault();
@@ -284,7 +295,7 @@ export const flights = {
       }
     };
     root.addEventListener('click', onClick);
-    return () => root.removeEventListener('click', onClick);
+    return () => { root.removeEventListener('click', onClick); setFlightOpsMounted(false); };
   },
 };
 

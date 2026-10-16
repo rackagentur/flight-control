@@ -52,7 +52,7 @@ export function horizonView(h, { variant = 'full', mode = getTimeDisplay() } = {
       ${tzModeChip()}
       <div class="hz-labels" aria-hidden="true">
         ${labelled.map((s) => html`
-          <span class="hz-phase is-${s.status} ${phaseMinor.has(s) ? 'is-minor' : ''}" style="left:${pct((s.x0 + s.x1) / 2)}">${s.label}</span>`)}
+          <span class="hz-phase is-${s.status} ${phaseMinor.has(s) ? 'is-minor' : ''}" data-label-priority="${s.status === 'current' ? 0 : s.status === 'upcoming' ? 1 : 2}" style="left:${pct((s.x0 + s.x1) / 2)}">${s.label}</span>`)}
       </div>
       <div class="hz-track" aria-hidden="true">
         ${h.spans.map((s) => html`
@@ -63,10 +63,70 @@ export function horizonView(h, { variant = 'full', mode = getTimeDisplay() } = {
       </div>
       <div class="hz-times" aria-hidden="true">
         ${h.stops.map((s) => html`
-          <span class="hz-time hz-time-${s.kind} is-${s.status} ${s.next ? 'is-next' : ''} ${timeMinor.has(s) ? 'is-minor' : ''}" style="left:${pct(s.x)}">
+          <span class="hz-time hz-time-${s.kind} is-${s.status} ${s.next ? 'is-next' : ''} ${timeMinor.has(s) ? 'is-minor' : ''}" data-label-priority="${stopRank(s)}" style="left:${pct(s.x)}">
             <span class="hz-time-label">${STOP_LABEL[s.kind] ?? s.code}</span>
             <span class="hz-time-value">${time(s, mode)}</span>
           </span>`)}
       </div>
     </figure>`;
+}
+
+/** Pixel bounds, not fractional distances: next stop wins, then final arrival.
+ * Labels may move inward at the edges; the underlying stops and times never move. */
+export function fitHorizonLabels(boxes, left, right, gap = 8) {
+  const kept = [];
+  const result = boxes.map((box) => {
+    const shift = Math.max(left - box.left, Math.min(0, right - box.right));
+    return { shift, visible: false, left: box.left + shift, right: box.right + shift };
+  });
+  const order = boxes.map((box, i) => ({ ...box, i })).sort((a, b) => a.priority - b.priority || a.i - b.i);
+  for (const { i } of order) {
+    const candidate = result[i];
+    if (candidate.right > right || candidate.left < left) continue;
+    if (kept.some((box) => candidate.left < box.right + gap && candidate.right + gap > box.left)) continue;
+    candidate.visible = true; kept.push(candidate);
+  }
+  return result;
+}
+
+/** Refit on container/font changes; dispose with the screen. No operational/model changes. */
+export function mountHorizonLabels(root, { win = globalThis.window, doc = globalThis.document } = {}) {
+  const rows = [...root.querySelectorAll('.hz-labels, .hz-times')];
+  if (!rows.length) return () => {};
+  let alive = true, frame = null;
+  const layout = () => {
+    frame = null;
+    if (!alive) return;
+    for (const row of rows) {
+      const bounds = row.getBoundingClientRect();
+      if (!bounds.width) continue;
+      const labels = [...row.children];
+      for (const label of labels) label.style.translate = '0px';
+      const boxes = labels.map((label) => {
+        const { left, right, height } = label.getBoundingClientRect();
+        return { left, right, height, priority: Number(label.dataset.labelPriority) };
+      });
+      const fit = fitHorizonLabels(boxes, bounds.left, bounds.right);
+      let height = 0;
+      labels.forEach((label, i) => {
+        label.style.translate = `${fit[i].shift}px`;
+        label.style.visibility = fit[i].visible ? 'visible' : 'hidden';
+        if (fit[i].visible) height = Math.max(height, boxes[i].height);
+      });
+      row.style.height = `${Math.ceil(height)}px`;
+    }
+  };
+  const schedule = () => { if (alive && frame === null) frame = win.requestAnimationFrame(layout); };
+  const observer = win.ResizeObserver ? new win.ResizeObserver(schedule) : null;
+  for (const row of rows) { observer?.observe(row); for (const label of row.children) observer?.observe(label); }
+  win.addEventListener('resize', schedule);
+  doc.fonts?.addEventListener('loadingdone', schedule);
+  doc.fonts?.ready.then(schedule);
+  layout();
+  return () => {
+    alive = false; observer?.disconnect();
+    if (frame !== null) win.cancelAnimationFrame(frame);
+    win.removeEventListener('resize', schedule);
+    doc.fonts?.removeEventListener('loadingdone', schedule);
+  };
 }

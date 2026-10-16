@@ -17,6 +17,7 @@ import { airport } from './data/airports.js';
 import { loadProfile } from './config/profile.js';
 import { createController, TOKEN_KEY, ENDPOINT_KEY } from './controller.js';
 import { loadDepartures } from './sources/departures-service.js';
+import { loadFlightInfo } from './sources/flight-info-service.js';
 import { mountShell } from './ui/shell.js';
 import { mountReviewDock, reviewMode } from './ui/review.js';
 import { today } from './ui/screens/today.js';
@@ -30,6 +31,7 @@ import { map, weather, statistics } from './ui/screens/upcoming.js';
 import { createWeather } from './sources/weather-openmeteo.js';
 import { sampleWeather } from './sources/sample.js';
 import { buildFlights } from './model/flights.js';
+import { mountHorizonLabels } from './ui/horizon.js';
 
 const SCREENS = { today, calendar, flights, radar, map, more, weather, statistics, controls, settings };
 
@@ -115,6 +117,7 @@ const liveWeather = createWeather({
 });
 
 let accessGeneration = 0;
+let visitSeq = 0;
 let seenAccess = { endpoint: store.get(ENDPOINT_KEY), token: store.get(TOKEN_KEY) };
 
 const ctx = {
@@ -125,6 +128,7 @@ const ctx = {
   param: () => currentParam,
   weather: (query) => (review.current() ? sampleWeather(query) : liveWeather.lookup(query)),
   rerender: () => currentRoute && show(currentRoute, { quiet: true, param: currentParam }),
+  visit: () => visitSeq,
   // Departures (Radar): the screen never reads storage or the token; it only asks. Called on mount of
   // #/radar and on Refresh / Retry, never on a timer. `force` skips the 5-minute device cache read.
   // Opaque identity of the access (endpoint + token): a counter that moves whenever either is removed or
@@ -135,6 +139,17 @@ const ctx = {
     const token = store.get(TOKEN_KEY);
     if (endpoint !== seenAccess.endpoint || token !== seenAccess.token) { accessGeneration += 1; seenAccess = { endpoint, token }; }
     return `${accessGeneration}:${controller.accessRevision()}`;
+  },
+  // Live flight information (Flight Detail gates): same access rule and same stale-answer guard as departures.
+  flightInfoAccess: () => (!store.get(ENDPOINT_KEY) ? 'no-endpoint' : !store.get(TOKEN_KEY) ? 'no-token' : 'ready'),
+  loadFlightInfo: (sector, { force = false } = {}) => {
+    const endpoint = store.get(ENDPOINT_KEY);
+    const token = store.get(TOKEN_KEY);
+    const revision = controller.accessRevision();
+    return loadFlightInfo({ endpoint, token, sector }, {
+      force, accessKey: ctx.accessId(),
+      shouldStore: () => store.get(ENDPOINT_KEY) === endpoint && store.get(TOKEN_KEY) === token && controller.accessRevision() === revision,
+    });
   },
   departuresAccess: () => (!store.get(ENDPOINT_KEY) ? 'no-endpoint' : !store.get(TOKEN_KEY) ? 'no-token' : 'ready'),
   // The answer is written to the device cache (and handed back) only while the endpoint and token it was
@@ -250,7 +265,9 @@ function show(routeId, { quiet = false, param = null, soft = false, view = null 
   renderingView = view ?? controller.view();
   try {
     render(shell.main, html`${syncStatus(renderingView)}${LIVE_ROUTES.has(routeId) && !renderingView.review ? refreshControls() : ""}${screen.render(ctx)}`);
-    cleanup = screen.mount?.(shell.main, ctx, { quiet }) ?? null;
+    const screenCleanup = screen.mount?.(shell.main, ctx, { quiet });
+    const horizonCleanup = mountHorizonLabels(shell.main);
+    cleanup = () => { horizonCleanup(); screenCleanup?.(); };
   } finally { renderingView = previousView; }
   pullRefresh?.update(`${routeId}/${param ?? ""}`);
   if (refreshFocused) shell.main.querySelector('[data-roster-manual-refresh]')?.focus({ preventScroll: true });
@@ -270,7 +287,8 @@ function show(routeId, { quiet = false, param = null, soft = false, view = null 
 pullRefresh = mountPullRefresh({ root: shell.main, enabled: () => LIVE_ROUTES.has(currentRoute) && !review.current(),
   refresh: () => controller.refresh({ force: true }), view: () => latestView ?? controller.view() });
 
-startRouter((id, param) => show(id, { param, soft: id === currentRoute && param !== currentParam }));
+// Navigations (not quiet redraws) are counted: Flight Detail renews live information only on a visit.
+startRouter((id, param) => { visitSeq += 1; show(id, { param, soft: id === currentRoute && param !== currentParam }); });
 controller.setMode(reviewMode(review.current()));
 
 window.addEventListener('online', () => controller.connectivityChanged());

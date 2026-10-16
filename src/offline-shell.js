@@ -2,10 +2,22 @@
 export function watchOfflineShell(onReady, { nav = globalThis.navigator, events = globalThis.window, timeoutMs = 4000, retryDelayMs = 1000 } = {}) {
   if (!nav?.serviceWorker) { onReady(false); return; }
   let checking = 0;
+  let registration;
+  const claimed = new WeakSet();
+  const recoverControl = () => {
+    const worker = registration?.active;
+    // A navigation begun during first installation can miss activate's clients.claim().
+    // Ask once after it finishes loading; never force a waiting update into service.
+    if (!nav.serviceWorker.controller && worker?.state === 'activated'
+        && !registration.installing && !registration.waiting && !claimed.has(worker)) {
+      claimed.add(worker);
+      worker.postMessage({ type: 'FC_SHELL_CLAIM' });
+    }
+  };
   const probe = async (retries = 0) => {
     const attempt = ++checking;
     const worker = nav.serviceWorker.controller;
-    if (!worker) { onReady(false); return; }
+    if (!worker) { onReady(false); recoverControl(); return; }
     const ready = await new Promise((resolve) => {
       const channel = new MessageChannel();
       const finish = (value) => { clearTimeout(timer); channel.port1.close(); channel.port2.close(); resolve(value); };
@@ -34,7 +46,8 @@ export function watchOfflineShell(onReady, { nav = globalThis.navigator, events 
   });
   check();
   nav.serviceWorker.register(new URL('../sw.js', import.meta.url), { updateViaCache: 'none' })
-    .then((registration) => {
+    .then((registered) => {
+      registration = registered;
       const watch = (worker) => worker?.addEventListener('statechange', check);
       watch(registration.installing);
       registration.addEventListener('updatefound', () => watch(registration.installing));

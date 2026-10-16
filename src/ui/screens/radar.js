@@ -47,6 +47,7 @@ import { icon } from '../icons.js';
 import { hrefFor } from '../../router.js';
 import { clock } from '../duty.js';
 import { statusChip } from '../flight-parts.js';
+import { attributionText } from '../attribution.js';
 import { airlineOf } from '../../airlines/index.js';
 import { selectStandbyWindow, buildRadarView, radarAirport, radarCarriers } from '../../model/radar.js';
 import { sampleDepartures } from '../../sources/sample.js';
@@ -345,7 +346,7 @@ function sourceBar(s, view, { review }) {
   return html`
     <div class="rd-source">
       <div class="rd-source-text">
-        <p class="t-caption t-secondary">${review ? 'Sample schedule data · fictional flights' : `Schedule data · fetched ${fetched}${s.result?.fromCache ? ' (cached)' : ''}`}</p>
+        <p class="t-caption t-secondary">${review ? 'Sample schedule data · fictional flights' : html`Schedule data · fetched ${fetched}${s.result?.fromCache ? ' (cached)' : ''}${s.result?.attribution ? html` · ${attributionText(s.result.attribution)}` : ''}`}</p>
         ${s.refreshError ? html`<p class="rd-failed t-caption" role="status">Refresh failed · showing data fetched ${fetched}</p>` : ''}
       </div>
       ${review ? '' : html`<button type="button" class="btn btn-quiet rd-refresh" data-rd-refresh ${blocked ? 'disabled' : ''}>${s.busy ? 'Refreshing…' : 'Refresh'}</button>`}
