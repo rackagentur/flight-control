@@ -9,6 +9,10 @@
   },
   "scripts": {
     "test": "node --test \"tests/**/*.test.js\"",
-    "serve": "python3 scripts/dev-server.py 8080"
+    "serve": "python3 scripts/dev-server.py 8080",
+    "build:offline": "node scripts/build-offline.mjs",
+    "check:offline": "node scripts/build-offline.mjs --check",
+    "build": "npm run build:offline",
+    "check": "npm run check:offline"
   }
 }

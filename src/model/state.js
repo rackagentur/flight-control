@@ -43,6 +43,7 @@ function offState(today, upcomingDuty, nextEvent, profile) {
   const kind = term.offSubtype[today.offSubtype];
   const reason = today.offSubtype === 'ort'
     ? term.protectedReason
+    : kind?.lede ? `The roster lists today as: ${kind.name} (${kind.lede.toLowerCase()}).`
     : kind ? `The roster lists today as: ${kind.name.toLowerCase()}.` : 'The roster lists today as off.';
   return base({
     status: 'off', confidence: 'confirmed', provenance: 'source', phase: 'off', offSubtype: today.offSubtype ?? null, protected: today.protected === true,

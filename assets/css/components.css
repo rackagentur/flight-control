@@ -4,7 +4,7 @@
 
 /* --- Section --------------------------------------------------------------- */
 .section { display: grid; gap: var(--space-3); }
-.section + .section { margin-top: var(--space-7); }
+.section + .section { margin-top: var(--space-6); }
 .section-head {
   display: flex;
   align-items: baseline;
@@ -57,10 +57,7 @@
       color-mix(in oklab, var(--st-atmos-3) 94%, transparent) 100%);
   -webkit-backdrop-filter: blur(16px) saturate(1.2);
   backdrop-filter: blur(16px) saturate(1.2);
-  box-shadow:
-    inset 0 1px 0 var(--sheen-edge),
-    inset 0 0 0 0.5px var(--glass-edge),
-    0 48px 90px -48px var(--pass-lift);
+  box-shadow: var(--elev-3);
   transition:
     --st-atmos-1 var(--dur-atmosphere) var(--ease-standard),
     --st-atmos-2 var(--dur-atmosphere) var(--ease-standard),
@@ -139,28 +136,40 @@
   content: "";
   width: 8px; height: 8px;
   border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent);
+  background: var(--state-accent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--state-accent) 22%, transparent);
 }
 .status-pill[data-confidence="unknown"]::before { background: transparent; border: 1.5px dashed var(--fg-2); box-shadow: none; }
 
 /* --- Glass card (used sparingly) ------------------------------------------------- */
 .card {
-  padding: var(--space-5);
+  padding: var(--pad-card);
   border-radius: var(--radius-card);
   background: linear-gradient(180deg, var(--sheen), transparent 40%), var(--glass-strong);
   -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(1.3);
   backdrop-filter: blur(var(--blur-glass)) saturate(1.3);
-  box-shadow: inset 0 0.5px 0 var(--sheen-edge), inset 0 0 0 0.5px var(--glass-edge);
+  box-shadow: var(--elev-2);
+}
+
+/* --- Row card: the shared treatment for selectable rows inside a screen (Flights recent rows, sector mini rows).
+   A calm glass slab one step below a card: lit edge, near shadow, 14px radius. Selected/current rows keep
+   var(--fill-selected) plus a brand cue (see screens.css). ---------------------------------------------- */
+.row-card,
+.fl-recent-row,
+.fl-mini-row {
+  background: var(--glass-strong);
+  border-radius: var(--radius-row);
+  padding: var(--pad-row-y) var(--pad-row-x);
+  box-shadow: var(--elev-1);
 }
 
 /* --- Grouped list (settings-style) ------------------------------------------------ */
 .list {
-  border-radius: var(--radius-row);
+  border-radius: var(--radius-card);
   background: linear-gradient(180deg, var(--sheen), transparent 30%), var(--glass-strong);
   -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(1.3);
   backdrop-filter: blur(var(--blur-glass)) saturate(1.3);
-  box-shadow: inset 0 0.5px 0 var(--sheen-edge), inset 0 0 0 0.5px var(--glass-edge);
+  box-shadow: var(--elev-2);
   overflow: hidden;
 }
 .list-row {
@@ -186,7 +195,7 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
   place-items: center;
   width: 32px; height: 32px;
   flex: none;
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   background: var(--fill-selected);
   color: var(--accent);
 }
@@ -208,7 +217,7 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
   padding: 3px;
   border-radius: var(--radius-control);
   background: var(--fill-quiet);
-  box-shadow: inset 0 0 0 0.5px var(--glass-edge);
+  box-shadow: inset 0 0 0 0.5px var(--shell-edge);
 }
 .segmented button {
   min-height: 36px;
@@ -223,8 +232,9 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
 }
 .segmented button[aria-checked="true"] {
   background: var(--surface-1);
-  color: var(--fg-1);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08), inset 0 0 0 0.5px var(--glass-edge);
+  color: var(--brand);
+  font-weight: var(--weight-semibold);
+  box-shadow: var(--shadow-segment), inset 0 0 0 0.5px var(--shell-edge);
 }
 .segmented-compact button { min-height: 30px; padding: 0 var(--space-3); font-size: var(--text-caption); }
 
@@ -258,9 +268,39 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
   width: 14px; height: 14px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--st-atmos-2), var(--st-accent));
-  box-shadow: inset 0 0 0 0.5px color-mix(in oklab, var(--st-ink) 25%, transparent);
+  box-shadow: inset 0 0 0 0.5px color-mix(in oklab, var(--fg-1) 25%, transparent);
 }
-.chip[aria-checked="true"] { background: var(--surface-1); color: var(--fg-1); box-shadow: inset 0 0 0 1px var(--accent); }
+.chip[aria-checked="true"] { background: var(--fill-selected); color: var(--fg-1); box-shadow: inset 0 0 0 1px var(--edge-selected); }
+
+/* --- Status chip primitive (defined, not yet used in markup) ----------------------------------------
+   Text stays ink; the operational status colour lives only on the leading dot, so meaning is never
+   colour alone and the label keeps full contrast. Set data-status="positive|caution|critical". */
+.chip-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  background: var(--glass-strong);
+  box-shadow: var(--elev-1);
+  color: var(--fg-1);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.chip-status::before {
+  content: "";
+  flex: none;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--chip-dot, var(--fg-2));
+}
+.chip-status[data-status="positive"] { --chip-dot: var(--status-positive); }
+.chip-status[data-status="caution"] { --chip-dot: var(--status-caution); }
+.chip-status[data-status="critical"] { --chip-dot: var(--status-critical); }
 
 /* --- Buttons ------------------------------------------------------------------------- */
 .btn {
@@ -276,8 +316,15 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
   text-decoration: none;
   transition: transform var(--dur-instant) var(--ease-standard), background-color var(--dur-quick) var(--ease-standard);
 }
-.btn:active:not(:disabled) { transform: scale(0.98); }
-.btn-quiet { background: var(--fill-quiet); color: var(--fg-1); box-shadow: inset 0 0 0 0.5px var(--glass-edge); }
+.btn:active:not(:disabled) { transform: scale(0.96); }
+.btn-primary {
+  background: var(--brand-fill);
+  color: var(--on-brand);
+  box-shadow: inset 0 0.5px 0 var(--sheen-edge), inset 0 0 0 0.5px var(--brand-edge), var(--elev-1);
+}
+.btn-primary:hover:not(:disabled) { background: color-mix(in oklab, var(--brand-fill) 90%, var(--base-ink-1)); }
+.btn-quiet { background: var(--glass-strong); color: var(--fg-1); box-shadow: var(--elev-1); }
+.btn-quiet svg { color: var(--accent); }
 .btn-quiet:hover:not(:disabled) { background: var(--fill-hover); }
 .btn-critical { background: color-mix(in oklab, var(--critical) 12%, transparent); color: var(--critical); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -299,8 +346,8 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
   top: 2px; left: 2px;
   width: 27px; height: 27px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 2px 6px rgb(0 0 0 / 0.18);
+  background: var(--knob);
+  box-shadow: var(--shadow-knob);
   transition: transform var(--dur-quick) var(--ease-standard);
 }
 .switch[aria-checked="true"] { background: var(--accent); }
@@ -319,7 +366,7 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
   display: grid;
   place-items: center;
   width: 44px; height: 44px;
-  border-radius: 13px;
+  border-radius: var(--radius-row);
   background: var(--fill-selected);
   color: var(--accent);
 }
@@ -364,7 +411,7 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
   background: linear-gradient(180deg, var(--sheen), transparent 40%), var(--glass-strong);
   -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(1.3);
   backdrop-filter: blur(var(--blur-glass)) saturate(1.3);
-  box-shadow: inset 0 0.5px 0 var(--sheen-edge), inset 0 0 0 0.5px var(--glass-edge), var(--shadow-float);
+  box-shadow: var(--elev-2), var(--shadow-float);
 }
 .review-dock[hidden] { display: none; }
 .review-dock-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: 0 var(--space-1); }
@@ -385,6 +432,7 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
 .pass-next { display: grid; gap: var(--space-1); }
 .pass-next-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-1) var(--space-3); color: var(--fg-2); }
 .pass-countdown {
+  color: var(--accent);
   font-family: var(--font-display);
   font-size: var(--text-title-1);
   font-weight: var(--weight-semibold);
@@ -413,6 +461,7 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
   gap: 6px;
   margin: 0;
   padding: var(--space-2) var(--space-1) 0;
+  position: relative;
 }
 .hz-labels, .hz-track, .hz-times { position: relative; }
 .hz-labels { height: 16px; }
@@ -435,32 +484,33 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
 .hz-span.is-upcoming { background: repeating-linear-gradient(90deg, color-mix(in oklab, var(--fg-1) 34%, transparent) 0 2px, transparent 2px 7px); }
 .hz-flight.is-upcoming, .hz-return.is-upcoming { background: color-mix(in oklab, var(--fg-1) 24%, transparent); height: 1.5px; }
 .hz-span.is-current {
-  background: var(--accent);
-  box-shadow: 0 0 14px color-mix(in oklab, var(--accent) 55%, transparent);
+  background: var(--route);
+  box-shadow: 0 0 14px color-mix(in oklab, var(--route) 55%, transparent);
 }
 /* Rest is a soft band rather than a line: you are on the ground, away. */
 .hz-layover { height: 8px; border-radius: 4px; }
 .hz-layover.is-past { background: color-mix(in oklab, var(--fg-1) 12%, transparent); }
 .hz-layover.is-upcoming { background: color-mix(in oklab, var(--tint) 22%, transparent); }
-.hz-layover.is-current { background: color-mix(in oklab, var(--accent) 30%, transparent); box-shadow: none; }
+.hz-layover.is-current { background: color-mix(in oklab, var(--route) 30%, transparent); box-shadow: none; }
 .hz-before { background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--fg-1) 22%, transparent)) !important; box-shadow: none !important; }
 .hz-recovery.is-upcoming, .hz-recovery.is-current, .hz-recovery.is-past {
-  background: linear-gradient(90deg, color-mix(in oklab, var(--accent) 45%, transparent), transparent);
+  background: linear-gradient(90deg, color-mix(in oklab, var(--route) 45%, transparent), transparent);
   box-shadow: none;
 }
 
+/* Stops are 10px rings (hollow = still ahead); past stops recede to a filled ink dot; the next stop is a route-blue
+   ring with a soft halo (movement is blue, never copper). */
 .hz-stop {
   position: absolute;
   top: 50%;
-  width: 7px; height: 7px;
+  width: 10px; height: 10px;
   border-radius: 50%;
   transform: translate(-50%, -50%);
   background: var(--st-atmos-2);
-  box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--fg-1) 45%, transparent);
+  box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--fg-1) 45%, transparent);
 }
-.hz-stop-departure, .hz-stop-arrival { width: 9px; height: 9px; }
-.hz-stop.is-past { background: color-mix(in oklab, var(--fg-1) 45%, transparent); box-shadow: none; }
-.hz-stop.is-next { box-shadow: inset 0 0 0 2px var(--accent); }
+.hz-stop.is-past { background: color-mix(in oklab, var(--fg-1) 40%, transparent); box-shadow: none; }
+.hz-stop.is-next { box-shadow: inset 0 0 0 2px var(--route), 0 0 0 3px color-mix(in oklab, var(--route) 22%, transparent); }
 
 .hz-now {
   position: absolute;
@@ -468,13 +518,13 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
   width: 11px; height: 11px;
   border-radius: 50%;
   transform: translate(-50%, -50%);
-  background: var(--accent);
-  box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 22%, transparent), 0 0 22px color-mix(in oklab, var(--accent) 65%, transparent);
+  background: var(--route);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--route) 22%, transparent), 0 0 22px color-mix(in oklab, var(--route) 65%, transparent);
   animation: hz-breathe 3.2s var(--ease-standard) infinite;
 }
 @keyframes hz-breathe {
-  0%, 100% { box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 22%, transparent), 0 0 22px color-mix(in oklab, var(--accent) 65%, transparent); }
-  50% { box-shadow: 0 0 0 7px color-mix(in oklab, var(--accent) 10%, transparent), 0 0 28px color-mix(in oklab, var(--accent) 45%, transparent); }
+  0%, 100% { box-shadow: 0 0 0 4px color-mix(in oklab, var(--route) 22%, transparent), 0 0 22px color-mix(in oklab, var(--route) 65%, transparent); }
+  50% { box-shadow: 0 0 0 7px color-mix(in oklab, var(--route) 10%, transparent), 0 0 28px color-mix(in oklab, var(--route) 45%, transparent); }
 }
 .horizon-upcoming .hz-span { opacity: 0.85; }
 
@@ -489,8 +539,8 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
 }
 .hz-time:first-child { transform: none; justify-items: start; }
 .hz-time:last-child { transform: translateX(-100%); justify-items: end; }
-.hz-time-label { font-size: 10px; font-weight: var(--weight-semibold); letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-2); }
-.hz-time-value { font-size: var(--text-caption); color: var(--fg-2); }
+.hz-time-label { font-size: var(--text-mini); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-eyebrow); text-transform: uppercase; color: var(--fg-2); }
+.hz-time-value { font-size: var(--text-caption); color: var(--fg-2); font-variant-numeric: tabular-nums; }
 .hz-time.is-next .hz-time-value { color: var(--fg-1); font-weight: var(--weight-semibold); }
 .hz-time.is-next .hz-time-label { color: var(--fg-1); }
 
@@ -518,14 +568,14 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
   color: var(--fg-1);
 }
 .week-day.is-today { background: var(--fill-quiet); box-shadow: inset 0 0 0 0.5px var(--glass-edge); }
-.week-dow { font-size: 10px; font-weight: var(--weight-semibold); letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-2); }
-.week-date { font-size: var(--text-headline); font-weight: var(--weight-semibold); line-height: 1; }
+.week-dow { font-size: var(--text-mini); font-weight: var(--weight-semibold); letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-2); }
+.week-date { font-size: var(--text-headline); font-weight: var(--weight-semibold); line-height: 1; font-variant-numeric: tabular-nums; }
 .week-mark { width: 18px; height: 3px; border-radius: 2px; background: color-mix(in oklab, var(--fg-1) 18%, transparent); }
-.week-day.is-flight .week-mark { background: light-dark(#3A5B7C, #94B4D2); }
-.week-day.is-layover .week-mark { background: repeating-linear-gradient(90deg, light-dark(#6A6259, #BBB1A5) 0 3px, transparent 3px 5px); }
-.week-day.is-standby .week-mark { background: light-dark(#8E6322, #D9A85C); }
-.week-day.is-reserve .week-mark { background: light-dark(#6E5F51, #C2AF9A); }
-.week-day.is-off .week-mark { background: light-dark(#85552F, #D2A273); }
+.week-day.is-flight .week-mark { background: var(--mark-flight); }
+.week-day.is-layover .week-mark { background: repeating-linear-gradient(90deg, var(--mark-layover) 0 3px, transparent 3px 5px); }
+.week-day.is-standby .week-mark { background: var(--mark-standby); }
+.week-day.is-reserve .week-mark { background: var(--mark-reserve); }
+.week-day.is-off .week-mark { background: var(--mark-off); }
 .week-day.is-unknown .week-mark { background: transparent; box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--fg-2) 60%, transparent); }
 .week-day.is-unknown.ev-duty-unspecified .week-mark { background: color-mix(in oklab, var(--fg-1) 40%, transparent); box-shadow: none; }
 .week-code { font-size: var(--text-caption); font-weight: var(--weight-semibold); letter-spacing: 0.02em; color: var(--fg-1); }
@@ -550,7 +600,7 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
   border: 1px solid var(--line);
   background: var(--surface-1);
   color: var(--fg-1);
-  font-size: 15px;
+  font-size: var(--text-body);
 }
 .field-input::placeholder { color: var(--fg-2); }
 .field-input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
@@ -579,9 +629,9 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
   max-width: calc(100vw - 2 * var(--space-4));
   padding: 6px var(--space-4);
   border-radius: var(--radius-pill);
-  background: light-dark(#F3E3C4, #3A2C14);
-  color: light-dark(#5A3A0A, #F2D9A8);
-  box-shadow: inset 0 0 0 1px light-dark(#C99A4A, #8A6524), var(--shadow-float);
+  background: var(--notice-bg);
+  color: var(--notice-fg);
+  box-shadow: inset 0 0 0 1px var(--notice-edge), var(--shadow-float);
   font-size: var(--text-caption);
   font-weight: var(--weight-semibold);
   letter-spacing: 0.06em;
@@ -591,3 +641,131 @@ a.list-row:active, button.list-row:not(:disabled):active { background: var(--fil
 .review-banner[hidden] { display: none; }
 .is-review .main { padding-top: calc(env(safe-area-inset-top) + var(--space-8) + var(--space-3)); }
 @media (min-width: 1200px) { .is-review .main { padding-top: calc(var(--space-8) + var(--space-3)); } }
+
+/* --- Aviation components ---------------------------------------------------------------------------
+   Route hero, sector mark, milestone list. Copper (var(--accent)) = identity and emphasis; the rail,
+   horizon and movement stay route blue (see screens.css); status colour lives only in .chip-status. */
+
+/* Airport code: bold, tight, fixed-width digits */
+.t-airport {
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Route hero: BER → FRA → HER → FRA. Each arrow stays with the code that follows it when the route wraps. */
+.route-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-1) 0;
+  min-width: 0;
+  line-height: var(--leading-tight);
+  color: var(--fg-1);
+}
+.rh-hero { font-size: var(--text-route-hero); }
+.rh-title { font-size: var(--text-route-title); }
+.rh-inline { font-size: var(--text-headline); }
+.rh-leg { display: inline-flex; align-items: flex-start; }
+.rh-stop { display: grid; gap: var(--space-1); min-width: 0; justify-items: start; }
+.rh-arrow { margin: 0 0.25em; color: var(--accent); font-weight: var(--weight-medium); }
+.rh-city { font-size: var(--text-callout); font-weight: var(--weight-regular); letter-spacing: 0; line-height: 1.3; color: var(--fg-2); }
+
+/* Sector mark: copper aircraft on a brand-soft tile (selected cards fill it, see screens.css) */
+.sc-mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--size-mark);
+  height: var(--size-mark);
+  border-radius: var(--radius-control);
+  background: var(--fill-selected);
+  color: var(--accent);
+}
+.sc-mark svg { width: var(--size-mark-glyph); height: var(--size-mark-glyph); }
+.sc-compact .sc-mark { width: var(--size-mark-compact); height: var(--size-mark-compact); }
+.sc-compact .sc-mark svg { width: var(--size-mark-glyph-compact); height: var(--size-mark-glyph-compact); }
+
+/* Milestones: icon | time | label (+ note) | relative. Rows share columns through subgrid so times and labels line up. */
+.ms-list {
+  container-type: inline-size;
+  display: grid;
+  grid-template-columns: var(--size-ms-icon) auto minmax(0, 1fr) auto;
+  column-gap: var(--space-3);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.ms-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: var(--size-ms-icon) auto minmax(0, 1fr) auto;
+  grid-template-columns: subgrid;
+  align-items: center;
+  column-gap: var(--space-3);
+  padding: var(--space-3) 0;
+}
+.ms-row + .ms-row { border-top: 0.5px solid var(--line); }
+.ms-icon {
+  display: grid;
+  place-items: center;
+  width: var(--size-ms-icon);
+  height: var(--size-ms-icon);
+  border-radius: var(--radius-control);
+  background: var(--fill-selected);
+  color: var(--accent);
+}
+.ms-icon svg { width: var(--size-ms-glyph); height: var(--size-ms-glyph); }
+.ms-row.is-emphasis .ms-icon { background: var(--brand-fill); color: var(--on-brand); }
+.ms-time { font-size: var(--text-title-2); font-weight: var(--weight-semibold); letter-spacing: -0.01em; line-height: 1.2; font-variant-numeric: tabular-nums; }
+/* .ms-text dissolves so label and note become grid items of the row: the label sits on the first line with
+   the time and the relative time, the note drops to a second line spanning label..rel (never a narrow column). */
+.ms-text { display: contents; }
+.ms-icon, .ms-time, .ms-label, .ms-rel { grid-row: 1; }
+.ms-icon { grid-column: 1; }
+.ms-time { grid-column: 2; }
+.ms-label { grid-column: 3; min-width: 0; font-size: var(--text-body); color: var(--fg-1); }
+.ms-note { grid-row: 2; grid-column: 3 / -1; margin-top: 2px; font-size: var(--text-caption); line-height: 1.4; color: var(--fg-2); }
+.ms-rel { grid-column: 4; justify-self: end; white-space: nowrap; font-size: var(--text-callout); font-weight: var(--weight-semibold); color: var(--accent); }
+
+/* Keep every time, label and countdown readable in a narrow card or enlarged text.
+   The desktop subgrid remains unchanged; the countdown gets its own line here. */
+@container (max-width: 36rem) {
+  .ms-row { grid-template-columns: var(--size-ms-icon) minmax(0, 1fr); row-gap: 2px; }
+  .ms-icon { grid-column: 1; grid-row: 1; }
+  .ms-time { grid-column: 2; grid-row: 1; min-width: 0; overflow-wrap: anywhere; }
+  .ms-label { grid-column: 2; grid-row: 2; overflow-wrap: anywhere; }
+  .ms-rel { grid-column: 2; grid-row: 3; justify-self: start; white-space: normal; overflow-wrap: anywhere; }
+  .ms-note { grid-column: 2; grid-row: 4; min-width: 0; overflow-wrap: anywhere; }
+}
+
+/* Field-label glyph (wake-up, pickup, departure, arrival): decorative, copper, sits on the label's baseline. */
+.pf-icon { display: inline-block; margin-right: 6px; color: var(--accent); vertical-align: -3px; line-height: 1; }
+.pf-icon svg { width: 14px; height: 14px; }
+
+/* Static sector card (no link): no chevron column, no hover recolour, default cursor. */
+.jr-link.is-static { grid-template-columns: auto minmax(0, 1fr); cursor: default; }
+.jr-link.is-static:hover .jr-route b { color: inherit; }
+
+/* --- Time display (Local | UTC) ------------------------------------------------------------------------
+   One restrained mode chip per operational block header, shown only when the page is in UTC mode
+   (main.js / time-display.js set :root[data-time-display]). Local mode shows nothing extra here; a sector
+   whose arrival zone differs in offset from its departure zone carries a small offset tag instead. */
+.tz-mode { display: none; }
+:root[data-time-display="utc"] .tz-mode {
+  display: inline-flex;
+  align-items: center;
+  margin-left: var(--space-2);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--fill-quiet);
+  color: var(--fg-2);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-eyebrow);
+  line-height: 1.3;
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+:root[data-time-display="utc"] .horizon > .tz-mode { justify-self: end; margin: 0; }
+.tz-tag { margin-left: 4px; font-size: var(--text-mini); font-weight: var(--weight-regular); color: var(--fg-2); white-space: nowrap; }

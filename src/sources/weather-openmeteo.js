@@ -50,8 +50,10 @@ export function parseForecast(json) {
 
 export function createWeather({ fetchImpl = globalThis.fetch?.bind(globalThis), now = () => Date.now(), onUpdate = () => {}, timeoutMs = TIMEOUT_MS } = {}) {
   const cache = new Map();
+  let generation = 0;
 
   async function load(key, lat, lon) {
+    const gen = generation;
     // While refreshing, the previous forecast (if any) stays available.
     const previous = cache.get(key);
     cache.set(key, { status: 'loading', at: now(), days: previous?.status === 'ok' || previous?.status === 'loading' ? previous.days : new Map() });
@@ -62,9 +64,11 @@ export function createWeather({ fetchImpl = globalThis.fetch?.bind(globalThis), 
       const response = await fetchImpl(forecastUrl(lat, lon), { signal: controller?.signal, credentials: 'omit', referrerPolicy: 'no-referrer' });
       if (!response?.ok) throw new Error(`HTTP ${response?.status}`);
       const days = parseForecast(await response.json());
+      if (gen !== generation) return;
       if (!days.size) throw new Error('empty forecast');
       cache.set(key, { status: 'ok', at: now(), days });
     } catch {
+      if (gen !== generation) return;
       cache.set(key, { status: 'error', at: now(), days: new Map() });
     } finally {
       clearTimeout(timer);
@@ -73,6 +77,7 @@ export function createWeather({ fetchImpl = globalThis.fetch?.bind(globalThis), 
   }
 
   return {
+    clear() { generation += 1; cache.clear(); },
     /**
      * @param {object} query  from model/destination.weatherQuery()
      * @returns {{status:'ok', date, max, min, text, source}|{status:'loading'}|{status:'later', availableFrom}|{status:'unavailable', reason}}

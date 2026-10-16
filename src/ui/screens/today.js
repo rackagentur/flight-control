@@ -4,16 +4,19 @@
 // nothing here knows about v5. Missing fields are omitted, never invented.
 
 import { html } from '../../lib/html.js';
-import { formatTime, formatUtcOffset, offsetMinutes, relativeDayLabel, countdown, formatDate, localDateKey, addDays } from '../../lib/time.js';
+import { formatTime, formatUtcOffset, offsetMinutes, zonedParts, relativeDayLabel, countdown, formatDate, localDateKey, addDays } from '../../lib/time.js';
 import { airport } from '../../data/airports.js';
 import { hrefFor } from '../../router.js';
 import { pageHeader, previewBadge } from '../components.js';
 import { horizonView } from '../horizon.js';
-import { clock, city, field, dutyFields, sectorList, routeTitle } from '../duty.js';
+import { clock, city, field, dutyFields, sectorList, routeTitle, routeCodes } from '../duty.js';
 import { weekView } from '../week.js';
 import { buildDestination } from '../../model/destination.js';
 import { airlineOf } from '../../airlines/index.js';
 import { weatherText } from '../destination.js';
+import { routeHero } from '../flight-parts.js';
+import { opDate, tzModeChip } from '../../lib/op-time.js';
+import { getTimeDisplay } from '../../time-display.js';
 
 const CONFIDENCE_LABEL = { confirmed: 'Confirmed', inferred: 'Inferred', unknown: 'Unknown' };
 const PHASE_LABEL = {
@@ -22,7 +25,7 @@ const PHASE_LABEL = {
 };
 
 function greeting(now, tz) {
-  const hour = Number(formatTime(now, tz)?.slice(0, 2) ?? 12);
+  const hour = zonedParts(now, tz)?.hour ?? 12;
   if (hour < 5) return 'Good night';
   if (hour < 12) return 'Good morning';
   if (hour < 18) return 'Good afternoon';
@@ -38,16 +41,17 @@ function nextEventBlock(state, now, tz) {
     <div class="pass-next">
       <div class="pass-next-head">
         <span class="t-eyebrow">Next · ${ev.label}</span>
-        <span class="t-caption">${relativeDayLabel(now, ev.at, zone ?? tz)} · ${clock(ev.at, zone)}</span>
+        <span class="t-caption">${relativeDayLabel(now, ev.at, getTimeDisplay() === 'utc' ? 'UTC' : zone ?? tz)} · ${clock(ev.at, zone)}</span>
       </div>
       <p class="pass-countdown t-tabular" data-countdown-to="${ev.at}" aria-live="off">${cd.past ? 'Now' : `in ${cd.label}`}</p>
     </div>`;
 }
 
-function kicker(eyebrow, state, review) {
+/** `times`: this pass shows operational times, so it carries the UTC mode chip (visible only in UTC mode). */
+function kicker(eyebrow, state, review, { times = true } = {}) {
   return html`
     <div class="pass-kicker">
-      <span class="t-eyebrow">${eyebrow}</span>
+      <span class="t-eyebrow">${eyebrow}</span>${times ? tzModeChip() : ''}
       ${review ? previewBadge('Sample · not your roster') : html`<span class="status-pill" data-confidence="${state.confidence}">${CONFIDENCE_LABEL[state.confidence]}</span>`}
     </div>`;
 }
@@ -66,7 +70,7 @@ function statusPass(view) {
       <section class="pass" aria-labelledby="status-title">
         <div class="pass-head">
           ${kicker(`${PHASE_LABEL[state.phase] ?? 'Flight'} · ${day}`, state, review)}
-          <h2 class="pass-state t-display" id="status-title">${routeTitle(duty)}</h2>
+          <h2 class="pass-state t-display" id="status-title">${routeHero({ codes: routeCodes(duty), size: 'hero', as: 'span' })}</h2>
           <p class="pass-lede">${city(duty.sectors[0].origin)} to ${city(duty.sectors.at(-1).destination)}</p>
         </div>
         ${nextEventBlock(state, now, tz)}
@@ -77,13 +81,15 @@ function statusPass(view) {
   }
 
   if (state.status === 'layover') {
+    // The "local time" clock below is a labelled location clock (the time at the named place now, not an
+    // event time): it stays on that place's zone in both Time Display modes.
     const here = state.location;
     const tzHere = airport(here)?.tz ?? null;
     return html`
       <section class="pass" aria-labelledby="status-title">
         <div class="pass-head">
           ${kicker('Layover · derived from your itinerary', state, review)}
-          <h2 class="pass-state t-display" id="status-title">${city(here)}</h2>
+          <h2 class="pass-state t-display" id="status-title"><span aria-hidden="true">${routeHero({ codes: [here], cities: city(here) !== here ? [city(here)] : undefined, size: 'hero', as: 'span' })}</span><span class="visually-hidden">${city(here)}</span></h2>
           <p class="pass-lede">${here} · local time <span data-clock-tz="${tzHere ?? ''}">${tzHere ? formatTime(now, tzHere) : '—'}</span>${tzHere ? ` (${formatUtcOffset(now, tzHere)})` : ''}</p>
         </div>
         ${nextEventBlock(state, now, tz)}
@@ -105,7 +111,7 @@ function statusPass(view) {
         </div>
         ${nextEventBlock(state, now, tz)}
         ${duty ? html`<dl class="pass-fields">
-          ${field('Next known duty', routeTitle(duty), `${formatDate(duty.sectors[0].dep, duty.sectors[0].originTz ?? tz)} · ${clock(duty.sectors[0].dep, duty.sectors[0].originTz)}`)}
+          ${field('Next known duty', routeTitle(duty), `${opDate(duty.sectors[0].dep, duty.sectors[0].originTz ?? tz)} · ${clock(duty.sectors[0].dep, duty.sectors[0].originTz)}`)}
         </dl>` : ''}
         ${hz}
       </section>`;
@@ -117,9 +123,9 @@ function statusPass(view) {
     return html`
       <section class="pass" aria-labelledby="status-title">
         <div class="pass-head">
-          ${kicker(ort ? kind.name : kind && state.offSubtype !== 'off' ? kind.name : 'Off today', state, review)}
-          <h2 class="pass-state t-display" id="status-title">${ort ? kind.short : state.offSubtype === 'leave' ? 'Leave' : 'Off'}</h2>
-          ${ort ? html`<p class="pass-lede">Assigned by the company; it cannot be taken away or reassigned.</p>` : ''}
+          ${kicker(ort ? kind.name : kind && state.offSubtype !== 'off' ? kind.name : 'Off today', state, review, { times: Boolean(duty) })}
+          <h2 class="pass-state t-display" id="status-title">${ort ? kind.short : state.offSubtype === 'leave' ? kind?.name ?? 'Leave' : 'Off'}</h2>
+          ${ort ? html`<p class="pass-lede">Assigned by the company; it cannot be taken away or reassigned.</p>` : kind?.lede ? html`<p class="pass-lede">${kind.lede}</p>` : ''}
           ${duty ? html`<p class="pass-lede">Next duty ${routeTitle(duty)} · ${relativeDayLabel(now, duty.sectors[0].dep, tz)}</p>` : ''}
         </div>
         ${nextEventBlock(state, now, tz)}
@@ -133,8 +139,9 @@ function statusPass(view) {
     return html`
       <section class="pass" aria-labelledby="status-title">
         <div class="pass-head">
-          ${kicker(term.name, state, review)}
+          ${kicker(term.name, state, review, { times: Boolean(duty) })}
           <h2 class="pass-state t-display" id="status-title">${term.short}</h2>
+          ${term.lede ? html`<p class="pass-lede">${term.lede}</p>` : ''}
           ${duty ? html`<p class="pass-lede">Next duty ${routeTitle(duty)} · ${relativeDayLabel(now, duty.sectors[0].dep, tz)}</p>` : ''}
         </div>
         ${nextEventBlock(state, now, tz)}
@@ -149,7 +156,7 @@ function statusPass(view) {
   return html`
     <section class="pass" aria-labelledby="status-title">
       <div class="pass-head">
-        ${kicker('Operational status', state, review)}
+        ${kicker('Operational status', state, review, { times: Boolean(duty) })}
         <h2 class="pass-state t-display" id="status-title">${needsToken ? 'Access token required' : noSource ? 'Not yet known' : 'Status unknown'}</h2>
         <p class="pass-lede">${needsToken ? 'Your roster is only shown with the access token. Add it under Roster contract v2 in Settings.' : state.reasons[0] ?? ''}</p>
         ${noSource && !review ? html`<p><a class="btn btn-quiet" href="${hrefFor('settings')}">${needsToken ? 'Open Settings' : 'Connect roster source'}</a></p>` : ''}
@@ -168,7 +175,7 @@ function loadingPass(view) {
   return html`
     <section class="pass is-loading" aria-busy="true" aria-labelledby="status-title">
       <div class="pass-head">
-        ${kicker('Operational status', { confidence: 'unknown' }, view.review)}
+        ${kicker('Operational status', { confidence: 'unknown' }, view.review, { times: false })}
         <h2 class="pass-state t-display" id="status-title">Loading roster…</h2>
       </div>
     </section>`;
@@ -183,6 +190,8 @@ function relevantOutstation(view) {
   return dest && !profile.homeBases.includes(dest) ? dest : null;
 }
 
+// "Local time" clocks are labelled location clocks: each shows the time at a named place (home, outstation),
+// so they stay on that place's zone whatever the Time Display mode, and they are not operational event times.
 function clocksSection(view) {
   const { profile, now } = view;
   const other = relevantOutstation(view);

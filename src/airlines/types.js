@@ -8,6 +8,8 @@
  * @property {string} short    cell code (calendar, key)
  * @property {string} name     plain-language name
  * @property {string} [detail] optional qualifier appended in parentheses to the calendar description
+ * @property {string} [cell]   optional compact code for the 7-day strip (absent: the strip shows OFF)
+ * @property {string} [lede]   optional one-line description under the Today title
  */
 
 /**
@@ -23,12 +25,13 @@
 
 /**
  * @typedef {Object} UnassignedTerm
- * @property {string} short    full uppercase word (Today's status title)
+ * @property {string} short    Today's status title (the pack's own casing)
  * @property {string} cell     compact code for a calendar cell, the calendar key sample and the 7-day strip (fits a 7-column cell at the normal code size)
  * @property {string} name     plain-language name (Today kicker, day detail)
  * @property {string} legend   calendar key text
  * @property {string} reason   state-engine reason
  * @property {string} summary  month-summary label ("<n> <summary>")
+ * @property {string} [lede]   optional one-line description under the Today title
  */
 
 /**
