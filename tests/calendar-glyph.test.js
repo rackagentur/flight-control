@@ -153,7 +153,7 @@ test('the aircraft is decorative, a sibling after the band (so fade masks never 
   }
 });
 
-test('markers OFF / FREE / ORT / SB / RE / LEAVE render exactly as before', () => {
+test('markers OFF / FREE / ORT / SB / RE render exactly as before; Condor leave shows its roster code U (D-012)', () => {
   const grid = cells(render(scenario(), '2026-10'));
   const code = (date) => grid.get(date).match(/<span class="(cal-code[^"]*)" aria-hidden="true">([^<]*)<\/span>/).slice(1, 3);
   assert.deepEqual(code('2026-10-01'), ['cal-code tok-sb', 'SB']);
@@ -161,7 +161,7 @@ test('markers OFF / FREE / ORT / SB / RE / LEAVE render exactly as before', () =
   assert.deepEqual(code('2026-10-03'), ['cal-code tok-off', 'OFF']);
   assert.deepEqual(code('2026-10-04'), ['cal-code tok-off tok-ort', 'ORT']);
   assert.deepEqual(code('2026-10-26'), ['cal-code tok-off', 'FREE']);
-  assert.deepEqual(code('2026-10-27'), ['cal-code tok-off tok-leave', 'LEAVE']);
+  assert.deepEqual(code('2026-10-27'), ['cal-code tok-off tok-leave', 'U']);
   for (const date of ['2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04', '2026-10-26', '2026-10-27']) {
     assert.match(grid.get(date), /<span class="cal-track" aria-hidden="true"><span class="cal-mark"><\/span><\/span>/, date);
   }
@@ -282,18 +282,25 @@ test('the CSS of the OFF / FREE / ORT / SB / RE / LEAVE markers is byte-for-byte
   const css = readFileSync(new URL('../assets/css/screens.css', import.meta.url), 'utf8').split('\n');
   const lines = [
       ".cal-day.is-outside .cal-band, .cal-day.is-outside .cal-mark, .cal-day.is-outside .cal-code[class*=\"tok-\"] { opacity: 0.55; }",
-      ".cal-code.tok-sb, .cal-code.tok-re, .cal-code.tok-off { min-width: 30px; padding: 0 6px; border-radius: 9px; font-size: 10.5px; letter-spacing: 0.06em; }",
+      ".cal-code.tok-sb, .cal-code.tok-re, .cal-code.tok-off { min-width: 30px; padding: 0 6px; border-radius: 9px; font-size: var(--text-mini); letter-spacing: 0.06em; }",  // Step 5: 10.5px literal -> var(--text-mini) (0.65625rem = 10.5px, same size)
       ".cal-code.tok-sb { box-shadow: inset 0 0 0 1.5px var(--tok-standby); }",
       ".cal-code.tok-re { background: repeating-linear-gradient(90deg, color-mix(in oklab, var(--tok-reserve) 26%, transparent) 0 3px, transparent 3px 5px); box-shadow: inset 0 0 0 1px var(--tok-reserve); }",
       ".cal-code.tok-off { background: color-mix(in oklab, var(--tok-off) 30%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--tok-off) 70%, transparent); }",
       ".cal-code.tok-ort { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--tok-off) 70%, transparent), 0 0 0 1.5px var(--canvas), 0 0 0 2.5px var(--tok-off); }",
       ".cal-code.tok-leave { background: repeating-linear-gradient(135deg, color-mix(in oklab, var(--tok-off) 34%, transparent) 0 3px, color-mix(in oklab, var(--tok-off) 14%, transparent) 3px 6px); }",
       ".cal-code.tok-duty, .cal-code.tok-unknown { color: var(--fg-2); font-weight: var(--weight-medium); }",
-      "  --tok-standby: light-dark(#8E6322, #D9A85C);",
-      "  --tok-reserve: light-dark(#6E5F51, #C2AF9A);",
-      "  --tok-off: light-dark(#85552F, #D2A273);"
+      "  --tok-standby: var(--mark-standby);",
+      "  --tok-reserve: var(--mark-reserve);",
+      "  --tok-off: var(--mark-off);"
   ];
   for (const line of lines) assert.ok(css.includes(line), `changed or missing: ${line.slice(0, 60)}`);
+  // The marker colours now live in tokens.css; their token lines are pinned to the Light/Dark re-theme values (standby = status-caution, off = warm stone); every shape line above is unchanged.
+  const tokens = readFileSync(new URL('../assets/css/tokens.css', import.meta.url), 'utf8').split('\n');
+  for (const line of [
+    "  --mark-standby: var(--status-caution);",
+    "  --mark-reserve: light-dark(#6E5F51, #C2AF9A);",
+    "  --mark-off: light-dark(#7D6B57, #B5A48F);",
+  ]) assert.ok(tokens.includes(line), `changed or missing: ${line.slice(0, 60)}`);
 });
 
 test('calendar key: one line per rotation, with the aircraft in the sample; other entries kept', () => {
@@ -301,7 +308,7 @@ test('calendar key: one line per rotation, with the aircraft in the sample; othe
   assert.match(markup, /Flight · one line per rotation</);
   assert.ok(!/one aircraft per sector/.test(markup));
   assert.match(markup, /class="cal-key-plane"/);
-  for (const label of ['Layover · inferred (dotted)', 'Layover · from roster (double line)', 'Standby', 'Reserve', 'Off · stated by roster', 'ORT · protected free day', 'Leave', 'Duty · type not given', 'Unknown', 'No data']) {
+  for (const label of ['Layover · inferred (dotted)', 'Layover · from roster (double line)', 'Standby', 'Reserve', 'Off · stated by roster', 'ORT · protected free day', 'Urlaub · holiday', 'Duty · type not given', 'Unknown', 'No data']) {
     assert.ok(markup.includes(label), label);
   }
 });

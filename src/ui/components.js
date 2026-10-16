@@ -3,6 +3,7 @@
 import { html } from '../lib/html.js';
 import { icon } from './icons.js';
 import { getThemePreference } from '../theme.js';
+import { getTimeDisplay } from '../time-display.js';
 
 const THEME_OPTIONS = [
   { value: 'light', label: 'Light' },
@@ -17,6 +18,27 @@ export function themeControl({ compact = false, label = 'Appearance' } = {}) {
     <div class="segmented ${compact ? 'segmented-compact' : ''}" role="radiogroup" aria-label="${label}" data-theme-control>
       ${THEME_OPTIONS.map((option) => html`
         <button type="button" role="radio" data-theme-value="${option.value}"
+          aria-checked="${option.value === current ? 'true' : 'false'}"
+          tabindex="${option.value === current ? '0' : '-1'}">${option.label}</button>
+      `)}
+    </div>`;
+}
+
+const TIME_DISPLAY_OPTIONS = [
+  { value: 'local', label: 'Local' },
+  { value: 'utc', label: 'UTC' },
+];
+
+/**
+ * Local / UTC radio group for the Time Display preference (a separate setting from the theme, same
+ * segmented design). Buttons carry data-time-display-value; main.js wires clicks and keeps it in sync.
+ */
+export function timeDisplayControl({ compact = false, label = 'Time display' } = {}) {
+  const current = getTimeDisplay();
+  return html`
+    <div class="segmented ${compact ? 'segmented-compact' : ''}" role="radiogroup" aria-label="${label}" data-time-display-control>
+      ${TIME_DISPLAY_OPTIONS.map((option) => html`
+        <button type="button" role="radio" data-time-display-value="${option.value}"
           aria-checked="${option.value === current ? 'true' : 'false'}"
           tabindex="${option.value === current ? '0' : '-1'}">${option.label}</button>
       `)}

@@ -22,6 +22,20 @@
 }
 .main:focus { outline: none; }
 
+/* Padding protects the initial position; this opaque inset also protects content
+   while the document scrolls beneath iOS's status bar. Zero-height on other screens. */
+body::after {
+  content: "";
+  position: fixed;
+  z-index: 30;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top, 0px);
+  background: var(--canvas);
+  pointer-events: none;
+}
+
 .page {
   max-width: var(--content-max);
   margin: 0 auto;
@@ -34,45 +48,66 @@
   margin-bottom: var(--space-5);
 }
 .page-header .t-eyebrow { color: var(--fg-2); }
-.page-title { outline: none; }
+.page-title { outline: none; font-weight: var(--weight-bold); }
 
-/* --- Mobile tab bar ---------------------------------------------------------- */
+/* --- Mobile tab bar: a floating glass capsule, steady in every duty state ---- */
 .tabbar {
   position: fixed;
   z-index: 20;
-  left: calc(env(safe-area-inset-left) + var(--space-3));
-  right: calc(env(safe-area-inset-right) + var(--space-3));
+  left: calc(env(safe-area-inset-left) + 14px);
+  right: calc(env(safe-area-inset-right) + 14px);
   bottom: calc(env(safe-area-inset-bottom) + var(--space-2));
   height: var(--tabbar-height);
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   align-items: stretch;
-  padding: 0 var(--space-1);
-  border-radius: var(--radius-pill);
-  background: linear-gradient(180deg, var(--sheen), transparent 55%), var(--glass-strong);
-  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(1.4);
-  backdrop-filter: blur(var(--blur-glass)) saturate(1.4);
-  box-shadow: inset 0 0.5px 0 var(--sheen-edge), inset 0 0 0 0.5px var(--glass-edge), var(--shadow-float);
+  padding: 0 6px;
+  border-radius: var(--tabbar-radius);
+  background: var(--shell-glass);
+  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(1.5);
+  backdrop-filter: blur(var(--blur-glass)) saturate(1.5);
+  box-shadow:
+    inset 0 0.5px 0 var(--shell-highlight),
+    inset 0 0 0 0.5px var(--shell-edge),
+    0 1px 2px var(--shell-shadow-near),
+    0 12px 32px -12px var(--shell-shadow-color),
+    0 28px 56px -28px var(--shell-shadow-color);
 }
 
 .tab {
+  position: relative;
+  isolation: isolate;
   display: grid;
   place-items: center;
   align-content: center;
-  gap: 2px;
+  gap: 3px;
   min-height: var(--touch-min);
   text-decoration: none;
-  color: var(--fg-2);
-  font-size: 10px;
-  font-weight: var(--weight-semibold);
+  color: var(--tab-idle);
+  font-size: var(--text-mini);
+  font-weight: var(--weight-medium);
   letter-spacing: 0.01em;
   border-radius: var(--radius-pill);
-  transition: color var(--dur-quick) var(--ease-standard);
+  transition: color var(--dur-quick) var(--ease-standard), transform var(--dur-instant) var(--ease-standard);
   -webkit-tap-highlight-color: transparent;
 }
-.tab svg { width: 22px; height: 22px; }
-.tab[aria-current="page"] { color: var(--fg-1); }
-.tab[aria-current="page"] svg { color: var(--accent); }
+.tab svg { width: 23px; height: 23px; }
+/* Current destination: brand colour + heavier label + a soft halo behind the icon (three cues) */
+.tab[aria-current="page"] { color: var(--tab-active); font-weight: var(--weight-semibold); }
+.tab[aria-current="page"] svg { color: var(--tab-active); }
+.tab[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 7px;
+  left: 50%;
+  width: 40px;
+  height: 30px;
+  margin-left: -20px;
+  border-radius: 15px;
+  background: var(--tab-halo);
+  pointer-events: none;
+}
 .tab:active { transform: scale(0.96); }
 
 /* --- Sidebar / rail (hidden on mobile) --------------------------------------- */
@@ -97,8 +132,8 @@
 }
 .nav-item svg { width: 20px; height: 20px; flex: none; }
 .nav-item:hover { background: var(--fill-hover); color: var(--fg-1); }
-.nav-item[aria-current="page"] { background: var(--fill-selected); color: var(--fg-1); }
-.nav-item[aria-current="page"] svg { color: var(--accent); }
+.nav-item[aria-current="page"] { background: var(--fill-selected); color: var(--fg-1); font-weight: var(--weight-semibold); }
+.nav-item[aria-current="page"] svg { color: var(--tab-active); }
 
 .brand {
   display: flex;
@@ -107,7 +142,7 @@
   text-decoration: none;
 }
 .brand-mark { width: 32px; height: 32px; flex: none; }
-.brand-name { font-weight: var(--weight-semibold); letter-spacing: -0.01em; }
+.brand-name { font-weight: var(--weight-semibold); letter-spacing: -0.01em; color: var(--fg-1); }
 .brand-sub { display: block; font-size: var(--text-micro); color: var(--fg-2); letter-spacing: var(--tracking-micro); text-transform: uppercase; }
 
 .sidebar-footer { margin-top: auto; display: grid; gap: var(--space-3); }
@@ -132,8 +167,8 @@
     flex-direction: column;
     gap: var(--space-5);
     padding: calc(env(safe-area-inset-top) + var(--space-5)) var(--space-2) var(--space-5);
-    /* Quiet chrome: a darker, steadier material so navigation stays put while the scene changes */
-    border-right: 0.5px solid var(--glass-edge);
+    /* Quiet chrome: a steady brand-base material so navigation stays put while the scene changes */
+    border-right: 0.5px solid var(--shell-edge);
     background: var(--chrome);
     -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(1.1);
     backdrop-filter: blur(var(--blur-glass)) saturate(1.1);
@@ -149,7 +184,7 @@
     gap: 3px;
     min-height: 56px;
     padding: var(--space-2) 0;
-    font-size: 10.5px;
+    font-size: var(--text-mini);
     font-weight: var(--weight-semibold);
     text-align: center;
   }
@@ -198,4 +233,39 @@
 /* Very wide screens: keep line lengths and hero proportions composed */
 @media (min-width: 1680px) {
   :root { --content-max: 1180px; --context-width: 360px; }
+}
+
+/* Step 6.6: same typography and palette, visible above every screen on iPhone too. */
+.sync-status {
+  max-width: var(--content-max);
+  margin: 0 auto var(--space-3);
+  color: var(--fg-2);
+  overflow-wrap: anywhere;
+}
+.sync-status:empty { display: none; }
+
+/* Scoped refresh feedback: no page translation or global overscroll suppression. */
+.roster-refresh {
+  max-width: var(--content-max);
+  margin: 0 auto var(--space-3);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  color: var(--fg-2);
+}
+.roster-refresh button { min-height: 44px; min-width: 44px; gap: var(--space-2); }
+.refresh-mark {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 1px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+}
+.roster-refresh[data-phase="armed"] .refresh-mark { transform: rotate(180deg); }
+.roster-refresh[data-phase="refreshing"] .refresh-mark { animation: roster-refresh-spin 900ms linear infinite; }
+@keyframes roster-refresh-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .roster-refresh[data-phase] .refresh-mark { animation: none; transform: none; }
 }

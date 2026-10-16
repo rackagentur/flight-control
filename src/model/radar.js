@@ -8,7 +8,9 @@
 
 import { rangeForWindow, inWindow } from './scheduled-flights.js';
 import { buildDuties } from './roster.js';
-import { zonedParts, formatTime, formatDate, formatUtcOffset, isValidTimeZone, localDateKey } from '../lib/time.js';
+import { zonedParts, formatDate, formatUtcOffset, isValidTimeZone, localDateKey } from '../lib/time.js';
+import { opTime } from '../lib/op-time.js';
+import { getTimeDisplay } from '../time-display.js';
 import { airport as airportEntry } from '../data/airports.js';
 
 /** Window kinds the Radar lists flights for. One constant, so another kind can be added later in one place. */
@@ -152,10 +154,14 @@ function stateOf(f, effective, now) {
  * @param {import('./types.js').DeparturesResult} result
  * `carriers` (non-empty array) is the list the request asked for. The backend filters server-side; this is the
  * defensive client-side twin: a row whose carrier is not in the list (or unknown) is never shown.
- * @param {{now:number, window:{start:number,end:number}, emphasisCarriers?:ReadonlyArray<string>|null, carriers?:ReadonlyArray<string>|null, homeTz:string}} ctx
+ * `mode` is the Time Display mode ('local' = the airport's local time, 'utc' = UTC); it only changes how the
+ * same instants are written and grouped, never which flights are listed.
+ * @param {{now:number, window:{start:number,end:number}, emphasisCarriers?:ReadonlyArray<string>|null, carriers?:ReadonlyArray<string>|null, homeTz:string, mode?:'local'|'utc'}} ctx
  */
-export function buildRadarView(result, { now, window, emphasisCarriers = null, carriers = null, homeTz }) {
+export function buildRadarView(result, { now, window, emphasisCarriers = null, carriers = null, homeTz, mode = getTimeDisplay() }) {
   const tz = isValidTimeZone(result.airportTz) ? result.airportTz : homeTz;
+  // The zone the rows are written and grouped in: the airport's, or UTC in UTC mode.
+  const shownTz = mode === 'utc' ? 'UTC' : tz;
   const emphasis = Array.isArray(emphasisCarriers) ? emphasisCarriers : [];
   const active = window.start <= now && now < window.end;
 
@@ -173,8 +179,8 @@ export function buildRadarView(result, { now, window, emphasisCarriers = null, c
       scheduledDep: f.scheduledDep,
       revisedDep,
       delayMin: revisedDep === null ? null : diff,
-      timeText: formatTime(f.scheduledDep, tz),
-      revisedText: revisedDep === null ? null : formatTime(revisedDep, tz),
+      timeText: opTime(f.scheduledDep, tz, mode),
+      revisedText: revisedDep === null ? null : opTime(revisedDep, tz, mode),
       delayText: revisedDep === null ? null : delayText(diff),
       flightNumber: f.flightNumber,
       carrier: f.carrier ?? null,
@@ -192,21 +198,21 @@ export function buildRadarView(result, { now, window, emphasisCarriers = null, c
 
   // One group per local clock hour at the airport. Keyed by the instant the hour began, so a
   // repeated hour (clocks going back) stays two groups and the order is always by instant.
-  const spansDays = localDateKey(window.start, tz) !== localDateKey(window.end - 1, tz);
+  const spansDays = localDateKey(window.start, shownTz) !== localDateKey(window.end - 1, shownTz);
   const groups = [];
   let lastDate = null;
   for (const row of upcoming) {
-    const p = zonedParts(row.scheduledDep, tz);
+    const p = zonedParts(row.scheduledDep, shownTz);
     const key = row.scheduledDep - (row.scheduledDep % 60000) - p.minute * 60000;
     const last = groups.at(-1);
     if (last && last.key === key) { last.rows.push(row); continue; }
-    const date = localDateKey(row.scheduledDep, tz);
+    const date = localDateKey(row.scheduledDep, shownTz);
     groups.push({
       key,
       hour: p.hour,
       date,
       label: `${String(p.hour).padStart(2, '0')}:00`,
-      dayLabel: spansDays && date !== lastDate ? formatDate(row.scheduledDep, tz) : null,
+      dayLabel: spansDays && date !== lastDate ? formatDate(row.scheduledDep, shownTz) : null,
       rows: [row],
     });
     lastDate = date;
@@ -215,13 +221,16 @@ export function buildRadarView(result, { now, window, emphasisCarriers = null, c
   // A repeated hour (clocks going back) would give two identical headings on the same day: each
   // such heading also states its UTC offset. A label repeating on another day is told apart by the day line.
   const repeated = groups.filter((g) => groups.filter((o) => o.date === g.date && o.label === g.label).length > 1);
-  for (const g of repeated) g.label = `${g.label} · ${formatUtcOffset(g.key, tz)}`;
+  for (const g of repeated) g.label = `${g.label} · ${formatUtcOffset(g.key, shownTz)}`;
 
   return Object.freeze({
     airport: result.airport,
     airportTz: result.airportTz,
     tz,
-    tzLabel: result.airportTz !== homeTz ? `Times are local at ${result.airport} (${formatUtcOffset(now, tz)})` : null,
+    mode,
+    tzLabel: mode === 'utc'
+      ? `Times are in UTC${isValidTimeZone(result.airportTz) ? ` (${result.airport} local time is ${formatUtcOffset(now, tz)})` : ''}`
+      : result.airportTz !== homeTz ? `Times are local at ${result.airport} (${formatUtcOffset(now, tz)})` : null,
     active,
     now,
     total: rows.length,

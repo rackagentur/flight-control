@@ -44,10 +44,12 @@ test('profiles are deep-frozen', () => {
 test('unassigned wording: Condor says Strichtag, generic stays neutral, neither claims the day can be assigned or mentions hours', () => {
   const c = getAirline('condor').terminology.unassigned;
   const g = getAirline('generic').terminology.unassigned;
-  assert.deepEqual({ ...c }, { short: 'STRICHTAG', cell: 'STR', name: 'Strichtag', legend: 'STR · STRICHTAG · unassigned day, not off', reason: 'The roster lists today as STRICHTAG: no duty is assigned. This is not a day off.', summary: 'Strichtage' });
+  assert.deepEqual({ ...c }, { short: 'Strichtag', cell: '-', name: 'Strichtag', legend: '- · Strichtag · no duty assigned', lede: 'No duty assigned', reason: 'The roster lists today as a Strichtag: no duty is assigned. This is not a day off.', summary: 'Strichtage' });
   assert.deepEqual({ ...g }, { short: 'UNASG', cell: 'UNAS', name: 'Unassigned day', legend: 'UNAS · unassigned day, not off', reason: 'The roster lists today as unassigned: no duty is assigned. This is not a day off.', summary: 'unassigned' });
   assert.doesNotMatch(JSON.stringify(g), /strichtag|\bSTR\b/i);
-  for (const t of [c, g]) assert.match(t.cell, /^[A-Z]{3,4}$/, 'the compact code is short enough for a 7-column cell at the normal code size');
+  assert.equal(c.cell, '-', 'Condor shows the roster code itself: ASCII hyphen-minus (U+002D), never an en dash');
+  assert.equal(c.cell.codePointAt(0), 0x2d);
+  assert.match(g.cell, /^[A-Z]{3,4}$/, 'the generic compact code is short enough for a 7-column cell at the normal code size');
   for (const t of [c, g]) assert.doesNotMatch(JSON.stringify(t), /\b48\b|hours?\b|can still|convert/i);
   assert.ok(Object.isFrozen(c) && Object.isFrozen(g));
 });

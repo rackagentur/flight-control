@@ -41,10 +41,13 @@
 
 import { html, render as domRender } from '../../lib/html.js';
 import { formatDate } from '../../lib/time.js';
+import { opDate, opDateKey, tzModeChip } from '../../lib/op-time.js';
 import { pageHeader } from '../components.js';
 import { icon } from '../icons.js';
 import { hrefFor } from '../../router.js';
 import { clock } from '../duty.js';
+import { statusChip } from '../flight-parts.js';
+import { attributionText } from '../attribution.js';
 import { airlineOf } from '../../airlines/index.js';
 import { selectStandbyWindow, buildRadarView, radarAirport, radarCarriers } from '../../model/radar.js';
 import { sampleDepartures } from '../../sources/sample.js';
@@ -273,11 +276,12 @@ function refresh(ctx) {
 
 // --- Markup ----------------------------------------------------------------------------
 
+/** The window in home time, or in UTC (with its UTC dates) in UTC mode; the date always matches the time beside it. */
 function windowLine(window, tz) {
-  const same = formatDate(window.start, tz) === formatDate(window.end - 1, tz);
+  const same = opDateKey(window.start, tz) === opDateKey(window.end - 1, tz);
   return same
-    ? `${formatDate(window.start, tz)}, ${clock(window.start, tz)}–${clock(window.end, tz)}`
-    : `${formatDate(window.start, tz)} ${clock(window.start, tz)} → ${formatDate(window.end, tz)} ${clock(window.end, tz)}`;
+    ? `${opDate(window.start, tz)}, ${clock(window.start, tz)}–${clock(window.end, tz)}`
+    : `${opDate(window.start, tz)} ${clock(window.start, tz)} → ${opDate(window.end, tz)} ${clock(window.end, tz)}`;
 }
 
 /** "Departures from <airport> · <pack> flights (<basis note>)": airport, carriers, where the airport comes from. */
@@ -295,7 +299,7 @@ function frame(view, body, { window = null, head = null } = {}) {
   return html`
     <div class="page rd">
       <a class="rd-back" href="${hrefFor('today')}"><span aria-hidden="true">‹ </span>Today</a>
-      ${pageHeader({ eyebrow: view.review ? 'Sample data · not your roster' : 'Standby', title: RADAR_TITLE, subtitle: parts.length ? parts.join(' · ') : null })}
+      ${pageHeader({ eyebrow: view.review ? 'Sample data · not your roster' : 'Standby', title: RADAR_TITLE, subtitle: parts.length ? html`${parts.join(' · ')}${window ? tzModeChip() : ''}` : null })}
       ${body}
     </div>`;
 }
@@ -318,9 +322,9 @@ function rowView(r, ownName) {
     <li class="rd-row ${r.emphasized ? 'is-own' : ''} ${r.state ? `is-${r.state}` : ''}">
       <span class="rd-time t-tabular">${r.timeText}</span>
       <span class="rd-flight t-code">${r.emphasized ? html`<span class="rd-mark" role="img" aria-label="Your airline (${ownName})" title="Your airline (${ownName})"></span>` : ''}${r.flightNumber}</span>
-      <span class="rd-dest"><span class="rd-city">${r.destinationLabel}</span>${r.destinationCode && r.destinationCode !== r.destinationLabel ? html` <span class="rd-iata t-tabular">${r.destinationCode}</span>` : ''}</span>
+      <span class="rd-dest"><span class="rd-city">${r.destinationLabel}</span>${r.destinationCode && r.destinationCode !== r.destinationLabel ? html` <span class="rd-arrow" aria-hidden="true">→</span><span class="rd-iata t-airport">${r.destinationCode}</span>` : ''}</span>
       ${r.revisedText ? html`<span class="rd-rev t-tabular"><span class="visually-hidden">Revised departure </span>→ ${r.revisedText} · ${r.delayText}</span>` : ''}
-      ${r.state ? html`<span class="rd-chip is-${r.state}">${r.state === 'cancelled' ? 'Cancelled' : 'Departed'}</span>` : ''}
+      ${r.state ? html`<span class="rd-chip is-${r.state}">${statusChip(r.state === 'cancelled' ? { tone: 'critical', label: 'Cancelled' } : { tone: 'neutral', label: 'Departed' })}</span>` : ''}
       ${r.aircraft ? html`<span class="rd-ac" title="${r.aircraft}"><span class="visually-hidden">Aircraft </span>${r.aircraft}</span>` : ''}
     </li>`;
 }
@@ -342,7 +346,7 @@ function sourceBar(s, view, { review }) {
   return html`
     <div class="rd-source">
       <div class="rd-source-text">
-        <p class="t-caption t-secondary">${review ? 'Sample schedule data · fictional flights' : `Schedule data · fetched ${fetched}${s.result?.fromCache ? ' (cached)' : ''}`}</p>
+        <p class="t-caption t-secondary">${review ? 'Sample schedule data · fictional flights' : html`Schedule data · fetched ${fetched}${s.result?.fromCache ? ' (cached)' : ''}${s.result?.attribution ? html` · ${attributionText(s.result.attribution)}` : ''}`}</p>
         ${s.refreshError ? html`<p class="rd-failed t-caption" role="status">Refresh failed · showing data fetched ${fetched}</p>` : ''}
       </div>
       ${review ? '' : html`<button type="button" class="btn btn-quiet rd-refresh" data-rd-refresh ${blocked ? 'disabled' : ''}>${s.busy ? 'Refreshing…' : 'Refresh'}</button>`}

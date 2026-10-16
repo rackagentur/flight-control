@@ -2,12 +2,15 @@
 
 import { html } from '../../lib/html.js';
 import { html as h, render } from '../../lib/html.js';
-import { pageHeader, listRow, themeControl } from '../components.js';
+import { pageHeader, listRow, themeControl, timeDisplayControl } from '../components.js';
 import { store } from '../../store.js';
+import { resetTimeDisplayCache, applyTimeDisplay } from '../../time-display.js';
 import { applyTheme } from '../../theme.js';
 import { validateEndpoint, fetchStatsSecure, contractGaps, postContract } from '../../api/appscript.js';
 import { ENDPOINT_KEY, TOKEN_KEY, fallbackReason } from '../../controller.js';
+import { SIGNED_OUT_KEY } from '../../roster-storage.js';
 import { request as v2Request } from '../../sources/contract-v2.js';
+import { workerDiagnosticsView, mountWorkerDiagnostics, updateWorkerDiagnostics } from '../worker-diagnostics.js';
 
 const ERROR_HELP = {
   network: 'The browser could not read the response. If the URL opens normally in a browser tab, the backend is blocking cross-origin requests (CORS) from this page.',
@@ -105,6 +108,13 @@ export const settings = {
                 </div>
                 ${themeControl()}
               </div>
+              <div class="setting-row">
+                <div class="setting-copy">
+                  <span class="list-label">Time display</span>
+                  <span class="t-caption">Local — Airport time zones. UTC — Coordinated Universal Time.</span>
+                </div>
+                ${timeDisplayControl()}
+              </div>
             </div>
           </section>
 
@@ -123,7 +133,8 @@ export const settings = {
                 <input class="field-input" id="endpoint-input" name="endpoint" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false"
                   placeholder="${connected ? 'Connected · paste a new URL to replace it' : 'https://script.google.com/macros/s/…/exec'}">
                 <div class="source-actions">
-                  <button type="submit" class="btn btn-quiet">Save and test</button>
+                  <button type="submit" class="btn btn-primary">Save and test</button>
+                  <button type="button" class="btn btn-quiet" data-roster-refresh ${connected ? '' : 'disabled'}>Refresh roster</button>
                   <button type="button" class="btn btn-quiet" data-endpoint-test ${connected ? '' : 'disabled'}>Test connection</button>
                   <button type="button" class="btn btn-critical" data-endpoint-remove ${connected ? '' : 'disabled'}>Disconnect</button>
                 </div>
@@ -142,9 +153,10 @@ export const settings = {
                   data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"
                   placeholder="${hasToken ? 'Token saved · paste a new one to replace it' : 'Access token'}">
                 <div class="source-actions">
-                  <button type="submit" class="btn btn-quiet" ${connected ? '' : 'disabled'}>Save and test</button>
-                  <button type="button" class="btn btn-critical" data-token-remove ${hasToken ? '' : 'disabled'}>Remove token</button>
+                  <button type="submit" class="btn btn-primary" ${connected ? '' : 'disabled'}>Save and test</button>
+                  <button type="button" class="btn btn-critical" data-token-remove ${hasToken || ctx.view().savedRoster ? '' : 'disabled'}>Sign out</button>
                 </div>
+                <p class="t-caption">Sign out removes the access token, the saved roster and remembered flights from this browser. Home base, wake-up time and display preferences stay. To remove everything, use Reset under Data on this device.</p>
                 <div class="source-result" data-token-result role="status" aria-live="polite"></div>
               </form>
               ${listRow({ iconName: 'calendar', label: 'Airline calendar', detail: 'Read the airline roster calendar directly', trail: 'Planned', disabled: true })}
@@ -167,7 +179,7 @@ export const settings = {
               <div class="setting-row">
                 <div class="setting-copy">
                   <span class="list-label">Reset local data</span>
-                  <span class="t-caption" id="reset-help">Clears preferences, the saved roster connection, the cached roster and remembered flights in this browser. Your roster itself is not affected.</span>
+                  <span class="t-caption" id="reset-help">Removes everything Flight Control keeps in this browser: the roster connection and access token, the saved roster, remembered flights and all preferences. Flight Control starts again from setup. Your roster itself is not affected.</span>
                 </div>
                 <button type="button" class="btn btn-critical" id="reset-local" aria-describedby="reset-help">Reset</button>
               </div>
@@ -178,6 +190,7 @@ export const settings = {
             <div class="section-head"><h2 class="t-eyebrow" id="set-about">About</h2></div>
             <div class="list">
               ${listRow({ iconName: 'info', label: 'Flight Control', detail: 'Version 2.0 · operational preview (Phase 4)' })}
+              <div data-worker-diagnostics aria-live="polite">${workerDiagnosticsView()}</div>
             </div>
           </section>
         </div>
@@ -186,9 +199,10 @@ export const settings = {
 
   /**
    * Data changed while Settings is open (e.g. a roster load finished). Only the status
-   * line is refreshed: a full re-render would discard what is being typed into the forms.
+   * line and diagnostics are refreshed: a full re-render would discard form input.
    */
   update(root, ctx) {
+    updateWorkerDiagnostics(root);
     const line = root.querySelector('[data-contract-state]');
     if (!line) return;
     const text = contractLine(ctx.view(), Boolean(store.get(TOKEN_KEY)));
@@ -196,6 +210,9 @@ export const settings = {
   },
 
   mount(root, ctx) {
+    const stopDiagnostics = mountWorkerDiagnostics(root, () => ctx.view());
+    let alive = true, operation = 0;
+    const identity = () => JSON.stringify([store.get(ENDPOINT_KEY), store.get(TOKEN_KEY), store.get(SIGNED_OUT_KEY), ctx.controller.accessRevision?.()]);
     const form = root.querySelector('[data-endpoint-form]');
     const input = form.querySelector('#endpoint-input');
     const out = form.querySelector('[data-endpoint-result]');
@@ -206,19 +223,24 @@ export const settings = {
       event.preventDefault();
       const check = validateEndpoint(input.value);
       if (!check.ok) { show({ ok: false, code: 'invalid-endpoint', message: check.reason }); return; }
+      const ticket = ++operation, access = identity();
       show({ pending: true });
       const result = await testEndpoint(check.url);
+      if (!alive || ticket !== operation || access !== identity()) return;
       if (result.ok) {
-        store.set(ENDPOINT_KEY, check.url);
+        if (!store.set(ENDPOINT_KEY, check.url)) { show({ ok: false, code: 'storage', message: 'Connection could not be saved on this device.' }); return; }
         input.value = '';
-        ctx.controller.forgetRosterData();
+        ctx.controller.forgetContractData();
         if (!ctx.review()) ctx.controller.setMode({ kind: 'production' });
         root.querySelector('[data-endpoint-state]').textContent = 'Connected';
-        for (const b of root.querySelectorAll('[data-endpoint-test], [data-endpoint-remove], [data-token-form] button[type="submit"]')) b.disabled = false;
+        for (const b of root.querySelectorAll('[data-roster-refresh], [data-endpoint-test], [data-endpoint-remove], [data-token-form] button[type="submit"]')) b.disabled = false;
         input.placeholder = 'Connected · paste a new URL to replace it';
       }
       show(result);
     };
+    const refreshButton = root.querySelector('[data-roster-refresh]');
+    const onRefresh = () => ctx.controller.refresh({ force: true });
+    refreshButton?.addEventListener('click', onRefresh);
     const onTest = async () => {
       const endpoint = store.get(ENDPOINT_KEY);
       if (!endpoint) return;
@@ -226,9 +248,9 @@ export const settings = {
       show(await testEndpoint(endpoint));
     };
     const onRemove = () => {
-      store.remove(ENDPOINT_KEY);
-      ctx.controller.forgetRosterData();
-      if (!ctx.review()) ctx.controller.setMode({ kind: 'production' });
+      operation += 1;
+      ctx.clearPersonalMemory?.();
+      ctx.controller.removeToken({ disconnect: true });
       rerender();
     };
     form.addEventListener('submit', onSubmit);
@@ -239,10 +261,12 @@ export const settings = {
       const value = tokenForm.querySelector('#token-input').value.trim();
       const endpoint = store.get(ENDPOINT_KEY);
       if (!value || !endpoint) return;
+      const ticket = ++operation, access = identity();
       render(tokenOut, h`<p class="t-caption">Testing contract v2…</p>`);
       const result = await testContract(endpoint, value);
+      if (!alive || ticket !== operation || access !== identity()) return;
       if (result.ok) {
-        store.set(TOKEN_KEY, value);
+        if (!store.set(TOKEN_KEY, value)) { render(tokenOut, h`<p class="t-caption">The token could not be saved on this device.</p>`); return; }
         ctx.controller.forgetContractData();
         if (!ctx.review()) ctx.controller.setMode({ kind: 'production' });
       }
@@ -250,7 +274,9 @@ export const settings = {
       render(tokenOut, h`<p class="source-verdict ${result.ok ? 'is-ok' : 'is-error'}">${result.text}</p>${result.ok ? '' : h`<p class="t-caption">The token was not saved.</p>`}`);
     };
     const onTokenRemove = () => {
-      ctx.controller.removeToken();   // S6: also purges every roster-derived key
+      operation += 1;
+      ctx.clearPersonalMemory?.();
+      ctx.controller.removeToken();
       rerender();
     };
     tokenForm.addEventListener('submit', onToken);
@@ -272,15 +298,21 @@ export const settings = {
         return;
       }
       clearTimeout(timer);
-      const removed = store.clearAll();
+      operation += 1;
+      ctx.clearPersonalMemory?.();
+      const cleared = ctx.controller.resetLocalData();
       applyTheme('system');
-      if (!ctx.review()) ctx.controller.setMode({ kind: 'production' });
+      resetTimeDisplayCache();
+      applyTimeDisplay();
       armed = false;
-      button.textContent = removed > 0 ? 'Cleared' : 'Nothing to clear';
-      button.disabled = true;
+      rerender();
+      const reset = root.querySelector('#reset-local');
+      if (reset) reset.textContent = cleared ? 'Cleared' : 'Could not clear · use browser settings';
     };
     button.addEventListener('click', onClick);
     return () => {
+      stopDiagnostics();
+      alive = false; operation += 1;
       clearTimeout(timer);
       button.removeEventListener('click', onClick);
       form.removeEventListener('submit', onSubmit);
@@ -288,6 +320,7 @@ export const settings = {
       tokenRemove.removeEventListener('click', onTokenRemove);
       testButton.removeEventListener('click', onTest);
       removeButton.removeEventListener('click', onRemove);
+      refreshButton?.removeEventListener('click', onRefresh);
     };
   },
 };

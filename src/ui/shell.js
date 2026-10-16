@@ -6,6 +6,7 @@
 import { html, render } from '../lib/html.js';
 import { ROUTES, hrefFor, activeTabFor } from '../router.js';
 import { icon, brandMark } from './icons.js';
+import { syncStatusText } from './sync-status.js';
 import { themeControl } from './components.js';
 
 const GROUPS = [
@@ -61,9 +62,8 @@ export function mountShell() {
       if (view.review) { text = 'Sample data · not your roster'; kind = 'review'; }
       else if (view.loading && !view.snapshot) { text = 'Loading roster…'; kind = 'loading'; }
       else if (view.snapshot) {
-        const minutes = Math.max(0, Math.round((view.now - view.snapshot.source.fetchedAt) / 60000));
-        text = view.error ? 'Roster offline · showing cached' : minutes < 1 ? 'Roster updated just now' : `Roster updated ${minutes} min ago`;
-        kind = view.error ? 'stale' : 'live';
+        text = syncStatusText(view);
+        kind = view.error || view.offline || view.usingSaved ? 'stale' : 'live';
       } else if (view.error) { text = view.error.code === 'auth-required' ? 'Access token required' : 'Roster unavailable'; kind = 'error'; }
       statusLine.dataset.kind = kind;
       statusLine.querySelector('[data-source-text]').textContent = text;

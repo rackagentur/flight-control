@@ -71,14 +71,14 @@
 
 .cal-grid { display: grid; gap: 2px; margin-top: var(--space-1); }
 .cal-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
-.cal-dow { text-align: center; font-size: 10px; font-weight: var(--weight-semibold); letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-2); padding: 0 0 var(--space-2); }
+.cal-dow { text-align: center; font-size: var(--text-mini); font-weight: var(--weight-semibold); letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-2); padding: 0 0 var(--space-2); }
 
 .cal-day {
-  --journey: light-dark(#3A5B7C, #94B4D2);
-  --layover-tone: light-dark(#6A6259, #BBB1A5);
-  --tok-standby: light-dark(#8E6322, #D9A85C);
-  --tok-reserve: light-dark(#6E5F51, #C2AF9A);
-  --tok-off: light-dark(#85552F, #D2A273);
+  --journey: var(--mark-flight);
+  --layover-tone: var(--mark-layover);
+  --tok-standby: var(--mark-standby);
+  --tok-reserve: var(--mark-reserve);
+  --tok-off: var(--mark-off);
   position: relative;
   display: grid;
   grid-template-rows: 26px 12px 18px auto;
@@ -97,11 +97,11 @@
   transition: background-color var(--dur-instant) var(--ease-standard);
 }
 .cal-day:hover { background: var(--fill-quiet); }
-.cal-day.is-selected { background: var(--fill-selected); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.cal-day.is-selected { background: var(--fill-selected); box-shadow: inset 0 0 0 1.5px var(--edge-selected); }
 .cal-day:focus-visible { outline-offset: -2px; }
 
 .cal-num { display: grid; place-items: center; min-width: 26px; height: 26px; padding: 0 4px; border-radius: 13px;
-  font-size: var(--text-callout); font-weight: var(--weight-semibold); }
+  font-size: var(--text-callout); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; }
 /* Today: a filled date pill, identifiable at a glance in every state and theme. */
 .cal-day.is-today .cal-num { background: var(--fg-1); color: var(--canvas); }
 .cal-day.is-outside .cal-num, .cal-day.is-outside .cal-code, .cal-day.is-outside .cal-sub { color: var(--fg-2); font-weight: var(--weight-regular); }
@@ -167,9 +167,9 @@
 
 /* Code row: IATA for journeys, capsule tokens for SB / RE / OFF. */
 .cal-code { display: inline-grid; place-items: center; min-height: 18px; max-width: 100%; padding: 0 2px; overflow: hidden;
-  font-size: 11px; font-weight: var(--weight-semibold); letter-spacing: 0.03em; line-height: 1; white-space: nowrap; color: var(--fg-1); }
+  font-size: var(--text-micro); font-weight: var(--weight-semibold); letter-spacing: 0.03em; line-height: 1; white-space: nowrap; color: var(--fg-1); }
 .cal-day.is-inferred .cal-code { font-style: italic; }
-.cal-code.tok-sb, .cal-code.tok-re, .cal-code.tok-off { min-width: 30px; padding: 0 6px; border-radius: 9px; font-size: 10.5px; letter-spacing: 0.06em; }
+.cal-code.tok-sb, .cal-code.tok-re, .cal-code.tok-off { min-width: 30px; padding: 0 6px; border-radius: 9px; font-size: var(--text-mini); letter-spacing: 0.06em; }
 .cal-code.tok-sb { box-shadow: inset 0 0 0 1.5px var(--tok-standby); }
 .cal-code.tok-re { background: repeating-linear-gradient(90deg, color-mix(in oklab, var(--tok-reserve) 26%, transparent) 0 3px, transparent 3px 5px); box-shadow: inset 0 0 0 1px var(--tok-reserve); }
 .cal-code.tok-off { background: color-mix(in oklab, var(--tok-off) 30%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--tok-off) 70%, transparent); }
@@ -181,7 +181,7 @@
    reads as OFF (warm fill) or unknown (plain grey text). Same capsule metrics as SB / RE / OFF (that shared rule stays
    byte-for-byte as it was, so the marker baseline is untouched); only the padding is tighter. */
 .cal-code.tok-unassigned {
-  min-width: 30px; border-radius: 9px; font-size: 10.5px; letter-spacing: 0.06em;
+  min-width: 30px; border-radius: 9px; font-size: var(--text-mini); letter-spacing: 0.06em;
   padding: 0 3px;   /* four-letter generic code (UNAS) needs a little air between neighbouring cells at 360 px */
   box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--fg-2) 70%, transparent); background: repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in oklab, var(--fg-2) 14%, transparent) 4px 5px); }
 .cal-sub { display: none; }
@@ -195,20 +195,20 @@
 .cal-key-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-2) var(--space-4); padding: 0 0 var(--space-2); margin: 0; list-style: none; }
 .cal-key-item { display: flex; align-items: center; gap: var(--space-2); }
 .cal-key-sample { position: relative; display: inline-grid; place-items: center; flex: none; width: 34px; height: 18px; border-radius: 9px; font-size: 10px; font-weight: var(--weight-semibold); color: var(--fg-1); letter-spacing: 0.04em; }
-.key-flight .cal-key-sample::before { content: ""; position: absolute; left: 9px; right: 7px; top: 7px; height: 4px; background: light-dark(#3A5B7C, #94B4D2); }
-.key-flight .cal-key-sample::after { content: ""; position: absolute; right: 3px; top: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--canvas); box-shadow: inset 0 0 0 2px light-dark(#3A5B7C, #94B4D2); }
+.key-flight .cal-key-sample::before { content: ""; position: absolute; left: 9px; right: 7px; top: 7px; height: 4px; background: var(--mark-flight); }
+.key-flight .cal-key-sample::after { content: ""; position: absolute; right: 3px; top: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--canvas); box-shadow: inset 0 0 0 2px var(--mark-flight); }
 .key-flight .cal-key-plane { position: absolute; left: -1px; top: -1px; width: 20px; height: 20px; }
-.key-flight .cal-key-plane svg { color: light-dark(#3A5B7C, #94B4D2); }
+.key-flight .cal-key-plane svg { color: var(--mark-flight); }
 .key-flight .cal-key-plane svg:first-child { color: var(--canvas); -webkit-mask-image: linear-gradient(to bottom, #000 calc(50% - 2px), transparent calc(50% - 2px) calc(50% + 2px), #000 calc(50% + 2px)); mask-image: linear-gradient(to bottom, #000 calc(50% - 2px), transparent calc(50% - 2px) calc(50% + 2px), #000 calc(50% + 2px)); }
-.key-layover .cal-key-sample { font-style: italic; background: repeating-linear-gradient(90deg, light-dark(#6A6259, #BBB1A5) 0 3px, transparent 3px 6px) bottom / 100% 3px no-repeat; border-radius: 0; }
-.key-layover-roster .cal-key-sample { background: linear-gradient(light-dark(#6A6259, #BBB1A5) 0 2px, transparent 2px 4px, light-dark(#6A6259, #BBB1A5) 4px 6px) bottom / 100% 6px no-repeat; border-radius: 0; }
-.key-sb .cal-key-sample { box-shadow: inset 0 0 0 1.5px light-dark(#8E6322, #D9A85C); }
-.key-re .cal-key-sample { background: repeating-linear-gradient(90deg, color-mix(in oklab, light-dark(#6E5F51, #C2AF9A) 26%, transparent) 0 3px, transparent 3px 5px); box-shadow: inset 0 0 0 1px light-dark(#6E5F51, #C2AF9A); }
-.key-off .cal-key-sample { background: color-mix(in oklab, light-dark(#85552F, #D2A273) 30%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, light-dark(#85552F, #D2A273) 70%, transparent); }
-.key-ort .cal-key-sample { background: color-mix(in oklab, light-dark(#85552F, #D2A273) 30%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, light-dark(#85552F, #D2A273) 70%, transparent), 0 0 0 1.5px var(--canvas), 0 0 0 2.5px light-dark(#85552F, #D2A273); }
-.key-leave .cal-key-sample { width: 42px; background: repeating-linear-gradient(135deg, color-mix(in oklab, light-dark(#85552F, #D2A273) 34%, transparent) 0 3px, color-mix(in oklab, light-dark(#85552F, #D2A273) 14%, transparent) 3px 6px); }
+.key-layover .cal-key-sample { font-style: italic; background: repeating-linear-gradient(90deg, var(--mark-layover) 0 3px, transparent 3px 6px) bottom / 100% 3px no-repeat; border-radius: 0; }
+.key-layover-roster .cal-key-sample { background: linear-gradient(var(--mark-layover) 0 2px, transparent 2px 4px, var(--mark-layover) 4px 6px) bottom / 100% 6px no-repeat; border-radius: 0; }
+.key-sb .cal-key-sample { box-shadow: inset 0 0 0 1.5px var(--mark-standby); }
+.key-re .cal-key-sample { background: repeating-linear-gradient(90deg, color-mix(in oklab, var(--mark-reserve) 26%, transparent) 0 3px, transparent 3px 5px); box-shadow: inset 0 0 0 1px var(--mark-reserve); }
+.key-off .cal-key-sample { background: color-mix(in oklab, var(--mark-off) 30%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--mark-off) 70%, transparent); }
+.key-ort .cal-key-sample { background: color-mix(in oklab, var(--mark-off) 30%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--mark-off) 70%, transparent), 0 0 0 1.5px var(--canvas), 0 0 0 2.5px var(--mark-off); }
+.key-leave .cal-key-sample { width: 42px; background: repeating-linear-gradient(135deg, color-mix(in oklab, var(--mark-off) 34%, transparent) 0 3px, color-mix(in oklab, var(--mark-off) 14%, transparent) 3px 6px); }
 .key-duty .cal-key-sample, .key-unknown .cal-key-sample { color: var(--fg-2); }
-.key-unassigned .cal-key-sample { box-shadow: inset 0 0 0 1px color-mix(in oklab, light-dark(#6A6259, #BBB1A5) 70%, transparent); background: repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in oklab, light-dark(#6A6259, #BBB1A5) 16%, transparent) 4px 5px); }
+.key-unassigned .cal-key-sample { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--mark-layover) 70%, transparent); background: repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in oklab, var(--mark-layover) 16%, transparent) 4px 5px); }
 /* 7-day strip on Today: the same outline + hatch language as the calendar token, drawn as a taller capsule so it is
    visibly different from the thin outlined unknown mark and from the solid bronze off bar. */
 .week-day.is-unassigned .week-mark { height: 7px; border-radius: 4px; background: repeating-linear-gradient(135deg, transparent 0 3px, color-mix(in oklab, var(--fg-2) 45%, transparent) 3px 4px); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--fg-2) 80%, transparent); }
@@ -218,12 +218,12 @@
 .cal-detail-card {
   display: grid;
   gap: var(--space-5);
-  padding: var(--space-5);
+  padding: var(--pad-card);
   border-radius: var(--radius-card);
   background: linear-gradient(180deg, var(--sheen), transparent 40%), var(--glass-strong);
   -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(1.3);
   backdrop-filter: blur(var(--blur-glass)) saturate(1.3);
-  box-shadow: inset 0 0.5px 0 var(--sheen-edge), inset 0 0 0 0.5px var(--glass-edge);
+  box-shadow: var(--elev-2);
 }
 .cal-detail-head { display: grid; gap: var(--space-2); }
 .cal-detail-head .t-eyebrow { color: var(--fg-2); }
@@ -231,15 +231,11 @@
 .cal-detail-section { display: grid; gap: var(--space-2); padding-top: var(--space-4); border-top: 0.5px solid var(--line); }
 .cal-detail-section .t-eyebrow { color: var(--fg-2); }
 .cal-sectors { display: grid; gap: var(--space-2); padding: 0; margin: 0; list-style: none; }
-.cal-sector { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: var(--space-3); }
-.cal-sector-flight { display: grid; font-size: var(--text-caption); color: var(--fg-2); }
-.cal-sector-date { font-size: 10.5px; font-weight: var(--weight-regular); letter-spacing: 0; }
-.cal-sector-route { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px var(--space-2); font-size: var(--text-body); }
-.cal-sector-route b { font-weight: var(--weight-semibold); }
-.cal-sector-arrow { color: var(--fg-2); }
-/* A leg never splits from its arrow: wraps read "FRA 08:00" / "→ BER 09:05". */
-.cal-sector-leg { white-space: nowrap; }
-.cal-sector-block { font-size: var(--text-caption); color: var(--fg-2); }
+/* Day-detail sectors are static compact sector cards (flight-parts.sectorCard with href: null). The only
+   extra is the departure date, shown above the card when the flight left on another local day. */
+.cal-sector { display: grid; gap: var(--space-1); }
+.cal-sector-date { padding-left: var(--space-1); color: var(--fg-2); font-size: var(--text-mini); font-weight: var(--weight-regular); letter-spacing: 0; }
+.cal-sector .jr-link { background: var(--fill-quiet); box-shadow: inset 0 0 0 0.5px var(--shell-edge); } /* neutral: copper fill is reserved for selection */
 .cal-pickup { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); color: var(--fg-2); font-size: var(--text-callout); }
 .cal-pickup b { color: var(--fg-1); font-weight: var(--weight-semibold); }
 .cal-detail-empty { padding: var(--space-5); border-radius: var(--radius-card); border: 1px dashed color-mix(in oklab, var(--fg-2) 30%, transparent); }
@@ -265,7 +261,7 @@
   .cal-day { min-height: 108px; grid-template-rows: 28px 12px 20px auto; padding: 8px 0 10px; border-radius: 16px; }
   .cal-num { font-size: var(--text-body); min-width: 28px; height: 28px; border-radius: 14px; }
   .cal-code { font-size: var(--text-caption); }
-  .cal-sub { display: block; font-size: 10.5px; color: var(--fg-2); white-space: nowrap; overflow: hidden; max-width: 100%; padding: 0 4px; }
+  .cal-sub { display: block; font-size: var(--text-mini); color: var(--fg-2); white-space: nowrap; overflow: hidden; max-width: 100%; padding: 0 4px; }
 }
 
 /* --- Flights -----------------------------------------------------------------------
@@ -285,11 +281,11 @@
   .fl-layout.is-explicit .fl-list { display: none; }
 }
 
-.fl-rot { --jr-flight: light-dark(#3A5B7C, #94B4D2); --jr-ground: light-dark(#6A6259, #BBB1A5); display: grid; gap: var(--space-3); }
+.fl-rot { --jr-flight: var(--mark-flight); --jr-ground: var(--mark-layover); display: grid; gap: var(--space-3); }
 .fl-rot + .fl-rot { padding-top: var(--space-5); border-top: 0.5px solid var(--line); }
 .fl-rot-head { display: grid; gap: 4px; }
 .fl-rot-head .t-eyebrow { color: var(--fg-2); }
-.fl-rot-route { margin: 0; font-weight: var(--weight-semibold); letter-spacing: -0.01em; }
+.fl-rot-route { margin: 0; }
 .fl-arrow { color: var(--fg-2); font-weight: var(--weight-regular); }
 .fl-rot-meta { color: var(--fg-2); font-size: var(--text-caption); }
 
@@ -300,25 +296,32 @@
 .jr > .jr-leg:first-child::before { top: 14px; }
 .jr-day { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--space-3); padding-top: var(--space-2); padding-bottom: 6px; font-size: var(--text-caption); color: var(--fg-2); }
 .jr-day::before { opacity: 0.35; }
+.jr-day-times, .fl-recent-date, .cal-pickup { font-variant-numeric: tabular-nums; }
 .jr-day-date { font-weight: var(--weight-semibold); color: var(--fg-1); letter-spacing: 0.02em; }
 .jr-day-times b { color: var(--fg-1); font-weight: var(--weight-semibold); }
-.jr-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); min-height: var(--touch-min); padding: 6px var(--space-3) 6px 0; color: inherit; text-decoration: none; border-radius: 12px; }
-.jr-link:hover .jr-route b { color: var(--accent); }
+.jr-sector { padding-top: 4px; padding-bottom: 4px; }
+/* Sector card: a glass row on the rail (copper aircraft mark, codes + times, flight number, chevron). */
+.jr-link { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); min-height: var(--touch-min); padding: var(--pad-row-y) var(--pad-row-x); color: inherit; text-decoration: none; border-radius: var(--radius-row); background: var(--glass-strong); box-shadow: var(--elev-1); }
+.jr-link:hover .jr-route b { color: var(--route); }
 .jr-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.jr-node { position: absolute; left: calc(var(--jr-x) - 6px); top: 50%; width: 12px; height: 12px; margin-top: -6px; border-radius: 50%; background: var(--canvas); box-shadow: inset 0 0 0 3px var(--jr-flight); }
+.jr-node { position: absolute; left: calc(var(--jr-x) - var(--size-node) / 2); top: 50%; width: var(--size-node); height: var(--size-node); margin-top: calc(var(--size-node) / -2); border-radius: 50%; background: var(--canvas); box-shadow: inset 0 0 0 var(--rail-ring) var(--jr-flight); }
 .jr-main { display: grid; gap: 2px; min-width: 0; }
 .jr-route { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--space-2); font-size: var(--text-body); }
-.jr-route b { font-weight: var(--weight-semibold); }
+.jr-route b { font-weight: var(--weight-bold); letter-spacing: -0.02em; }
 .jr-end { white-space: nowrap; }
 .jr-arrow { color: var(--fg-2); }
-.jr-sub { color: var(--fg-2); font-size: var(--text-caption); }
-.jr-status { font-weight: var(--weight-semibold); color: var(--fg-1); }
+.jr-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; color: var(--fg-2); font-size: var(--text-caption); }
+.jr-status { display: inline-flex; }
+.jr-status .chip-status { height: 20px; padding: 0 8px; }
 .jr-chev { color: var(--fg-2); font-size: 20px; line-height: 1; }
-.jr-sector.is-past .jr-main { opacity: 0.62; }
+.sc-compact { padding: var(--space-2) var(--space-3); gap: var(--space-2); }
+.sc-compact .jr-route { font-size: var(--text-callout); }
+.jr-sector.is-past .jr-main, .jr-sector.is-past .sc-mark { opacity: 0.62; }
 .jr-sector.is-past .jr-node { background: var(--jr-flight); }
-.jr-sector.is-active .jr-node { background: var(--accent); box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 25%, transparent); }
-.jr-sector.is-selected .jr-link { background: var(--surface-1); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 60%, transparent); padding-left: var(--space-3); margin-left: calc(-1 * var(--space-3)); }
-.jr-sector.is-selected .jr-node { box-shadow: inset 0 0 0 3px var(--accent); }
+.jr-sector.is-active .jr-node { background: var(--route); box-shadow: 0 0 0 4px color-mix(in oklab, var(--route) 25%, transparent); }
+.jr-sector.is-selected .jr-link { background: var(--fill-selected); box-shadow: inset 0 0 0 1px var(--edge-selected), var(--elev-1); }
+.jr-sector.is-selected .jr-node { box-shadow: inset 0 0 0 var(--rail-ring) var(--accent); }
+.jr-sector.is-selected .sc-mark { background: var(--brand-fill); color: var(--on-brand); }
 
 .jr-stay { display: grid; gap: 2px; padding-top: 6px; padding-bottom: 8px; font-size: var(--text-callout); }
 .jr-stay-label { font-weight: var(--weight-semibold); }
@@ -338,7 +341,7 @@
 .jr-finish { display: flex; align-items: center; min-height: 28px; font-size: var(--text-caption); color: var(--fg-2); }
 .jr-finish::before { bottom: 50%; }
 .jr-finish b { color: var(--fg-1); font-weight: var(--weight-semibold); }
-.jr-finish .jr-node { background: var(--jr-flight); }
+.jr-finish .jr-node { background: var(--canvas); box-shadow: inset 0 0 0 2px var(--fg-1); }
 
 /* End of the listed flights: a calm terminus, not an error. */
 .fl-boundary { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: var(--space-3); align-items: start; padding-top: var(--space-2); }
@@ -351,15 +354,14 @@
 .fl-recent { display: grid; gap: var(--space-2); }
 .fl-recent-intro { max-width: 60ch; }
 .fl-recent-month { margin: var(--space-3) 0 0; color: var(--fg-2); font-weight: var(--weight-semibold); letter-spacing: 0.02em; }
-.fl-recent-list { display: grid; padding: 0; margin: 0; list-style: none; }
-.fl-recent-list li + li { box-shadow: inset 0 0.5px 0 var(--line); }
-.fl-recent-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "route tag" "date date" "sub sub"; gap: 2px var(--space-3); padding: 10px var(--space-2); margin: 0 calc(-1 * var(--space-2)); color: inherit; text-decoration: none; border-radius: 12px; }
-.fl-recent-row:hover .fl-recent-route { color: var(--accent); }
-.fl-recent-row.is-selected { background: var(--surface-1); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 60%, transparent); }
+.fl-recent-list { display: grid; gap: var(--space-2); padding: 0; margin: 0; list-style: none; }
+.fl-recent-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "route tag" "date date" "sub sub"; gap: 2px var(--space-3); color: inherit; text-decoration: none; }
+.fl-recent-row:hover .fl-recent-route { color: var(--route); }
+.fl-recent-row.is-selected { background: var(--fill-selected); box-shadow: inset 0 0 0 1px var(--edge-selected), var(--elev-1); }
 .fl-recent-route { grid-area: route; font-weight: var(--weight-semibold); }
 .fl-recent-date { grid-area: date; color: var(--fg-2); font-size: var(--text-caption); }
 .fl-recent-sub { grid-area: sub; color: var(--fg-2); }
-.fl-tag { grid-area: tag; align-self: center; padding: 2px 8px; border-radius: var(--radius-pill); font-size: 11px; font-weight: var(--weight-semibold); letter-spacing: 0.02em; color: var(--fg-1); white-space: nowrap; }
+.fl-tag { grid-area: tag; align-self: center; padding: 2px 8px; border-radius: var(--radius-pill); font-size: var(--text-micro); font-weight: var(--weight-semibold); letter-spacing: 0.02em; color: var(--fg-1); white-space: nowrap; }
 .fl-tag.tag-source { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--fg-1) 45%, transparent); }
 .fl-tag.tag-remembered { border: 1px dashed color-mix(in oklab, var(--fg-2) 80%, transparent); color: var(--fg-2); }
 .fl-recent-empty { padding: var(--space-3) 0; }
@@ -368,12 +370,12 @@
 .fl-detail-card {
   display: grid;
   gap: var(--space-5);
-  padding: var(--space-5);
+  padding: var(--pad-card);
   border-radius: var(--radius-card);
   background: linear-gradient(180deg, var(--sheen), transparent 40%), var(--glass-strong);
   -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(1.3);
   backdrop-filter: blur(var(--blur-glass)) saturate(1.3);
-  box-shadow: inset 0 0.5px 0 var(--sheen-edge), inset 0 0 0 0.5px var(--glass-edge);
+  box-shadow: var(--elev-2);
 }
 .fl-back { justify-self: start; display: inline-flex; align-items: center; gap: 4px; min-height: var(--touch-min); margin: calc(-1 * var(--space-3)) 0 calc(-1 * var(--space-2)); color: var(--accent); text-decoration: none; font-weight: var(--weight-semibold); }
 .fl-detail-head { display: grid; gap: var(--space-2); }
@@ -382,11 +384,13 @@
 .fl-section { display: grid; gap: var(--space-3); padding-top: var(--space-4); border-top: 0.5px solid var(--line); }
 .fl-section > .t-eyebrow { color: var(--fg-2); }
 .fl-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); padding-top: 0; border-top: 0; }
+.fl-facts { padding-top: var(--space-3); border-top: 0.5px solid var(--line); }
+.fl-facts .pass-field dd { font-size: var(--text-body); }
 .fl-mini { display: grid; gap: 2px; padding: 0; margin: 0; list-style: none; }
-.fl-mini-row { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: var(--space-3); padding: 6px var(--space-2); margin: 0 calc(-1 * var(--space-2)); border-radius: 10px; color: inherit; text-decoration: none; font-size: var(--text-callout); }
+.fl-mini-row { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: var(--space-3); color: inherit; text-decoration: none; font-size: var(--text-callout); }
 .fl-mini-row .t-code { color: var(--fg-2); font-size: var(--text-caption); }
-.fl-mini-row.is-current { background: var(--surface-1); box-shadow: inset 3px 0 0 var(--accent); font-weight: var(--weight-semibold); }
-.fl-mini-row:hover { color: var(--accent); }
+.fl-mini-row.is-current { background: var(--fill-selected); box-shadow: inset 3px 0 0 var(--accent), var(--elev-1); font-weight: var(--weight-semibold); }
+.fl-mini-row:hover { color: var(--route); }
 .fl-detail-foot { font-size: var(--text-callout); }
 .fl-detail-empty { padding: var(--space-5); border-radius: var(--radius-card); border: 1px dashed color-mix(in oklab, var(--fg-2) 30%, transparent); }
 .status-pill[data-confidence="remembered"]::before { background: transparent; border: 1.5px dashed var(--fg-2); box-shadow: none; }
@@ -401,8 +405,9 @@
 .dest-row { display: grid; grid-template-columns: minmax(96px, 34%) minmax(0, 1fr); gap: var(--space-3); padding: 8px 0; }
 .dest-row + .dest-row { border-top: 0.5px solid var(--line); }
 .dest-label { color: var(--fg-2); font-size: var(--text-caption); padding-top: 2px; }
-.dest-value { display: grid; gap: 2px; margin: 0; font-size: var(--text-callout); color: var(--fg-1); }
+.dest-value { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; margin: 0; font-size: var(--text-callout); color: var(--fg-1); }
 .dest-note { color: var(--fg-2); font-size: var(--text-caption); }
+.dest-hotel-address { display: block; margin-top: 2px; }
 .dest-actions { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
 .dest-link { color: var(--accent); font-weight: var(--weight-semibold); text-decoration: none; font-size: var(--text-callout); }
 .dest-link:hover { text-decoration: underline; }
@@ -412,7 +417,8 @@
   .fl-side { position: sticky; top: var(--space-8); max-height: calc(100dvh - 2 * var(--space-8)); overflow-y: auto; overscroll-behavior: contain; border-radius: var(--radius-card); }
   .fl-back { display: none; }
 }
-.jr-tag { display: inline-block; padding: 0 6px; font-size: 10.5px; vertical-align: 1px; }
+.jr-dot { color: var(--fg-2); }
+.jr-tag { display: inline-block; padding: 0 6px; font-size: var(--text-mini); vertical-align: 1px; }
 .jr-stay.kind-gap::before { background: repeating-linear-gradient(180deg, color-mix(in oklab, var(--fg-2) 60%, transparent) 0 2px, transparent 2px 9px); opacity: 1; }
 .jr-stay.kind-gap .jr-stay-text { color: var(--fg-2); }
 
@@ -449,17 +455,21 @@
   padding: 10px 0;
   min-width: 0;
 }
-.rd-time { grid-area: time; align-self: start; font-size: var(--text-title-2); font-weight: var(--weight-semibold); letter-spacing: -0.01em; line-height: 1.15; }
+.rd-time { grid-area: time; align-self: start; font-size: var(--text-title-2); font-weight: var(--weight-semibold); letter-spacing: -0.01em; line-height: 1.15; font-variant-numeric: tabular-nums; }
 .rd-flight { grid-area: flight; display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-body); min-width: 0; white-space: nowrap; }
 .rd-dest { grid-area: dest; font-size: var(--text-callout); color: var(--fg-1); overflow-wrap: anywhere; }
-.rd-iata { color: var(--fg-2); font-size: var(--text-caption); font-weight: var(--weight-semibold); letter-spacing: 0.02em; }
-.rd-rev { grid-area: rev; font-size: var(--text-caption); font-weight: var(--weight-semibold); color: var(--fg-1); }
+.rd-arrow { margin: 0 0.2em 0 0.1em; color: var(--accent); font-weight: var(--weight-medium); }
+.rd-iata { color: inherit; font-size: var(--text-callout); }
+.rd-rev { grid-area: rev; font-size: var(--text-caption); font-weight: var(--weight-semibold); color: var(--fg-1); font-variant-numeric: tabular-nums; }
 /* The aircraft is tertiary: its column is capped and clipped on one line (full text in title/aria), so a long
    model name can never take width from the time and flight/destination columns. */
 .rd-ac { grid-area: ac; justify-self: end; align-self: center; min-width: 0; max-width: 12ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-micro); color: var(--fg-2); letter-spacing: 0.02em; }
 @media (min-width: 600px) { .rd-ac { max-width: 28ch; } }
-.rd-chip { grid-area: chip; justify-self: end; align-self: center; padding: 2px 8px; border-radius: var(--radius-pill); font-size: 11px; font-weight: var(--weight-semibold); letter-spacing: 0.02em; white-space: nowrap; color: var(--fg-1); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--fg-1) 45%, transparent); }
-.rd-chip.is-cancelled { color: var(--critical); box-shadow: none; border: 1px dashed var(--critical); }
+/* The state chip is flight-parts.statusChip; this wrapper only places it. Cancelled keeps a dashed edge so the
+   state never relies on the dot colour alone. */
+.rd-chip { grid-area: chip; justify-self: end; align-self: center; display: inline-flex; }
+.rd-chip .chip-status { height: 22px; padding: 0 8px; }
+.rd-chip.is-cancelled .chip-status { box-shadow: none; border: 1px dashed var(--critical); }
 
 /* The user's own airline: a small accent mark before the flight number, nothing louder. */
 .rd-mark { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent); }
@@ -469,8 +479,8 @@
 .rd-row.is-cancelled .rd-flight, .rd-row.is-cancelled .rd-dest { color: var(--fg-2); }
 
 /* "Now": a calm divider, not an alert. */
-.rd-now { display: flex; align-items: center; gap: var(--space-3); margin: var(--space-3) 0 var(--space-1); color: var(--accent); font-size: var(--text-caption); font-weight: var(--weight-semibold); letter-spacing: 0.04em; text-transform: uppercase; }
-.rd-now::before, .rd-now::after { content: ""; height: 1.5px; border-radius: 1px; background: color-mix(in oklab, var(--accent) 55%, transparent); }
+.rd-now { display: flex; align-items: center; gap: var(--space-3); margin: var(--space-3) 0 var(--space-1); color: var(--route); font-size: var(--text-caption); font-weight: var(--weight-semibold); letter-spacing: 0.04em; text-transform: uppercase; }
+.rd-now::before, .rd-now::after { content: ""; height: 1.5px; border-radius: 1px; background: color-mix(in oklab, var(--route) 55%, transparent); }
 .rd-now::before { width: 12px; flex: none; }
 .rd-now::after { flex: 1; }
 
@@ -493,3 +503,39 @@
 @media (min-width: 1200px) {
   .rd-row { grid-template-columns: 4.6rem minmax(0, 1fr) minmax(0, max-content); padding: 12px 0; }
 }
+
+/* --- Flight Detail · live gates & terminals (provider data beside the roster) ------------- */
+.fl-ops { min-width: 0; }
+.fo-legs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4) var(--space-5); }
+.fo-leg { display: grid; align-content: start; gap: var(--space-1); min-width: 0; overflow-wrap: anywhere; }
+.fo-leg > * { min-width: 0; }
+.fo-leg + .fo-leg { padding-left: var(--space-5); border-left: 0.5px solid var(--line); }
+.fo-leg-head { color: var(--fg-2); }
+.fo-leg[data-leg="departure"] .fo-leg-head { color: var(--fg-1); }
+.fo-city { color: var(--fg-2); margin-top: -2px; }
+.fo-gate { display: grid; gap: 0; margin-top: var(--space-2); }
+.fo-gate-value { font-family: var(--font-display); font-size: var(--text-title-2); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-title); line-height: var(--leading-tight); color: var(--fg-1); }
+.fo-leg[data-leg="departure"] .fo-gate-value { font-size: var(--text-title-1); }
+.fo-gate-none { line-height: var(--leading-snug); }
+.fo-terminal { color: var(--fg-1); }
+.fo-extra { color: var(--fg-1); }
+.fo-times { display: grid; gap: 2px; margin-top: var(--space-2); }
+.fo-time { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 var(--space-3); }
+.fo-time dt, .fo-time dd { white-space: nowrap; }
+.fo-time dd { margin: 0; font-size: var(--text-callout); color: var(--fg-1); }
+.fo-time.is-revised dd { color: var(--route); font-weight: var(--weight-semibold); }
+.fo-status { margin: 0; }
+.fo-status .chip-status { max-width: 100%; height: auto; min-height: 24px; white-space: normal; }
+.fo-foot { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-3); padding-top: var(--space-3); border-top: 0.5px solid var(--line); }
+.fo-stale { color: var(--fg-1); font-weight: var(--weight-medium); }
+.fo-refresh { flex: none; min-height: var(--touch-min); margin: calc(var(--space-3) * -1) calc(var(--space-2) * -1); padding: 0 var(--space-2); border: 0; background: none; color: var(--accent); font-weight: var(--weight-semibold); cursor: pointer; }
+.fo-refresh:hover:not(:disabled) { text-decoration: underline; }
+.fo-refresh:disabled { color: var(--fg-2); cursor: default; }
+.fo-refresh:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--radius-control); }
+.fl-ops.is-quiet { gap: var(--space-2); }
+@media (max-width: 380px) { .fo-leg + .fo-leg { padding-left: var(--space-4); } }
+.attr { white-space: nowrap; }
+.fo-foot > p { flex: 1 1 10rem; min-width: 0; overflow-wrap: anywhere; }
+.fo-foot .attr { display: inline-block; max-width: 100%; white-space: normal; }
+.attr-link { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.attr-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
