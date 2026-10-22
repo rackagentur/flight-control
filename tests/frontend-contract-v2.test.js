@@ -354,7 +354,7 @@ test('BH-2: GET closed and no token: the app reports that the access token is re
   assert.match(h.view().error.message, /access token/);
 });
 
-test('BH-2: Settings saves a URL whose backend requires the token, and tests with the token when saved', async () => {
+test('BH-2: Test connection accepts a URL whose backend requires the token, and tests with the token when saved', async () => {
   const real = globalThis.fetch;
   const seen = [];
   const reply = (obj) => ({ ok: true, status: 200, headers: { get: () => 'application/json' }, text: async () => JSON.stringify(obj) });

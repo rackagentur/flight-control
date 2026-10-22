@@ -168,6 +168,25 @@ test('settings: both "Save credentials" buttons are primary', () => {
   }
 });
 
+test('settings: saving the URL and the token stores them without network verification', () => {
+  const src = read('src/ui/screens/settings.js');
+  const handler = (name) => {
+    const m = src.match(new RegExp(`const ${name} = async \\(event\\) => \\{[\\s\\S]*?\\n    \\};`));
+    assert.ok(m, `${name} handler found`);
+    return m[0];
+  };
+  for (const [name, key, label] of [['onSubmit', 'ENDPOINT_KEY', 'Backend URL saved'], ['onToken', 'TOKEN_KEY', 'Access token saved']]) {
+    const body = handler(name);
+    // Saving never waits on, or is gated by, a connection test or any other request.
+    assert.doesNotMatch(body, /testEndpoint\(|testContract\(|fetch\(|postContract\(|\bawait\b/, name);
+    assert.match(body, new RegExp(`store\\.set\\(${key}, `), name);
+    assert.match(body, new RegExp(`${label} · connection not verified`), name);
+  }
+  // The URL is still validated locally before it is stored.
+  const submit = handler('onSubmit');
+  assert.ok(submit.indexOf('validateEndpoint(') < submit.indexOf('store.set(ENDPOINT_KEY'));
+});
+
 // --- Icon tiles and the status chip primitive ----------------------------------------------------------
 
 test('icon tiles: list icon 32px / control radius, empty icon 44px / row radius, brand-soft fill with accent glyph', () => {
