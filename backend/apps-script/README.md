@@ -11,7 +11,9 @@ Status: **installed (private).** All seven v2 files (`CondorAdapterV2.gs`, `Cond
 | `CondorCodesV2.gs` | Generated Condor roster-code table: raw feed title → canonical concept (`node scripts/gen-condor-codes-gs.mjs`, from `src/airlines/condor/roster-codes.js`). Never edit by hand |
 | `RouterV2.gs` | Backend hardening (BH-1 in Version 25, BH-2 in Version 26): the project's only `doGet`. Refuses every GET with JSON and never serves a page. `getStats` by GET only while Script Property `FC_V5_GET` = `open` (BH-2 migration window); otherwise `auth-required`, and token holders use `doPost` `stats` |
 | `DeparturesV2.gs` | **Not yet deployed (Phase 3).** The `departures` action: validates the request, chunks the range into provider windows, normalizes AeroDataBox responses (pure; unit-tested in Node). All I/O (key, `UrlFetchApp`, cache, sleep) is injected by `RosterApiV2.gs` `fcv2LiveEnv_`. No top-level dependency on any other file; must stay last / is added as a new file |
-| `CrewCoreV2.gs` | **Not deployed — do not install.** Crew Intelligence Phase 1a pure core (synthetic tests only, `tests/crew-core.test.js`); implementation of the backend actions is not authorized. Spec: `docs/CREW-INTELLIGENCE.md` |
+| `CrewCoreV2.gs` | **Not deployed — do not install.** Crew Intelligence core (Phase 1a/1b, synthetic tests only: `tests/crew-core.test.js`, `tests/crew-api.test.js`); depends on `RosterModelV2.gs` (`fcv2Duties_`). Live backend actions are not authorized. Spec: `docs/CREW-INTELLIGENCE.md` |
+| `CrewCondorV2.gs` | **Not deployed — do not install.** Condor crew-list parser for Crew Intelligence (Phase 1b, synthetic). Reuses `CondorAdapterV2.gs` read-only; the installed adapter is unchanged |
+| `CrewApiV2.gs` | **Not deployed, not routed — do not install.** Simulated crew handlers (`crewEnroll`, `crewIndex`, `crew`, `crewRevoke`) tested with fake services only; `RosterApiV2.gs` does not call them |
 
 Rules the files follow:
 

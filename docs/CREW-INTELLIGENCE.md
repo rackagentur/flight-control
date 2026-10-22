@@ -1,7 +1,7 @@
 # Crew Intelligence — specification, architecture and UI proposal
 
 Status: **PROPOSED — design only. Implementation is NOT authorized.** Nothing here is in code, the backend or
-production. **Revision 4.1 + Phase 1a correction pass** (2026-10-22): Revision 3 plus the corrections from Codex's Revision 3 review (Phase 1a
+production. **Revision 4.1 + Phase 1a correction pass + Phase 1b** (2026-10-22): Revision 3 plus the corrections from Codex's Revision 3 review (Phase 1a
 assessed CONDITIONAL; the corrections below, including the two Revision 4.1 conditions, are **binding Phase 1a
 acceptance criteria**, §13).
 Branch context: development `v2.1-dev` (`2665a2f`), production `origin/main` (`a3008d2`).
@@ -72,7 +72,7 @@ Pointers "partly superseded by D-014" go into `docs/PLAN.md` (D3), `docs/DATA-GA
  Settings ── crewIndex{} ───────────▶ token ✓ → grant ✓ → index worker (budgeted, locked, resumable)
  Flight detail ── crew{sectorId,date}▶ token ✓ → grant ✓ → resolve + own sector ✓ → canonical duty
                                         → familiarity from committed index (+ live open months)
-                                        → 1 bounded reconciliation step → response (names, no ids)
+                                        → response (names, no ids; read-only: never verifies or writes history)
  Opt-out / Forget ── crewRevoke{revokeId}▶ token ✓ → grant or revoke credential ✓ → state G+1 'revoking' → purge fcx.* → verify
  Owner (Apps Script editor) ── crewPurgeAll  (manual, no web entry point)
 ```
@@ -408,9 +408,10 @@ A commit for a month that already has a committed generation is a **replacement*
    fails, the persisted `replacing` marker already keeps the month stale.
 4. **Limitation (documented, T: "unpersisted"):** if the store accepts neither the marker write nor the deletions,
    nothing durable records the failure. The commit returns `replaceFailed-unpersisted`; the **current request** must
-   answer stale, but a **later independent request** would still read the old generation as fresh until the next
-   verification detects the change again (≤ 14 days by the freshness rule). This cannot be guaranteed without a
-   durable failure state, which by definition could not be written.
+   answer stale, but a **later independent request** would still read the old generation as fresh until its
+   `verifiedAt` passes the 14-day threshold (then stale) or a `crewIndex` re-verification detects the change. The
+   threshold does not schedule that check (§7.5a). This cannot be guaranteed without a durable failure state, which
+   by definition could not be written.
 
 ### 7.3 Fingerprint (every input that affects grouping or familiarity)
 
@@ -428,18 +429,108 @@ rebuilt and its committed duty set changes, months **M−1 and M+1** get flag `n
 re-verified. A duty moved from M to M+1: M rebuilt (duty gone), M+1 flagged → re-verified → rebuilt (duty present);
 until then results are stale, never silently wrong. Duplicate `dutyKey`s across shards → `unreconciled` (§5.5).
 
-### 7.5 Reconciliation (access-driven) and visible timestamps
+### 7.5 Reconciliation is access-driven, by `crewIndex` only (corrected — binding)
 
 - **Sealing:** month M becomes eligible for a durable shard when today ≥ the 8th of M+1 (v5 writes only from the 1st
-  of the current month, verified in v5 `Code.gs`; 7-day grace for late runs). Earlier months are **open**: computed
-  live (≤ 70 days read incl. margins), cached ≤ 15 min, always fresh.
-- **Priority queue** for each `crew` call (one month max, ≤ 4 s) and each `crewIndex` call (until the 15 s budget):
-  1) months in the current request's relevant range that are stale, nearest to the selected month first;
-  2) unindexed months, newest first; 3) the oldest `verifiedAt` older than 14 days.
-- Verification = re-read window, recompute `fp`; equal → bump `verifiedAt` only; different → rebuild (§7.2).
-- Visible: flight detail footnote "Checked <date>" (oldest verification in range) and stale wording; Settings shows
-  months indexed / pending / uncovered, anomalies, oldest verification and "Re-check history"
-  (`crewIndex {verifyAll: true}`, progressive).
+  of the current month, verified in v5 `Code.gs`; 7-day grace for late runs) **and** all its duties have completed.
+  Unsealed months are **open**: computed live from the calendar on every `crew` request (not cached) and therefore
+  current for that request.
+- **Only `crewIndex` reconciles.** A `crew` query reads the committed index and the live open months; it never
+  verifies, rebuilds, writes historical index data or touches `verifiedAt`. (The action dispatcher may perform
+  security-state writes and deletions for revocation/rotation recovery, §7.5d.) Nothing runs on a schedule.
+- `crewIndex` work order per call (bounded, §7.5c; decided by the shared plan, §7.5d): 1) months flagged
+  `replacing` or `neighbour-changed`, and `replaceFailed` when capacity allows; 2) **damaged shards** (missing or
+  corrupt); 3) unindexed months newer than the storage floor, newest first; 4) the floor month when capacity allows
+  (§9.5, Q25); 5) months whose `verifiedAt` is older than the freshness threshold — or, for "Re-check history", older
+  than the moment the re-check started (`verifyBefore`) — oldest first.
+- Verification = re-read the month's window, recompute `fp`; equal **and the stored shard valid** → advance
+  `verifiedAt` only; different, or shard missing/corrupt → rebuild (§7.2, §7.2a) and flag both neighbours.
+- Visible: flight detail footnote "Checked <date>" (oldest verification in the range) and the stale wording; Settings
+  shows months indexed / pending / stale / uncovered, the oldest verification and "Re-check history".
+
+### 7.5a Freshness semantics (binding)
+
+- **`verifiedAt`** — when that month's indexed coverage was last successfully checked against the calendar (a commit,
+  or an equal-fingerprint re-verification of a **valid** stored shard). Only `crewIndex` sets it.
+- **Freshness threshold: 14 days.** It is a threshold, **not a refresh schedule**: nothing re-checks a month
+  automatically when it passes. A month older than the threshold is simply **stale** until a `crewIndex` call (started
+  by the app, §7.5b) re-verifies it. If the app is not used, months stay stale indefinitely and are shown as such.
+- **stale** — verification is overdue (older than the threshold), or the index cannot be trusted as current
+  (`replacing`, `replaceFailed`, `neighbour-changed`, duplicate or link mismatch, unreadable snapshot). No current
+  number is shown.
+- **incomplete** — coverage is missing (months not yet indexed or not storable) or has missing-record anomalies;
+  numbers are recorded duties in incomplete records. Grouping uncertainty removes numbers per member (§6.3a).
+- **complete** — every relevant month is indexed, its shard valid, fresh at its verification point and free of
+  missing-record anomalies.
+  "Complete" describes the records **as of `verifiedAt`**, not the calendar at the moment of the query; a calendar
+  change inside the threshold is not seen until the next verification.
+- Stale or incomplete results are never converted into complete ones by reading; only a successful `crewIndex`
+  verification changes the state.
+
+### 7.5b Frontend trigger contract (Phase 1c — documented, not implemented)
+
+1. After an authorised enrollment (`crewEnroll` ok), request `crewIndex`.
+2. When a private flight detail is opened, request `crew` for that sector.
+3. If the response carries `history.indexingSuggested: true` (the shared plan, §7.5d, finds work in this answer's
+   months: missing, overdue, flagged, damaged, or the floor when capacity allows), start `crewIndex` through the
+   authenticated crew interface (roster token + crew grant). The hint is advisory: `true` is not a promise of
+   success; `false` is not proof of completeness (unsupported manifests, capacity-blocked history and grouping
+   uncertainty are `false` because indexing cannot help now). Show the state, never the hint, to the user.
+4. Respect `rate-limited` and `busy` answers (back off, retry later), the per-call `processed`/`progress` response and
+   the server's per-call budget; never loop without a pause.
+5. While the app is active (visible), continue unfinished indexing in bounded steps (a few calls, spaced); stop when
+   hidden, offline, or when a call makes no progress (`processed: 0`).
+6. After indexing progress, refresh the open crew detail by repeating `crew`.
+7. If indexing cannot finish (storage floor, repeated errors, offline), keep showing the conservative state from the
+   last `crew` response (stale / incomplete / no number) — never an unsupported count.
+8. Never call `crewIndex` (or `crew`) before an explicit, successful enrollment, or after revocation, a `crew-revoked`
+   / `crew-not-enrolled` answer, sign-out, reset or token change; the stored grant is removed in those cases.
+9. Never store `crew` responses in persistent browser storage, service-worker caches or offline snapshots; memory
+   only (§10).
+
+### 7.5c Time budget (cooperative, unverified)
+
+The `crewIndex` budget (≤ 6 months and ≈ 15 s per call) is **cooperative**: the elapsed time is checked between
+months, so a Calendar read already in progress is never interrupted and a call can exceed 15 s by the duration of
+the last read (test: "time budget is cooperative"). It is **not** a hard execution deadline. Actual Apps Script
+execution time, the 6-minute platform limit, quotas, `LockService` waits and Calendar latency are **unverified** and
+must be measured in the synthetic backend project before release (Phase 1d).
+
+### 7.5d Damaged shards, eligibility and the indexing hint (targeted recovery fix — binding)
+
+- **Integrity before verification.** A committed month is *valid* only if every part exists, its header names the
+  current `G`/epoch/month/gen, the digest matches the manifest and the **encoded payload** passes strict validation
+  **before any decoding** (`fcv2CrewValidPayload_`, the only acceptance rule, used by snapshot reads, the integrity
+  check, the unchanged-fingerprint shortcut, the indexing plan and therefore reconstruction decisions):
+  - exactly `{v, m, k, d}`; `v` equals the supported payload version (1); `m` equals the committed month;
+  - `k`: unique 22-character base64url colleague keys;
+  - `d`: tuples of exactly 6 fields `[key (16 hex, unique), startMinute, endMinute, lpk (16 hex or ""), sectors,
+    tied]`; minutes are finite integers between 2000-01-01 and 2100-01-01, `end ≥ start`, at most 14 days, and the
+    start lies in month `m` (base zone);
+  - sectors: non-empty, each exactly `[flightNumber (1–12 chars), "AAA-BBB", [integer key indices within k]]`;
+  - `tied` is exactly `0` or `1`.
+  Nothing is coerced (no `null`→0, no truthiness, no out-of-range lookups); anything else is rejected, which makes
+  the whole query stale with no counts and the month eligible for immediate rebuild. A *missing* or *corrupt* shard is scheduled for repair by
+  `crewIndex` **immediately** (no freshness wait) and rebuilt from the source records through the crash-safe commit
+  (§7.2, §7.2a, neighbour flags). An unchanged source fingerprint is **never** enough to skip it or to advance
+  `verifiedAt`. Readers apply the same structural check: damaged content makes the whole query stale with no
+  counts until the rebuild commits; a failed rebuild leaves the month `replaceFailed` (stale).
+- **One eligibility decision.** `fcv2CrewIndexPlan_` (pure; store reads only, no Calendar read, no write) decides what
+  indexing could do, in order: flagged months (a failed replacement only when capacity allows), damaged shards,
+  unindexed months above the storage floor, the floor month when capacity allows (Q25), overdue months. `crewIndex`
+  takes its next month from it; the `crew` response's `history.indexingSuggested` is `true` iff the plan contains a
+  month of that answer's range.
+- **The hint is advisory.** `true` means indexing is *worth attempting* — not that it will succeed (a later Calendar
+  read, admission or lock can still fail). `false` means indexing cannot currently improve *this* answer — it is
+  **not** proof of completeness, verification or health: it is also `false` for an unsupported or invalid manifest
+  (indexing refuses to touch it), for capacity-blocked history below the floor (re-evaluated on every query, so it
+  becomes `true` once capacity is available) and for grouping uncertainty (indexing cannot resolve it).
+- **The 14-day threshold is not a repair delay.** Damage, flags and missing months are eligible at once; only the
+  re-verification of intact, unflagged months waits for the threshold (or an owner-started re-check).
+- **What a `crew` request may write.** An ordinary `crew` query never writes historical index data and never advances
+  `verifiedAt`. The shared action dispatcher may, before any query runs, perform **security-state writes and
+  deletions**: completing an interrupted revocation or a pepper rotation (state record and `fcx.*` purge, §8.5), and
+  incrementing the rate-limit counter in the cache.
 
 ### 7.6 Whole-query snapshot reads and garbage collection (Revision 4.1 — binding)
 
@@ -544,11 +635,29 @@ key; any unregistered remnant belongs to an old `G` (never read again) and **exp
 TTL). The response reports `cacheExpiresBy`; cache deletion is confirmed by TTL, not by enumeration. Cache entries hold
 only pseudonymous data, never names.
 
-### 8.5 Key rotation
+### 8.5 Key rotation (corrected in the Phase 1b correction pass)
 
 Owner sets a new `FC_CREW_PEPPER` → new `pid`. Next crew call: `pid` mismatch → system revoke transition (§4.0,
-`revokeId = 'system-<G>'`) → namespace purge → owner re-enrolls → progressive rebuild under the new `G` and epoch.
-Old keys are unlinkable to new ones. Rotation on suspicion of exposure (Q9).
+`revokeId = 'system-<G>'`) → namespace purge. The system revocation records `credHash` = the grant that was current,
+so **the owner's app can authenticate the resumption** if the purge is interrupted: any crew call carrying that
+grant while `phase = revoking` resumes and completes the deletion (it only deletes; it never grants access, and a
+caller without that grant triggers nothing). A new owner-issued enrollment code is the second recovery path: it
+supersedes the stuck revocation under the lock (§8.6). No manual property editing is needed. Access under the old
+pepper is never restored: every grant is bound to the current `pid`. Rotation on suspicion of exposure (Q9).
+
+### 8.6 Re-enrollment and obsolete generations (Phase 1b correction pass — binding)
+
+- Enrollment always creates a new generation `G+1` and epoch. An index of an **older** generation is **obsolete**:
+  readers and commits treat it as absent (never reinterpreted), GC treats its keys as orphans, and the first commit
+  of the new generation overwrites the root.
+- In the same locked transition the enrollment purges every `fcx.*` key that does not belong to the new generation
+  (namespace-safe; unrelated keys untouched) and removes the previous root's registered cache keys. If deletion fails,
+  `state.purge.pending` stays set and the next `crewIndex` resumes it under the lock before indexing.
+- A valid owner code also **supersedes an interrupted revocation** (including a stuck rotation): the revocation is
+  recorded as `superseded` in `lastRevoke` (its id stays idempotent), and its pending deletion becomes the new
+  generation's purge. Without a code, nothing changes (`enroll-closed`).
+- Cache-removal failures never block a revocation, rotation or purge: entries are generation-scoped (unreachable)
+  and expire within 6 h; the response reports `cacheCleared: false`.
 
 ## 9. Storage model (evaluation against documented limits)
 
@@ -707,8 +816,8 @@ Safeguards:
 | Peak storage (§9.4) | measured peak ≤ 450 KB with today's history | Phase 1a synthetic; Phase 1d real |
 | Commit section (lock held) | ≤ 2 s per month | Phase 1a fake env with simulated write latency; Phase 1d real |
 | Initial backfill | ≤ 8 `crewIndex` calls, ≤ 3 min wall clock | Phase 1d, owner-run; response `timings` (ms per month, events, bytes — no data) |
-| Warm `crew` | p50 ≤ 3 s, p95 ≤ 6 s incl. one reconciliation step | App measures (memory only), owner records 10 samples |
-| Per call worst case | ≤ 15 s server work (< 30 s client timeout) | Budgeted loops; slow fake-env tests |
+| Warm `crew` | p50 ≤ 3 s, p95 ≤ 6 s (read-only: snapshot + live open months; no reconciliation) | App measures (memory only), owner records 10 samples |
+| Per call worst case | ≈ 15 s server work, **cooperative** (can be exceeded by one in-progress Calendar read, §7.5c); < 30 s client timeout | Budgeted loops; slow fake-env test; real timings unmeasured |
 | Properties quota use | ≤ 5 % of the daily quota on a heavy day | Count reads/writes per call in tests; check documented quota |
 
 If targets fail: half-month windows; fewer verification steps per call; never a full scan in one request.
@@ -806,8 +915,70 @@ suite 998/998.
 (§7.4–7.5, T5); backend handlers, real `LockService`/`CacheService` behaviour, enrollment-failure counter; frontend;
 storage-capacity validation against the real property store.
 
-- **Phase 1b:** ready to plan once authorized and after Codex re-reviews the corrected Phase 1a code.
+- **Phase 1b:** implemented in simulation (§16a); awaiting review and commit approval.
 - **Not ready:** Phases 1c–1d until Q1 (clearance) and Q4 (execution identity) are resolved.
+
+## 16a. Phase 1b status (2026-10-22, simulated only — not committed, not deployed, not routed)
+
+**Implemented**
+
+| Area | Where | Notes |
+|---|---|---|
+| Condor crew-list parser | new `backend/apps-script/CrewCondorV2.gs` (not deployed) | `RANK [id] FAMILY, GIVEN (BASE)`; id optional; malformed rank lines → `parseFailed`; names with digits rejected; duplicates once; v5 enrichment ("CREW HISTORY", "Colleague …", "Original Notes:"), hotel and booking lines never crew. Reuses the installed `fcv2ClassifyEvent_` read-only; `CondorAdapterV2.gs` is **unchanged** and its outputs are byte-identical with the crew files loaded |
+| Positioning / unrecognised events | `fcv2CrewNormalizeEvent_` | Deadheads (`DH/…`), other carriers and unknown codes become hidden events → `hiddenEvent` links (no guessing) |
+| Canonical duty grouping | `CrewCoreV2.gs` `fcv2CrewGroupDuties_` | **Calls the roster's own `fcv2Duties_`** (same Apps Script scope) on flights sorted exactly as `fcv2BuildRoster_` sorts them — no second copy of the chaining rule and **no extraction or edit of `RosterModelV2.gs`**; roster/capabilities/classification output byte-identical (regression test) |
+| Fingerprints | `fcv2CrewFingerprint_` | Pepper-keyed HMAC over every flight and hidden event of the final read window (times, flight number, airports, crew lines as keyed hashes, parse failures), window bounds and rule versions |
+| Partitioned manifest (schema 2) | `CrewCoreV2.gs` | Root `fcx.m` + one immutable year document per year (`fcx.y.<G>.<epoch>.<YYYY>.<ygen>`); publication = staged year documents, then one root write; validation of root and year documents (digests); torn reads restart the whole query; GC of retired year documents and parts; schema 1 is not read (never deployed) |
+| Reconciliation | `fcv2CrewHandleIndex_`, `fcv2CrewTouchMonth_` | Bounded (≤ 6 months and ≤ 15 s per call), resumable, newest first; equal fingerprint → re-verify only; changed → replace (mark-first, fail-closed) and flag both neighbours stale until re-verified; `verifyBefore` = owner-started "Re-check history"; **storage floor**: after the first space refusal no older month is attempted, so coverage stays one contiguous recent range |
+| Simulated handlers | new `backend/apps-script/CrewApiV2.gs` (not deployed, **not routed**) | `crewEnroll`, `crewIndex`, `crew`, `crewRevoke` behind the roster token; separate crew grant; single-use enrollment code; generation checks and final authorisation before every response; allow-listed responses; fixed-window rate limit (60 / 10 min; revocation exempt); pepper rotation → system revoke + purge; errors as codes only |
+
+**Tests:** `tests/crew-api.test.js` (21) + `tests/crew-core.test.js` (43); full suite 1019/1019; offline check current.
+
+**Measured (synthetic, Node; not Apps Script timings)**
+
+| Measure | Result |
+|---|---|
+| Manifest, 4 / 20 / 40 years — single (Phase 1a) | 5,993 / 29,609 / 59,129 bytes (cap 8,000 exceeded from ≈ 7 years) |
+| Manifest, 4 / 20 / 40 years — partitioned | root 272 / 1,008 / 1,928 bytes + 1,443 bytes per year document |
+| 51-month history through the handlers | root 318 bytes; whole `fcx.*` store 153,648 bytes (57 keys) after GC |
+| 20 synthetic years (2022-08 → 2042-07) through real commits | store limit reached: 152 months indexed (back to 2029-12), older months uncovered as one block; store 461,817 of 500,000 bytes; 27 index calls; ≈ 0.9 s Node CPU |
+| Implication | the **store** (≈ 12.5 years of synthetic history ⇒ ≈ 2035 for a history starting Aug 2022) is now the only capacity limit; the manifest no longer is |
+
+**Defects found and fixed during Phase 1b:** rate-limit window never reset under steady traffic (TTL refreshed on every request) → fixed windows; storage exhaustion produced holes where smaller older months still fitted → storage floor; "re-check all" could not terminate → `verifyBefore`.
+
+**Phase 1b correction pass (Codex-reproduced lifecycle defects):**
+- *P1 re-enrollment stranded the index* (older-generation root reported `index-incompatible` forever) → obsolete
+  generations are treated as absent and purged at enrollment, resumable (§8.6).
+- *P1 interrupted pepper rotation left `revoking` with no usable credential* → the system revocation records the then-
+  current grant as resume credential; an owner code can supersede it; cache-removal failures no longer block (§8.5).
+- *P2 uncovered months were never retried* → `crewIndex` retries only the floor month (directly below the covered
+  range), automatically when at least one full part fits beyond every reserve, or on request (`retryUncovered: true`);
+  coverage stays contiguous after every call.
+- Tests: 6 new regression tests (re-enrollment, interrupted re-enrollment purge, interrupted rotation with
+  authenticated recovery, owner-code recovery, cache-removal failure, capacity recovery with a contiguity check after
+  every call); `tests/crew-api.test.js` 27, `tests/crew-core.test.js` 43; full suite 1025/1025.
+- **Historical re-verification contract (completed):** only `crewIndex` reconciles; the 14-day value is a threshold,
+  not a schedule; `verifiedAt` / stale / incomplete / complete defined (§7.5a); frontend trigger contract (§7.5b);
+  cooperative time budget (§7.5c); `crew` responses carry a read-only `history.indexingSuggested` hint. Tests: 4 added
+  (crew queries never verify or write; overdue stays stale under repeated queries until `crewIndex`; interrupted
+  indexing stays incomplete; cooperative budget) plus the unenrolled/revoked case; crew 74, full suite 1029.
+- **Targeted recovery fix:** (1) an unchanged fingerprint skipped deleted/corrupt shards forever and re-"verified"
+  them → integrity check before the shortcut; damaged shards repaired at once through the crash-safe commit; the
+  snapshot reader now applies the same structural check (it had accepted a re-signed, structurally invalid shard
+  as complete). (2) `indexingSuggested` used its own rules → it now comes from the same pure plan as `crewIndex`
+  (unsupported schema, capacity-blocked floor and grouping uncertainty → false; capacity regained → true). Tests: 7
+  added (repair A–D, three hint cases); crew 81, full suite 1036.
+- **Encoded payload validation:** structural checks ran after a lossy decode (`null`→1970 dates, flag `2`→false,
+  version 999 accepted) → strict validation of the encoded payload before decoding, one contract for every reader;
+  the post-decode validator was removed. Valid records decode identically (verified against the previous decoder for
+  all 51 synthetic months). Tests: 15 added (12 malformed variants incl. non-finite and both bad-flag forms, a valid
+  re-signed control, a failed reconstruction, the semantics-preservation check); crew 96, full suite 1051.
+
+**Not done / blockers (documented, not bypassed)**
+- Live `LockService`, `CacheService`, `PropertiesService`, Calendar access and Apps Script `Utilities` (gzip, HMAC) — all faked; real byte accounting, timings and quota use unmeasured.
+- The handlers are not wired into `RosterApiV2.gs`; `capabilities` does not advertise them (Phase 1d, separate approval).
+- No frontend.
+
 
 ## 17. Decisions requiring founder approval
 
@@ -822,7 +993,7 @@ storage-capacity validation against the real property store.
 | Q7 | Editor-run `crewPurgeAll` as an exception to the `_` naming rule | Yes |
 | Q8 | Enrollment by owner-issued code in Script Properties (≤ 15 min, single use, 5-attempt burn) | Yes |
 | Q9 | Pepper rotation on suspicion only | Yes |
-| Q10 | Freshness window 14 days; sealing on the 8th of the next month and only after all home-month duties completed | Yes |
+| Q10 | Freshness **threshold** 14 days (not a refresh schedule, §7.5a); sealing on the 8th of the next month and only after all home-month duties completed | Yes |
 | Q11 | Encounter = canonical duty (per duty, not per sector/day) | Yes |
 | Q12 | Stale results shown with their "as of" date rather than hidden | Yes |
 | Q13 | Phase 2 Today count chip | Defer |
@@ -831,3 +1002,10 @@ storage-capacity validation against the real property store.
 | Q16 | **New (R4.1):** "Earlier matches unclear" wording for suppressed counts | Yes |
 | Q17 | **New (Phase 1a):** plan a manifest split before the 8 KB cap (≈ early 2030 on synthetic data) | Plan in Phase 1b design; no action now |
 | Q18 | **New (correction pass):** UI wording "N recorded duties together", "Flown together before · number unclear"; no "at least" | Yes |
+| Q19 | **New (1b):** keep the Condor crew parser in its own file (`CrewCondorV2.gs`) instead of `CondorAdapterV2.gs`, so the installed adapter stays byte-identical | Yes |
+| Q20 | **New (1b):** reuse `fcv2Duties_` directly instead of extracting a shared function from `RosterModelV2.gs` | Yes |
+| Q21 | **New (1b):** partitioned manifest (schema 2) replaces the Phase 1a single manifest; resolves Q17 | Yes |
+| Q22 | **New (1b):** storage floor — on exhaustion keep one contiguous recent range; older months reported uncovered | Yes |
+| Q23 | **New (1b):** "Re-check history" re-verifies months verified before the moment it was started (`verifyBefore`) | Yes |
+| Q24 | **New (1b correction):** an owner enrollment code may supersede an interrupted revocation (recovery without manual property editing) | Yes |
+| Q25 | **New (1b correction):** automatic floor retry when ≥ one 8 KB part fits beyond all reserves; explicit `retryUncovered` otherwise | Yes |

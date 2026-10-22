@@ -3,13 +3,15 @@
 // ============================================================================
 // NOT DEPLOYED. Not part of the installed Apps Script project and not loaded by the
 // fc.roster v2 sandbox (tests/gs-harness.js GS_FILES). Specification:
-// docs/CREW-INTELLIGENCE.md Revision 4.1. Implementation of the backend actions is
-// not authorized; this file holds only the pure, Node-tested algorithms:
-//   - canonical duty grouping (same rule as fcv2Duties_) and conservative linking
+// docs/CREW-INTELLIGENCE.md Revision 4.1 + Phase 1b. Live backend actions are not
+// authorized; this file holds only the pure, Node-tested algorithms:
+//   - canonical duty grouping (delegates to the roster's own fcv2Duties_, RosterModelV2.gs,
+//     which must be loaded in the same global scope) and conservative linking
 //   - monthly ownership with read-window extension, completion and sealing rules
 //   - familiarity counting before a selected duty, suspect groups, result states
 //   - generation-based access (enroll / authorize / revoke) and namespace-safe purge
-//   - crash-safe month commit, garbage collection and whole-query snapshot reads
+//   - fingerprints, partitioned manifests (root + one document per year), crash-safe month
+//     commit, reconciliation helpers, garbage collection and whole-query snapshot reads
 //   - encoded storage sizes and peak admission
 //
 // Input crew entries are already parsed by the airline adapter (a later phase):
@@ -19,10 +21,11 @@
 // All names start with fcv2Crew and end in "_" (not callable through google.script.run).
 // ============================================================================
 
-const FCV2_CREW_DUTY_GAP_MS_ = 6 * 3600000;       // must equal FCV2_DUTY_GAP_MS_ (parity test)
 const FCV2_CREW_LINK_SPAN_MS_ = 20 * 3600000;     // suspect-group link span: max augmented FDP 18 h + 2 h (spec §6.3b, A2)
 const FCV2_CREW_MIN_REST_MS_ = 10 * 3600000;      // connected duties closer than a minimum rest are linked (shortRest)
-const FCV2_CREW_SCHEMA_ = 1;
+const FCV2_CREW_SCHEMA_ = 2;                      // 2 = partitioned manifest (Phase 1b); 1 was never deployed
+const FCV2_CREW_PARSER_VERSION_ = 1;
+const FCV2_CREW_DUTY_RULES_ = 1;
 const FCV2_CREW_MARGIN_MS_ = 36 * 3600000;        // read margin around a month / selected flight
 const FCV2_CREW_MAX_EXTENSIONS_ = 4;              // per side
 const FCV2_CREW_PREFIX_ = 'fcx.';
@@ -43,10 +46,10 @@ const FCV2_CREW_ENROLL_MAX_FAILURES_ = 5;
 // ---------------------------------------------------------------------------
 
 /**
- * The fcv2Duties_ chaining rule (0 <= gap <= 6 h, connected airports) on flights in the exact order
- * fcv2BuildRoster_ gives it: by start, then end, stable (ties keep the input order). Flights with an
- * identical start and end make the grouping depend on input order; their duties are marked `tied`
- * (a grouping-uncertainty anomaly) instead of being silently re-ordered.
+ * Canonical duties: the roster's own fcv2Duties_ (RosterModelV2.gs, unchanged) on flights in exactly the
+ * order fcv2BuildRoster_ gives it — by start, then end, stable. No second copy of the chaining rule.
+ * Flights with an identical start and end make the grouping depend on input order; their duties are
+ * marked `tied` (a grouping-uncertainty anomaly) instead of being silently re-ordered.
  */
 function fcv2CrewGroupDuties_(flights, deps) {
   const sorted = flights.slice().sort(function (a, b) { return a.start - b.start || a.end - b.end; });
@@ -55,24 +58,19 @@ function fcv2CrewGroupDuties_(flights, deps) {
     const n = sorted[i + 1];
     if (n && n.start === f.start && n.end === f.end) { tied[i] = true; tied[i + 1] = true; }
   });
-  const groups = [];
-  let current = null;
-  sorted.forEach(function (f, i) {
-    const prev = current && current.flights[current.flights.length - 1];
-    const gap = prev ? f.start - prev.end : -1;
-    if (!(prev && gap >= 0 && gap <= FCV2_CREW_DUTY_GAP_MS_ && prev.destination === f.origin)) {
-      current = { flights: [], tied: false };
-      groups.push(current);
-    }
-    current.flights.push(f);
-    if (tied[i]) current.tied = true;
-  });
-  return groups.map(function (g) {
-    const first = g.flights[0];
-    const last = g.flights[g.flights.length - 1];
+  const bySector = {};
+  sorted.forEach(function (f, i) { bySector['s_' + deps.hash(String(f.sourceId)).slice(0, 16)] = i; });
+  const duties = fcv2Duties_(sorted.map(function (f) {
+    return { sourceId: f.sourceId, start: f.start, end: f.end, flight: { origin: f.origin, destination: f.destination } };
+  }), [], [], { hash: deps.hash });
+  return duties.map(function (d) {
+    const idx = d.sectorIds.map(function (id) { return bySector[id]; });
+    const fl = idx.map(function (i) { return sorted[i]; });
+    const first = fl[0];
+    const last = fl[fl.length - 1];
     return {
-      key: deps.hash(String(first.sourceId)).slice(0, 16), start: first.start, end: last.end,
-      origin: first.origin, destination: last.destination, flights: g.flights, lpk: null, link: null, tied: g.tied,
+      key: d.id.slice(2), start: first.start, end: last.end, origin: first.origin, destination: last.destination,
+      flights: fl, lpk: null, link: null, tied: idx.some(function (i) { return tied[i] === true; }),
     };
   });
 }
@@ -107,7 +105,7 @@ function fcv2CrewWindow_(from, to, read, deps, needsEdges) {
     const edges = needsEdges(duties, from, to);
     if (edges.back && extBack < FCV2_CREW_MAX_EXTENSIONS_) { from -= FCV2_CREW_MARGIN_MS_; extBack++; continue; }
     if (edges.fwd && extFwd < FCV2_CREW_MAX_EXTENSIONS_) { to += FCV2_CREW_MARGIN_MS_; extFwd++; continue; }
-    return { duties: duties, edges: edges, from: from, to: to };
+    return { duties: duties, edges: edges, from: from, to: to, read: got };
   }
 }
 
@@ -117,8 +115,8 @@ function fcv2CrewEdges_(duties, i0, i1, from, to) {
   const first = duties[i0];
   const needed = first.lpk && i0 > 0 ? duties[i0 - 1] : first;   // a linked predecessor must be whole too
   return {
-    back: needed.flights[0].start < from + FCV2_CREW_DUTY_GAP_MS_ || first.start - from < FCV2_CREW_LINK_SPAN_MS_,
-    fwd: duties[i1].end > to - FCV2_CREW_DUTY_GAP_MS_,
+    back: needed.flights[0].start < from + FCV2_DUTY_GAP_MS_ || first.start - from < FCV2_CREW_LINK_SPAN_MS_,
+    fwd: duties[i1].end > to - FCV2_DUTY_GAP_MS_,
   };
 }
 
@@ -173,7 +171,10 @@ function fcv2CrewBuildMonth_(month, read, ctx) {
       }),
     });
   });
-  return { month: month, duties: out, missing: missing, grouping: grouping, openDuties: openDuties, window: { from: w.from, to: w.to } };
+  return {
+    month: month, duties: out, missing: missing, grouping: grouping, openDuties: openDuties, window: { from: w.from, to: w.to },
+    inputs: w.read,                                                    // final window events, for the fingerprint only (never stored)
+  };
 }
 
 /** Sealing (spec §5.4, §7.5): today >= the 8th of the next month and every home-month duty completed. */
@@ -355,7 +356,6 @@ function fcv2CrewFinalCheck_(startState, nowState, grantHash, pid) {
  */
 function fcv2CrewEnroll_(state, enrollProp, req, ctx) {
   if (!req || typeof req.code !== 'string' || typeof req.grant !== 'string') return { result: { ok: false, error: 'bad-request' } };
-  if (state.phase === 'revoking') return { result: { ok: false, error: 'busy' } };
   const codeHash = ctx.hash(req.code);
   const grantHash = ctx.hash(req.grant);
   if (state.phase === 'active' && fcv2CrewSafeEqual_(state.codeHash, codeHash) && fcv2CrewSafeEqual_(state.grantHash, grantHash) && state.pid === ctx.pid) {
@@ -370,11 +370,16 @@ function fcv2CrewEnroll_(state, enrollProp, req, ctx) {
     const burn = ctx.failures + 1 >= FCV2_CREW_ENROLL_MAX_FAILURES_;
     return { result: { ok: false, error: burn ? 'enroll-closed' : 'unauthorized' }, failed: true, burn: burn };
   }
+  // A valid owner code may also supersede an interrupted revocation (e.g. a pepper rotation whose cleanup
+  // failed): the old index is never reinterpreted (new G and epoch) and is purged under `purge` (§8.6).
+  const interrupted = state.phase === 'revoking' && state.revoke
+    ? { revokeId: state.revoke.revokeId, G: state.G, outcome: 'superseded', deletedKeys: 0, at: ctx.now, aliases: [] } : null;
   return {
     result: { ok: true, enrolled: true, G: state.G + 1 }, consume: true,
     state: {
       G: state.G + 1, phase: 'active', pid: ctx.pid, epoch: ctx.newEpoch, grantHash: grantHash, codeHash: codeHash,
-      enrolledAt: ctx.now, revoke: null, lastRevoke: state.lastRevoke || null,
+      enrolledAt: ctx.now, revoke: null, lastRevoke: interrupted || state.lastRevoke || null,
+      purge: { pending: true, cacheKeys: (ctx.cacheKeys || []).concat(state.revoke ? state.revoke.cacheKeys || [] : []) },
     },
   };
 }
@@ -382,12 +387,13 @@ function fcv2CrewEnroll_(state, enrollProp, req, ctx) {
 /** Revocation start (§8.1, §8.2 step 1). Returns { result } (done, nothing to do) or { state?, proceed: true }. */
 function fcv2CrewBeginRevoke_(state, req, ctx) {
   if (!req || typeof req.revokeId !== 'string' || typeof req.grant !== 'string') return { result: { ok: false, error: 'bad-request' } };
-  if (state.lastRevoke && state.lastRevoke.revokeId === req.revokeId) {
+  if (state.lastRevoke && (state.lastRevoke.revokeId === req.revokeId || (state.lastRevoke.aliases || []).indexOf(req.revokeId) >= 0)) {
     return { result: { ok: true, state: 'deleted', recorded: true, deletedKeys: state.lastRevoke.deletedKeys } };
   }
   const grantHash = ctx.hash(req.grant);
   if (state.phase === 'revoking') {
-    if (state.revoke.revokeId === req.revokeId && fcv2CrewSafeEqual_(state.revoke.credHash, grantHash)) return { proceed: true };
+    const system = state.revoke.revokeId.indexOf('system-') === 0;
+    if ((state.revoke.revokeId === req.revokeId || system) && fcv2CrewSafeEqual_(state.revoke.credHash, grantHash)) return { proceed: true, alias: req.revokeId };
     return { result: { ok: false, error: 'busy' } };
   }
   if (state.phase !== 'active' || !fcv2CrewSafeEqual_(state.grantHash, grantHash)) return { result: { ok: false, error: 'stale-request' } };
@@ -404,7 +410,9 @@ function fcv2CrewBeginRevoke_(state, req, ctx) {
 function fcv2CrewSystemRevoke_(state, ctx) {
   return Object.assign({}, state, {
     G: state.G + 1, phase: 'revoking', grantHash: null,
-    revoke: { revokeId: 'system-' + state.G, credHash: null, cacheKeys: ctx.cacheKeys || [], requestedAt: ctx.now },
+    // credHash: the grant that was current, so the owner's app can authenticate the cleanup (§8.5);
+    // it grants nothing (phase is revoking; grantHash is cleared).
+    revoke: { revokeId: 'system-' + state.G, credHash: state.grantHash || null, cacheKeys: ctx.cacheKeys || [], requestedAt: ctx.now },
   });
 }
 
@@ -429,6 +437,43 @@ function fcv2CrewPurge_(store) {
 }
 
 /**
+ * Cache entries are epoch-scoped and expire within 6 h; a failed removal never blocks a revocation or a
+ * purge (it is reported, and the entries are unreachable under the new generation anyway).
+ */
+function fcv2CrewCacheRemove_(env, keys) {
+  if (!keys || !keys.length) return true;
+  try { env.cacheRemove(keys); return true; } catch (err) { return false; }
+}
+
+/**
+ * Resumable purge of every fcx.* key that does not belong to the current generation (§8.6): runs under the
+ * lock after a re-enrollment or a superseded revocation. Keys of the current G/epoch are kept; the root is
+ * removed only when it is not the current generation's. Clears state.purge when nothing obsolete remains.
+ */
+function fcv2CrewResumePurge_(env) {
+  const state = env.getState();
+  if (!state.purge || !state.purge.pending || state.phase !== 'active') return { done: true, deleted: 0 };
+  const own = ['s.', 'y.'].map(function (k) { return FCV2_CREW_PREFIX_ + k + state.G + '.' + state.epoch + '.'; });
+  let rootCurrent = false;
+  try {
+    const r = JSON.parse(env.store.get(FCV2_CREW_MANIFEST_KEY_) || 'null');
+    rootCurrent = !!r && r.G === state.G && r.epoch === state.epoch;
+  } catch (err) { rootCurrent = false; }
+  let deleted = 0;
+  let failed = false;
+  env.store.keys().forEach(function (k) {
+    if (k.indexOf(FCV2_CREW_PREFIX_) !== 0) return;
+    if (own.some(function (p) { return k.indexOf(p) === 0; })) return;
+    if (k === FCV2_CREW_MANIFEST_KEY_ && rootCurrent) return;
+    try { env.store.del(k); deleted++; } catch (err) { failed = true; }
+  });
+  fcv2CrewCacheRemove_(env, state.purge.cacheKeys);
+  if (failed) return { done: false, deleted: deleted };
+  env.setState(Object.assign({}, state, { purge: null }));
+  return { done: true, deleted: deleted };
+}
+
+/**
  * Full revocation under the lock: begin (logical invalidation, cache keys captured from the manifest
  * BEFORE it is deleted), purge, cache removal, confirm.
  * env: { lock(fn), getState(), setState(s), store, cacheRemove(keys), now, hash }
@@ -444,14 +489,15 @@ function fcv2CrewRevoke_(env, req) {
     if (begin.state) env.setState(begin.state);
     const current = begin.state || state;
     const purge = fcv2CrewPurge_(env.store);
-    env.cacheRemove(current.revoke.cacheKeys);
+    const cacheCleared = fcv2CrewCacheRemove_(env, current.revoke.cacheKeys);
     if (!purge.complete) return { ok: false, error: 'revoke-incomplete', state: 'revoking', remaining: purge.remaining };
+    const aliases = begin.alias && begin.alias !== current.revoke.revokeId ? [begin.alias] : [];
     const done = Object.assign({}, current, {
-      phase: 'deleted', revoke: null,
-      lastRevoke: { revokeId: current.revoke.revokeId, G: current.G, outcome: 'deleted', deletedKeys: purge.deleted, at: env.now },
+      phase: 'deleted', revoke: null, purge: null,
+      lastRevoke: { revokeId: current.revoke.revokeId, G: current.G, outcome: 'deleted', deletedKeys: purge.deleted, at: env.now, aliases: aliases },
     });
     env.setState(done);
-    return { ok: true, state: 'deleted', deletedKeys: purge.deleted };
+    return { ok: true, state: 'deleted', deletedKeys: purge.deleted, cacheCleared: cacheCleared };
   });
 }
 
@@ -472,8 +518,57 @@ function fcv2CrewEncodeMonth_(built, deps) {
   return { body: body, digest: deps.hash(body).slice(0, 32) };
 }
 
-function fcv2CrewDecodeMonth_(body, deps) {
-  const o = JSON.parse(deps.unpack(body));
+const FCV2_CREW_PAYLOAD_VERSION_ = 1;
+const FCV2_CREW_MIN_MINUTE_ = Date.UTC(2000, 0, 1) / 60000;   // plausibility bounds for encoded minutes
+const FCV2_CREW_MAX_MINUTE_ = Date.UTC(2100, 0, 1) / 60000;
+const FCV2_CREW_MAX_DUTY_MINUTES_ = 14 * 1440;                // a stored duty never spans more than 14 days
+
+/**
+ * Strict validation of the ENCODED month payload, before any conversion (the contract written by
+ * fcv2CrewEncodeMonth_): {v: 1, m: "YYYY-MM", k: [22-char keys], d: [[key16hex, startMin, endMin, lpk16hex|"",
+ * [[flightNumber, "AAA-BBB", [keyIndex…]], …], tied 0|1], …]}. Exact keys and tuple lengths, integer minutes
+ * within plausible bounds with end >= start and the start in the expected home month, integer dictionary
+ * indices within bounds, tied exactly 0 or 1. Nothing is coerced; anything else is rejected.
+ */
+function fcv2CrewValidPayload_(o, month, deps) {
+  const isInt = function (x) { return typeof x === 'number' && isFinite(x) && Math.floor(x) === x; };
+  const isObj = function (x) { return !!x && typeof x === 'object' && !Array.isArray(x); };
+  if (!isObj(o) || Object.keys(o).sort().join(',') !== 'd,k,m,v') return false;
+  if (o.v !== FCV2_CREW_PAYLOAD_VERSION_ || typeof month !== 'string' || o.m !== month) return false;
+  if (!Array.isArray(o.k) || !Array.isArray(o.d)) return false;
+  const seenKey = {};
+  for (let i = 0; i < o.k.length; i++) {
+    const k = o.k[i];
+    if (typeof k !== 'string' || !/^[A-Za-z0-9_-]{22}$/.test(k) || seenKey[k]) return false;
+    seenKey[k] = true;
+  }
+  const seenDuty = {};
+  for (let i = 0; i < o.d.length; i++) {
+    const x = o.d[i];
+    if (!Array.isArray(x) || x.length !== 6) return false;
+    if (typeof x[0] !== 'string' || !/^[0-9a-f]{16}$/.test(x[0]) || seenDuty[x[0]]) return false;
+    seenDuty[x[0]] = true;
+    if (!isInt(x[1]) || !isInt(x[2]) || x[1] < FCV2_CREW_MIN_MINUTE_ || x[2] > FCV2_CREW_MAX_MINUTE_) return false;
+    if (x[2] < x[1] || x[2] - x[1] > FCV2_CREW_MAX_DUTY_MINUTES_) return false;
+    if (typeof deps.monthOf !== 'function' || deps.monthOf(x[1] * 60000) !== month) return false;
+    if (typeof x[3] !== 'string' || !(x[3] === '' || /^[0-9a-f]{16}$/.test(x[3]))) return false;
+    if (x[5] !== 0 && x[5] !== 1) return false;
+    if (!Array.isArray(x[4]) || x[4].length === 0) return false;
+    for (let j = 0; j < x[4].length; j++) {
+      const s = x[4][j];
+      if (!Array.isArray(s) || s.length !== 3) return false;
+      if (typeof s[0] !== 'string' || !s[0] || s[0].length > 12 || typeof s[1] !== 'string' || !/^[A-Z]{3}-[A-Z]{3}$/.test(s[1])) return false;
+      if (!Array.isArray(s[2]) || !s[2].every(function (ix) { return isInt(ix) && ix >= 0 && ix < o.k.length; })) return false;
+    }
+  }
+  return true;
+}
+
+/** Decodes a month body; throws (without content) unless the encoded payload passes fcv2CrewValidPayload_. */
+function fcv2CrewDecodeMonth_(body, deps, month) {
+  let o;
+  try { o = JSON.parse(deps.unpack(body)); } catch (err) { throw new Error('invalid-payload'); }
+  if (!fcv2CrewValidPayload_(o, month, deps)) throw new Error('invalid-payload');
   return o.d.map(function (x) {
     return {
       key: x[0], start: x[1] * 60000, end: x[2] * 60000, lpk: x[3] || null, tied: x[5] === 1,
@@ -529,15 +624,56 @@ function fcv2CrewPeak_(storeBytes, manifestBytes, newPartsBytes) {
   return storeBytes - manifestBytes + FCV2_CREW_MANIFEST_MAX_ + newPartsBytes + FCV2_CREW_SAFETY_;
 }
 
+// ---------------------------------------------------------------------------
+// Fingerprints (spec §7.3)
+// ---------------------------------------------------------------------------
+
+/**
+ * Month fingerprint over every input that affects grouping or familiarity: all flight and hidden events
+ * of the final read window (times, flight number, airports, crew lines as keyed hashes, parse failures),
+ * the window bounds and the rule versions. ctx.hmac(text) is keyed with the pepper, so the value reveals
+ * nothing about names or identifiers. Returns 32 hex characters.
+ */
+function fcv2CrewFingerprint_(built, ctx) {
+  const crew = function (list) {
+    if (!list || !list.length) return null;
+    return list.map(function (c) {
+      if (c.parseFailed) return '!';
+      return [c.rank || '', c.id ? ctx.hmac('id|' + c.id) : '', ctx.hmac('n|' + (c.family || '') + '|' + (c.given || ''))];
+    });
+  };
+  const flights = (built.inputs.flights || []).map(function (f) {
+    return [String(f.sourceId), f.start, f.end, f.flightNumber || '', f.origin, f.destination, crew(f.crew)];
+  }).sort(function (a, b) { return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] - b[1]; });
+  const hidden = (built.inputs.hidden || []).map(function (h) { return [h.start, h.end]; })
+    .sort(function (a, b) { return a[0] - b[0] || a[1] - b[1]; });
+  const canonical = JSON.stringify({
+    v: [FCV2_CREW_SCHEMA_, FCV2_CREW_PARSER_VERSION_, FCV2_CREW_DUTY_RULES_], self: ctx.hmac('self|' + ctx.selfId),
+    month: built.month, window: [built.window.from, built.window.to], flights: flights, hidden: hidden,
+  });
+  return ctx.hmac('fp|' + canonical).slice(0, 32);
+}
+
+// ---------------------------------------------------------------------------
+// Partitioned manifest (Phase 1b, schema 2): a small root + one immutable document per year
+// ---------------------------------------------------------------------------
+//   fcx.m                                  root: {schema, G, epoch, mgen, years: {YYYY: [ygen, digest]}, retired, cacheKeys}
+//   fcx.y.<G>.<epoch>.<YYYY>.<ygen>        year document: header "G|epoch|YYYY|ygen|" + {"m": {"MM": entry}}
+//   fcx.s.<G>.<epoch>.<YYYY-MM>.<gen>.<p>  month parts (unchanged)
+// A publication writes the changed year documents (new ygen, staged) and then the root (one write = the
+// atomic commit point). Readers take one root, validate every referenced year document and part, and
+// restart the whole query on any mismatch. Superseded year documents and parts are retired and removed
+// by GC after the grace period.
+
 const FCV2_CREW_MISSING_KEYS_ = ['noCrewList', 'ownerMissing', 'missingId', 'parseFailed'];
 const FCV2_CREW_GROUPING_KEYS_ = ['chainBreak', 'hiddenEvent', 'shortRest', 'tiedFlights', 'dutyUnbounded'];
 const FCV2_CREW_STATUS_CODES_ = { ok: 'o', replacing: 'p', uncovered: 'u', replaceFailed: 'r' };
 
-/** Compact manifest month entry: [gen, parts, digest, verifiedAtMinutes, status, missing[] | 0, grouping[] | 0]. */
+/** Compact month entry: [gen, parts, digest, verifiedAtMinutes, status, missing[] | 0, grouping[] | 0, fp, neighbourFlag]. */
 function fcv2CrewEntryOut_(e) {
   const counts = function (o, keys) { return o ? keys.map(function (k) { return o[k] || 0; }) : 0; };
   return [e.gen, e.parts, e.digest || '', e.verifiedAt ? Math.round(e.verifiedAt / 60000) : 0, FCV2_CREW_STATUS_CODES_[e.status],
-    counts(e.missing, FCV2_CREW_MISSING_KEYS_), counts(e.grouping, FCV2_CREW_GROUPING_KEYS_)];
+    counts(e.missing, FCV2_CREW_MISSING_KEYS_), counts(e.grouping, FCV2_CREW_GROUPING_KEYS_), e.fp || '', e.neighbour ? 1 : 0];
 }
 
 function fcv2CrewEntryIn_(a) {
@@ -549,67 +685,135 @@ function fcv2CrewEntryIn_(a) {
     return o;
   };
   return { gen: a[0], parts: a[1], digest: a[2] || null, verifiedAt: a[3] ? a[3] * 60000 : null, status: status,
-    missing: obj(a[5], FCV2_CREW_MISSING_KEYS_), grouping: obj(a[6], FCV2_CREW_GROUPING_KEYS_) };
+    missing: obj(a[5], FCV2_CREW_MISSING_KEYS_), grouping: obj(a[6], FCV2_CREW_GROUPING_KEYS_), fp: a[7] || null, neighbour: a[8] === 1 };
 }
 
-/** Serialized manifest (compact entries); its length is what the 8 KB cap applies to. */
-function fcv2CrewManifestRaw_(m) {
-  const months = {};
-  Object.keys(m.months).forEach(function (k) { months[k] = fcv2CrewEntryOut_(m.months[k]); });
-  return JSON.stringify(Object.assign({}, m, { months: months }));
+const FCV2_CREW_IS_INT_ = function (x, min) { return typeof x === 'number' && isFinite(x) && Math.floor(x) === x && x >= min; };
+
+function fcv2CrewValidEntry_(e) {
+  const isInt = FCV2_CREW_IS_INT_;
+  const counts = function (x, n) { return x === 0 || (Array.isArray(x) && x.length === n && x.every(function (v) { return isInt(v, 0); })); };
+  const codes = Object.keys(FCV2_CREW_STATUS_CODES_).map(function (k) { return FCV2_CREW_STATUS_CODES_[k]; });
+  if (!Array.isArray(e) || e.length !== 9) return false;
+  if (!isInt(e[0], 0) || !isInt(e[1], 0) || e[1] > FCV2_CREW_MAX_PARTS_ || typeof e[2] !== 'string' || !isInt(e[3], 0)) return false;
+  if (codes.indexOf(e[4]) < 0 || !counts(e[5], FCV2_CREW_MISSING_KEYS_.length) || !counts(e[6], FCV2_CREW_GROUPING_KEYS_.length)) return false;
+  if (typeof e[7] !== 'string' || !(e[7] === '' || /^[0-9a-f]{32}$/.test(e[7])) || (e[8] !== 0 && e[8] !== 1)) return false;
+  return e[1] === 0 || (e[0] > 0 && /^[0-9a-f]{32}$/.test(e[2]));
+}
+
+/** Root validation: supported schema, required fields and types, retired and cache keys inside fcx. */
+function fcv2CrewValidRoot_(m) {
+  const isInt = FCV2_CREW_IS_INT_;
+  const isObj = function (x) { return !!x && typeof x === 'object' && !Array.isArray(x); };
+  if (!isObj(m) || m.schema !== FCV2_CREW_SCHEMA_) return false;
+  if (!isInt(m.G, 1) || typeof m.epoch !== 'string' || !m.epoch || !isInt(m.mgen, 0)) return false;
+  if (!isObj(m.years) || !Array.isArray(m.retired) || !Array.isArray(m.cacheKeys)) return false;
+  const yearsOk = Object.keys(m.years).every(function (y) {
+    const v = m.years[y];
+    return /^\d{4}$/.test(y) && Array.isArray(v) && v.length === 2 && isInt(v[0], 1) && /^[0-9a-f]{32}$/.test(v[1]);
+  });
+  const retiredOk = m.retired.every(function (r) {
+    return Array.isArray(r) && r.length === 2 && typeof r[0] === 'string'
+      && (r[0].indexOf(FCV2_CREW_PREFIX_ + 's.') === 0 || r[0].indexOf(FCV2_CREW_PREFIX_ + 'y.') === 0) && isInt(r[1], 0);
+  });
+  const cacheOk = m.cacheKeys.every(function (k) { return typeof k === 'string' && k.indexOf(FCV2_CREW_PREFIX_) === 0; });
+  return yearsOk && retiredOk && cacheOk;
+}
+
+/** Kept for callers of the Phase 1a name: validates a root. */
+function fcv2CrewValidManifest_(m) { return fcv2CrewValidRoot_(m); }
+
+function fcv2CrewYearKey_(G, epoch, year, ygen) {
+  return FCV2_CREW_PREFIX_ + 'y.' + G + '.' + epoch + '.' + year + '.' + ygen;
 }
 
 function fcv2CrewEmptyManifest_(state) {
-  return { schema: FCV2_CREW_SCHEMA_, G: state.G, epoch: state.epoch, mgen: 0, months: {}, retired: [], cacheKeys: [] };
+  return { schema: FCV2_CREW_SCHEMA_, G: state.G, epoch: state.epoch, mgen: 0, months: {}, years: {}, retired: [], cacheKeys: [] };
 }
 
 /**
- * Structural validation of a parsed manifest (correction pass): supported schema, required fields and
- * types, every month entry and retired record well-formed. Anything else is never read, committed over
- * or garbage-collected (only an explicit revocation deletes it).
+ * The stored manifest as one flattened view {schema, G, epoch, mgen, months, years, retired, cacheKeys},
+ * classified: absent | ok | obsolete (an older generation: returned as an empty manifest, never read) |
+ * foreign (valid, same or newer G but another epoch) | invalid (unparsable, unsupported or
+ * malformed root or year document) | torn (a referenced year document is missing or does not match its
+ * digest — a reader racing a publication or GC; never expected under the lock).
+ * deps.hash is needed to check year-document digests.
  */
-function fcv2CrewValidManifest_(m) {
-  const isInt = function (x, min) { return typeof x === 'number' && isFinite(x) && Math.floor(x) === x && x >= min; };
-  const isObj = function (x) { return !!x && typeof x === 'object' && !Array.isArray(x); };
-  const counts = function (x, n) { return x === 0 || (Array.isArray(x) && x.length === n && x.every(function (v) { return isInt(v, 0); })); };
-  const codes = Object.keys(FCV2_CREW_STATUS_CODES_).map(function (k) { return FCV2_CREW_STATUS_CODES_[k]; });
-  if (!isObj(m) || m.schema !== FCV2_CREW_SCHEMA_) return false;
-  if (!isInt(m.G, 1) || typeof m.epoch !== 'string' || !m.epoch || !isInt(m.mgen, 0)) return false;
-  if (!isObj(m.months) || !Array.isArray(m.retired) || !Array.isArray(m.cacheKeys)) return false;
-  const monthsOk = Object.keys(m.months).every(function (k) {
-    const e = m.months[k];
-    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(k) || !Array.isArray(e) || e.length !== 7) return false;
-    if (!isInt(e[0], 0) || !isInt(e[1], 0) || e[1] > FCV2_CREW_MAX_PARTS_ || typeof e[2] !== 'string' || !isInt(e[3], 0)) return false;
-    if (codes.indexOf(e[4]) < 0 || !counts(e[5], FCV2_CREW_MISSING_KEYS_.length) || !counts(e[6], FCV2_CREW_GROUPING_KEYS_.length)) return false;
-    return e[1] === 0 || (e[0] > 0 && /^[0-9a-f]{32}$/.test(e[2]));
-  });
-  const retiredOk = m.retired.every(function (r) {
-    return Array.isArray(r) && r.length === 2 && typeof r[0] === 'string' && r[0].indexOf(FCV2_CREW_PREFIX_ + 's.') === 0 && isInt(r[1], 0);
-  });
-  const cacheOk = m.cacheKeys.every(function (k) { return typeof k === 'string' && k.indexOf(FCV2_CREW_PREFIX_) === 0; });
-  return monthsOk && retiredOk && cacheOk;
-}
-
-/**
- * The stored manifest, classified: absent (an empty one for this generation), ok, foreign (valid but of
- * another generation/epoch) or invalid (unparsable, unsupported schema or malformed).
- */
-function fcv2CrewManifest_(store, state) {
+function fcv2CrewManifest_(store, state, deps) {
   const raw = store.get(FCV2_CREW_MANIFEST_KEY_);
   if (!raw) return { kind: 'absent', manifest: fcv2CrewEmptyManifest_(state) };
-  let m;
-  try { m = JSON.parse(raw); } catch (err) { return { kind: 'invalid', manifest: null }; }
-  if (!fcv2CrewValidManifest_(m)) return { kind: 'invalid', manifest: null };
-  if (m.G !== state.G || m.epoch !== state.epoch) return { kind: 'foreign', manifest: null };
-  Object.keys(m.months).forEach(function (k) { m.months[k] = fcv2CrewEntryIn_(m.months[k]); });
-  return { kind: 'ok', manifest: m };
+  let root;
+  try { root = JSON.parse(raw); } catch (err) { return { kind: 'invalid', manifest: null }; }
+  if (!fcv2CrewValidRoot_(root)) return { kind: 'invalid', manifest: null };
+  // An older generation's index is obsolete: never read, treated as absent and replaced/purged (§8.6).
+  if (root.G < state.G) return { kind: 'obsolete', manifest: fcv2CrewEmptyManifest_(state) };
+  if (root.G !== state.G || root.epoch !== state.epoch) return { kind: 'foreign', manifest: null };
+  const months = {};
+  const years = Object.keys(root.years);
+  for (let i = 0; i < years.length; i++) {
+    const y = years[i];
+    const ygen = root.years[y][0];
+    const v = store.get(fcv2CrewYearKey_(root.G, root.epoch, y, ygen));
+    const header = [root.G, root.epoch, y, ygen].join('|') + '|';
+    if (typeof v !== 'string' || v.indexOf(header) !== 0) return { kind: 'torn', manifest: null };
+    const body = v.slice(header.length);
+    if (deps.hash(body).slice(0, 32) !== root.years[y][1]) return { kind: 'torn', manifest: null };
+    let doc;
+    try { doc = JSON.parse(body); } catch (err) { return { kind: 'invalid', manifest: null }; }
+    if (!doc || typeof doc.m !== 'object' || Array.isArray(doc.m)) return { kind: 'invalid', manifest: null };
+    const keys = Object.keys(doc.m);
+    for (let k = 0; k < keys.length; k++) {
+      if (!/^(0[1-9]|1[0-2])$/.test(keys[k]) || !fcv2CrewValidEntry_(doc.m[keys[k]])) return { kind: 'invalid', manifest: null };
+      months[y + '-' + keys[k]] = fcv2CrewEntryIn_(doc.m[keys[k]]);
+    }
+  }
+  return { kind: 'ok', manifest: {
+    schema: root.schema, G: root.G, epoch: root.epoch, mgen: root.mgen, months: months, years: root.years,
+    retired: root.retired, cacheKeys: root.cacheKeys,
+  } };
 }
 
 /**
- * The stale marker for a failed replacement could not be written: fail closed by deleting the old
- * generation's parts, so every reader of that month finds a missing part and returns stale/no counts
- * (§7.2a). Deleting frees space, so it is the write most likely to succeed when the store is full.
+ * Publishes `next` (a flattened manifest derived from `base`): every year whose month entries changed gets
+ * a new immutable year document, then one root write commits. Returns false (and removes the staged year
+ * documents) if any write fails or a value would exceed 8,000 characters; `base` then stays published.
  */
+function fcv2CrewPublish_(store, base, next, deps, now) {
+  const yearOf = function (months, y) {
+    const out = {};
+    Object.keys(months).forEach(function (k) { if (k.slice(0, 4) === y) out[k.slice(5)] = fcv2CrewEntryOut_(months[k]); });
+    return out;
+  };
+  const allYears = {};
+  Object.keys(base.months).concat(Object.keys(next.months)).forEach(function (k) { allYears[k.slice(0, 4)] = true; });
+  const years = JSON.parse(JSON.stringify(base.years || {}));
+  const retired = next.retired.slice();
+  const staged = [];
+  const unstage = function () { staged.forEach(function (k) { try { store.del(k); } catch (e) { /* orphan, removed by GC */ } }); };
+  const ys = Object.keys(allYears).sort();
+  for (let i = 0; i < ys.length; i++) {
+    const y = ys[i];
+    const before = JSON.stringify(yearOf(base.months, y));
+    const after = JSON.stringify(yearOf(next.months, y));
+    if (before === after && years[y]) continue;
+    const ygen = years[y] ? years[y][0] + 1 : 1;
+    const body = JSON.stringify({ m: yearOf(next.months, y) });
+    const value = [next.G, next.epoch, y, ygen].join('|') + '|' + body;
+    if (value.length > FCV2_CREW_MANIFEST_MAX_) { unstage(); return false; }
+    const key = fcv2CrewYearKey_(next.G, next.epoch, y, ygen);
+    try { store.set(key, value); staged.push(key); } catch (err) { unstage(); return false; }
+    if (years[y]) retired.push([fcv2CrewYearKey_(next.G, next.epoch, y, years[y][0]), now]);
+    years[y] = [ygen, deps.hash(body).slice(0, 32)];
+  }
+  const root = JSON.stringify({ schema: FCV2_CREW_SCHEMA_, G: next.G, epoch: next.epoch, mgen: next.mgen, years: years, retired: retired, cacheKeys: next.cacheKeys });
+  if (root.length > FCV2_CREW_MANIFEST_MAX_) { unstage(); return false; }
+  try { store.set(FCV2_CREW_MANIFEST_KEY_, root); } catch (err) { unstage(); return false; }
+  next.years = years;
+  next.retired = retired;
+  return true;
+}
+
+/** Old parts of a month deleted when the stale marker cannot be written (§7.2a). */
 function fcv2CrewFailClosed_(store, state, month, prev) {
   let ok = true;
   for (let i = 0; i < prev.parts; i++) {
@@ -618,23 +822,31 @@ function fcv2CrewFailClosed_(store, state, month, prev) {
   return { outcome: ok ? 'replaceFailed' : 'replaceFailed-unpersisted', closedBy: ok ? 'parts-deleted' : null };
 }
 
+function fcv2CrewAdjacentMonths_(month) {
+  const y = Number(month.slice(0, 4));
+  const m = Number(month.slice(5, 7));
+  const prev = m === 1 ? (y - 1) + '-12' : y + '-' + (m - 1 < 10 ? '0' : '') + (m - 1);
+  return [prev, fcv2CrewNextMonth_(month)];
+}
+
 /**
  * Crash-safe commit of one month (§7.2, §7.2a). Must run under the script lock.
- * captured: { G, epoch, mgen } read when the month was built (outside the lock).
- * entry: { body, digest, verifiedAt, missing, grouping }.
- * A replacement of an indexed month first persists status "replacing" (stale for every reader), so a
- * crash or any later failure can never leave the old generation reported as fresh. If even that marker
- * cannot be written, the old parts are deleted (fail closed).
+ * captured: { G, epoch, mgen } read before the month was built (outside the lock).
+ * entry: { body, digest, verifiedAt, missing, grouping, fp }.
+ * env: { getState(), store, now, deps: { hash } }.
+ * A replacement first persists status "replacing" (stale for readers); if even that cannot be written,
+ * the old parts are deleted (fail closed). A replacement that changes the content flags both adjacent
+ * months (their read windows overlap) so they are stale until re-verified.
  * Outcomes: committed | aborted-generation | aborted-conflict | index-incompatible | uncovered |
- * replaceFailed | replaceFailed-unpersisted (nothing durable could be written: the caller must treat
- * the month as stale for this request; across requests this is the documented limitation).
+ * replaceFailed | replaceFailed-unpersisted.
  */
 function fcv2CrewCommitMonth_(env, captured, month, entry) {
   const state = env.getState();
   if (state.phase !== 'active' || state.G !== captured.G || state.epoch !== captured.epoch) return { outcome: 'aborted-generation' };
   const store = env.store;
-  const read = fcv2CrewManifest_(store, state);
-  if (read.kind === 'invalid') return { outcome: 'index-incompatible' };
+  const deps = env.deps;
+  const read = fcv2CrewManifest_(store, state, deps);
+  if (read.kind === 'invalid' || read.kind === 'torn') return { outcome: 'index-incompatible' };
   if (read.kind === 'foreign') return { outcome: 'aborted-generation' };
   const manifest = read.manifest;
   if (manifest.mgen !== captured.mgen) return { outcome: 'aborted-conflict' };
@@ -646,22 +858,22 @@ function fcv2CrewCommitMonth_(env, captured, month, entry) {
     const marked = clone(manifest);
     marked.mgen++;
     marked.months[month] = Object.assign({}, prev, { status: 'replacing' });
-    try { store.set(FCV2_CREW_MANIFEST_KEY_, fcv2CrewManifestRaw_(marked)); base = marked; }
-    catch (err) { return fcv2CrewFailClosed_(store, state, month, prev); }
+    if (!fcv2CrewPublish_(store, manifest, marked, deps, env.now)) return fcv2CrewFailClosed_(store, state, month, prev);
+    base = marked;
   }
   const gen = prev ? prev.gen + 1 : 1;
   const parts = fcv2CrewParts_(state.G, state.epoch, month, gen, entry.body);
   const partsBytes = parts.reduce(function (n, p) { return n + fcv2CrewUtf8_(p.key) + fcv2CrewUtf8_(p.value); }, 0);
-  const manifestRaw = store.get(FCV2_CREW_MANIFEST_KEY_) || '';
-  const peak = fcv2CrewPeak_(fcv2CrewStoreBytes_(store), fcv2CrewUtf8_(FCV2_CREW_MANIFEST_KEY_) + fcv2CrewUtf8_(manifestRaw), partsBytes);
+  const manifestBytes = fcv2CrewUtf8_(FCV2_CREW_MANIFEST_KEY_) + fcv2CrewUtf8_(store.get(FCV2_CREW_MANIFEST_KEY_) || '');
+  // One year document is rewritten per commit: reserve a full value for it next to the root reserve.
+  const peak = fcv2CrewPeak_(fcv2CrewStoreBytes_(store), manifestBytes, partsBytes + FCV2_CREW_MANIFEST_MAX_);
   const fail = function () {
     const next = clone(base);
     next.mgen++;
     if (replacing) next.months[month] = Object.assign({}, prev, { status: 'replaceFailed' });
-    else next.months[month] = { gen: 0, parts: 0, digest: null, verifiedAt: null, status: 'uncovered', missing: null, grouping: null };
-    // If this write fails too, a replacement is still marked "replacing" (stale) and a new month stays
-    // absent (pending): neither is ever reported fresh.
-    try { store.set(FCV2_CREW_MANIFEST_KEY_, fcv2CrewManifestRaw_(next)); } catch (err) { /* see above */ }
+    else next.months[month] = { gen: 0, parts: 0, digest: null, verifiedAt: null, status: 'uncovered', missing: null, grouping: null, fp: null, neighbour: false };
+    // If this publication fails too, a replacement stays "replacing" (stale) and a new month stays absent (pending).
+    fcv2CrewPublish_(store, base, next, deps, env.now);
     return { outcome: replacing ? 'replaceFailed' : 'uncovered', peak: peak };
   };
   if (parts.length > FCV2_CREW_MAX_PARTS_ || peak > FCV2_CREW_STORE_LIMIT_) return fail();
@@ -672,24 +884,46 @@ function fcv2CrewCommitMonth_(env, captured, month, entry) {
   } catch (err) { unstage(); return fail(); }
   const next = clone(base);
   next.mgen++;
-  next.months[month] = { gen: gen, parts: parts.length, digest: entry.digest, verifiedAt: entry.verifiedAt, status: 'ok', missing: entry.missing, grouping: entry.grouping };
+  next.months[month] = {
+    gen: gen, parts: parts.length, digest: entry.digest, verifiedAt: entry.verifiedAt, status: 'ok',
+    missing: entry.missing, grouping: entry.grouping, fp: entry.fp || null, neighbour: false,
+  };
   if (replacing) {
     for (let i = 0; i < prev.parts; i++) next.retired.push([fcv2CrewPartKey_(state.G, state.epoch, month, prev.gen, i), env.now]);
+    if (prev.digest !== entry.digest) {
+      fcv2CrewAdjacentMonths_(month).forEach(function (adj) {
+        if (next.months[adj] && next.months[adj].gen > 0) next.months[adj].neighbour = true;
+      });
+    }
   }
-  const raw = fcv2CrewManifestRaw_(next);
-  if (raw.length > FCV2_CREW_MANIFEST_MAX_) { unstage(); return fail(); }
-  try { store.set(FCV2_CREW_MANIFEST_KEY_, raw); } catch (err) { unstage(); return fail(); }
-  return { outcome: 'committed', gen: gen, peak: peak, mgen: next.mgen };
+  if (!fcv2CrewPublish_(store, base, next, deps, env.now)) { unstage(); return fail(); }
+  return { outcome: 'committed', gen: gen, peak: peak, mgen: next.mgen, neighboursFlagged: replacing && prev.digest !== entry.digest };
 }
 
-/** Garbage collection (§7.6). Must run under the script lock. Only fcx.s.* keys of a valid, current manifest's store are deleted. */
+/** Re-verification without a content change: fresh verifiedAt, neighbour flag cleared. Under the lock. */
+function fcv2CrewTouchMonth_(env, captured, month, verifiedAt) {
+  const state = env.getState();
+  if (state.phase !== 'active' || state.G !== captured.G || state.epoch !== captured.epoch) return { outcome: 'aborted-generation' };
+  const read = fcv2CrewManifest_(env.store, state, env.deps);
+  if (read.kind !== 'ok') return { outcome: read.kind === 'foreign' ? 'aborted-generation' : 'index-incompatible' };
+  const manifest = read.manifest;
+  if (manifest.mgen !== captured.mgen) return { outcome: 'aborted-conflict' };
+  const next = JSON.parse(JSON.stringify(manifest));
+  next.mgen++;
+  next.months[month] = Object.assign({}, next.months[month], { verifiedAt: verifiedAt, neighbour: false });
+  return fcv2CrewPublish_(env.store, manifest, next, env.deps, env.now) ? { outcome: 'verified', mgen: next.mgen } : { outcome: 'touch-failed' };
+}
+
+/** Garbage collection (§7.6). Must run under the script lock. Only fcx.s.* / fcx.y.* keys are deleted. */
 function fcv2CrewGc_(env) {
   const state = env.getState();
   const store = env.store;
-  const read = fcv2CrewManifest_(store, state);
-  if (read.kind !== 'ok') return { deleted: 0, skipped: read.kind };
+  const read = fcv2CrewManifest_(store, state, env.deps);
+  if (read.kind !== 'ok' && read.kind !== 'obsolete' && read.kind !== 'absent') return { deleted: 0, skipped: read.kind };
   const manifest = read.manifest;
   const referenced = {};
+  referenced[FCV2_CREW_MANIFEST_KEY_] = true;
+  Object.keys(manifest.years).forEach(function (y) { referenced[fcv2CrewYearKey_(manifest.G, manifest.epoch, y, manifest.years[y][0])] = true; });
   Object.keys(manifest.months).forEach(function (m) {
     const e = manifest.months[m];
     for (let i = 0; i < e.parts; i++) referenced[fcv2CrewPartKey_(manifest.G, manifest.epoch, m, e.gen, i)] = true;
@@ -702,30 +936,95 @@ function fcv2CrewGc_(env) {
     else { keep.push(r); retiredKeys[r[0]] = true; }
   });
   store.keys().forEach(function (k) {
-    if (k.indexOf(FCV2_CREW_PREFIX_ + 's.') !== 0 || referenced[k] || retiredKeys[k]) return;
+    const ours = k.indexOf(FCV2_CREW_PREFIX_ + 's.') === 0 || k.indexOf(FCV2_CREW_PREFIX_ + 'y.') === 0;
+    if (!ours || referenced[k] || retiredKeys[k]) return;
     try { store.del(k); deleted++; } catch (err) { /* next GC */ }
   });
-  if (keep.length !== manifest.retired.length) {
+  if (read.kind === 'ok' && keep.length !== manifest.retired.length) {
     const next = JSON.parse(JSON.stringify(manifest));
     next.retired = keep;
     next.mgen++;
-    try { store.set(FCV2_CREW_MANIFEST_KEY_, fcv2CrewManifestRaw_(next)); } catch (err) { /* retired list kept; parts already gone are harmless */ }
+    fcv2CrewPublish_(store, manifest, next, env.deps, env.now);         // root only; failure keeps the old list (harmless)
   }
   return { deleted: deleted };
 }
 
 /**
- * Whole-query snapshot (§7.6, Revision 4.1): one manifest for every month, every part validated
- * against it; any failure restarts the whole query; after the attempts are exhausted nothing
- * authoritative is returned. env: { getState(), store, now, deps: { hash, unpack }, hook?(attempt) }.
- * A month verified more than 14 days ago, or marked "replacing", is reported stale.
+ * Integrity of one committed month shard (§7.5d): 'absent' (no committed generation), 'valid', 'missing'
+ * (a part is gone) or 'corrupt' (header, digest or structure wrong). Store reads only — no Calendar access.
+ */
+function fcv2CrewMonthIntegrity_(store, manifest, month, deps) {
+  const e = manifest.months[month];
+  if (!e || !e.gen || !e.parts) return 'absent';
+  let body = '';
+  for (let p = 0; p < e.parts; p++) {
+    const v = store.get(fcv2CrewPartKey_(manifest.G, manifest.epoch, month, e.gen, p));
+    if (typeof v !== 'string') return 'missing';
+    const header = fcv2CrewPartHeader_(manifest.G, manifest.epoch, month, e.gen, p, e.parts);
+    if (v.indexOf(header) !== 0) return 'corrupt';
+    body += v.slice(header.length);
+  }
+  if (deps.hash(body).slice(0, 32) !== e.digest) return 'corrupt';
+  try { fcv2CrewDecodeMonth_(body, deps, month); return 'valid'; } catch (err) { return 'corrupt'; }
+}
+
+
+/**
+ * The single indexing-eligibility decision (§7.5, §7.5d), shared by crewIndex (what to do next) and the crew
+ * response hint (whether indexing could make progress). Store reads only — never a Calendar read or a write.
+ * o: { now, done?: {month: true}, verifyBefore?, retryUncovered? }.
+ * Returns { blocked: null | 'invalid' | 'torn' | 'foreign', months: [ordered candidates], reasons: {month: why} }.
+ * Eligibility means "worth attempting", not "will succeed": a later Calendar read or admission can still fail.
+ */
+function fcv2CrewIndexPlan_(store, state, deps, sealable, o) {
+  const read = fcv2CrewManifest_(store, state, deps);
+  if (read.kind === 'invalid' || read.kind === 'torn' || read.kind === 'foreign') return { blocked: read.kind, months: [], reasons: {} };
+  const m = read.manifest;
+  const done = o.done || {};
+  const reasons = {};
+  const months = [];
+  const add = function (x, why) { if (!(x in reasons) && !done[x]) { reasons[x] = why; months.push(x); } };
+  const free = FCV2_CREW_STORE_LIMIT_ - fcv2CrewStoreBytes_(store) - 2 * FCV2_CREW_MANIFEST_MAX_ - FCV2_CREW_SAFETY_;
+  const roomy = o.retryUncovered === true || free >= FCV2_CREW_PART_MAX_;     // capacity gate for new data (Q25)
+  const floor = sealable.filter(function (x) { return m.months[x] && m.months[x].status === 'uncovered'; }).pop() || '';
+  // 1) flagged months: verification may only touch them; a failed replacement needs room again.
+  sealable.forEach(function (x) {
+    const e = m.months[x];
+    if (!e) return;
+    if (e.neighbour || e.status === 'replacing') add(x, 'flagged');
+    else if (e.status === 'replaceFailed' && roomy) add(x, 'flagged');
+  });
+  // 2) damaged committed shards (missing or corrupt parts): repaired now, never only after the threshold.
+  sealable.forEach(function (x) {
+    const e = m.months[x];
+    if (e && e.status === 'ok' && e.gen > 0 && fcv2CrewMonthIntegrity_(store, m, x, deps) !== 'valid') add(x, 'damaged');
+  });
+  // 3) unindexed months above the storage floor, newest first.
+  sealable.filter(function (x) { return !m.months[x] && x > floor; }).reverse().forEach(function (x) { add(x, 'missing'); });
+  // 4) the floor month itself, only when capacity allows (coverage grows downward without gaps).
+  if (floor && roomy) add(floor, 'floor');
+  // 5) overdue verification (threshold), or an owner-started re-check (verifyBefore), oldest first.
+  const cutoff = typeof o.verifyBefore === 'number' && o.verifyBefore <= o.now ? o.verifyBefore : o.now - FCV2_CREW_FRESH_MS_;
+  sealable.filter(function (x) { const e = m.months[x]; return e && e.status === 'ok' && e.verifiedAt < cutoff; })
+    .sort(function (a, b) { return m.months[a].verifiedAt - m.months[b].verifiedAt; })
+    .forEach(function (x) { add(x, 'aged'); });
+  return { blocked: null, months: months, reasons: reasons, floor: floor };
+}
+
+/**
+ * Whole-query snapshot (§7.6): one root and its year documents for every month, every part validated
+ * against it; any failure (torn manifest, missing part, digest mismatch) restarts the whole query; after
+ * the attempts are exhausted nothing authoritative is returned.
+ * env: { getState(), store, now, deps: { hash, unpack }, hook?(attempt) }.
+ * A month verified more than 14 days ago, marked "replacing" or neighbour-flagged is reported stale.
  */
 function fcv2CrewReadSnapshot_(env, months) {
   for (let attempt = 1; attempt <= FCV2_CREW_SNAPSHOT_ATTEMPTS_; attempt++) {
     const state = env.getState();
     if (state.phase !== 'active') return { ok: false, reason: 'revoked' };
-    const read = fcv2CrewManifest_(env.store, state);
+    const read = fcv2CrewManifest_(env.store, state, env.deps);
     if (read.kind === 'invalid' || read.kind === 'foreign') return { ok: false, reason: 'index-incompatible' };
+    if (read.kind === 'torn') continue;
     const manifest = read.manifest;
     if (env.hook) env.hook(attempt);
     const data = {};
@@ -736,7 +1035,7 @@ function fcv2CrewReadSnapshot_(env, months) {
       const e = manifest.months[m];
       if (!e) { status[m] = { status: 'pending' }; continue; }
       const aged = e.status === 'ok' && !(env.now - e.verifiedAt <= FCV2_CREW_FRESH_MS_);
-      const shown = e.status === 'ok' ? (aged ? 'stale' : 'fresh') : e.status === 'replacing' ? 'stale' : e.status;
+      const shown = e.status === 'ok' ? (aged || e.neighbour ? 'stale' : 'fresh') : e.status === 'replacing' ? 'stale' : e.status;
       status[m] = { status: shown, missing: e.missing, grouping: e.grouping, verifiedAt: e.verifiedAt };
       if (!e.gen) continue;
       let body = '';
@@ -748,7 +1047,9 @@ function fcv2CrewReadSnapshot_(env, months) {
       }
       if (!valid) break;
       if (env.deps.hash(body).slice(0, 32) !== e.digest) { valid = false; break; }
-      try { data[m] = fcv2CrewDecodeMonth_(body, env.deps); } catch (err) { valid = false; }
+      try {
+        data[m] = fcv2CrewDecodeMonth_(body, env.deps, m);              // strict encoded-payload validation (§7.5d)
+      } catch (err) { valid = false; }
     }
     if (valid) return { ok: true, mgen: manifest.mgen, months: data, status: status, attempts: attempt };
   }

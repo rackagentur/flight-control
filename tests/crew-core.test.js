@@ -22,13 +22,13 @@ function load(files, names) {
   return sandbox.__x;
 }
 
-const core = load(['CrewCoreV2.gs'], [
-  'FCV2_CREW_DUTY_GAP_MS_', 'FCV2_CREW_LINK_SPAN_MS_', 'FCV2_CREW_PART_MAX_', 'FCV2_CREW_MANIFEST_MAX_', 'FCV2_CREW_STORE_LIMIT_',
+const core = load(['RosterModelV2.gs', 'CrewCoreV2.gs'], [
+  'FCV2_CREW_LINK_SPAN_MS_', 'FCV2_CREW_PART_MAX_', 'FCV2_CREW_MANIFEST_MAX_', 'FCV2_CREW_STORE_LIMIT_',
   'FCV2_CREW_MANIFEST_KEY_', 'fcv2CrewGroupDuties_', 'fcv2CrewLinkDuties_', 'fcv2CrewBuildMonth_', 'fcv2CrewSealable_',
   'fcv2CrewSelectedDuty_', 'fcv2CrewCount_', 'fcv2CrewResult_', 'fcv2CrewInitialState_', 'fcv2CrewAuthorized_',
   'fcv2CrewFinalCheck_', 'fcv2CrewEnroll_', 'fcv2CrewBeginRevoke_', 'fcv2CrewSystemRevoke_', 'fcv2CrewPurge_', 'fcv2CrewRevoke_',
   'fcv2CrewEncodeMonth_', 'fcv2CrewDecodeMonth_', 'fcv2CrewParts_', 'fcv2CrewPartKey_', 'fcv2CrewStoreBytes_', 'fcv2CrewPeak_',
-  'fcv2CrewManifest_', 'fcv2CrewValidManifest_', 'fcv2CrewCommitMonth_', 'fcv2CrewGc_', 'fcv2CrewReadSnapshot_',
+  'fcv2CrewManifest_', 'fcv2CrewValidManifest_', 'fcv2CrewYearKey_', 'fcv2CrewCommitMonth_', 'fcv2CrewTouchMonth_', 'fcv2CrewGc_', 'fcv2CrewReadSnapshot_',
 ]);
 const rosterModel = load(['RosterModelV2.gs'], ['fcv2Duties_', 'FCV2_DUTY_GAP_MS_']);
 
@@ -60,7 +60,7 @@ function harness({ now = NOW, initial = {} } = {}) {
     cacheRemove: (keys) => { h.removedCache.push(...keys); }, hash: deps.hash, deps,
     get now() { return h.now; },
   };
-  h.manifest = () => { const r = core.fcv2CrewManifest_(h.store, h.state); return r.kind === 'ok' || r.kind === 'absent' ? r.manifest : null; };
+  h.manifest = () => { const r = core.fcv2CrewManifest_(h.store, h.state, deps); return r.kind === 'ok' || r.kind === 'absent' ? r.manifest : null; };
   h.commit = (month, flights, hidden = [], at = h.now) => {
     const built = core.fcv2CrewBuildMonth_(month, reader(flights, hidden), ctxAt(at));
     const enc = core.fcv2CrewEncodeMonth_(built, deps);
@@ -68,6 +68,7 @@ function harness({ now = NOW, initial = {} } = {}) {
     return plain(core.fcv2CrewCommitMonth_(h.env, { G: h.state.G, epoch: h.state.epoch, mgen: m ? m.mgen : -1 }, month,
       { body: enc.body, digest: enc.digest, verifiedAt: h.now, missing: built.missing, grouping: built.grouping }));
   };
+  h.touch = (month) => plain(core.fcv2CrewTouchMonth_(h.env, { G: h.state.G, epoch: h.state.epoch, mgen: h.manifest().mgen }, month, h.now));
   h.query = (monthList, selectedFlight, flights, hidden = [], hook) => {
     const ctx = ctxAt(h.now);
     const selected = plain(core.fcv2CrewSelectedDuty_(selectedFlight.sourceId, selectedFlight.start, reader(flights, hidden), ctx));
@@ -87,7 +88,6 @@ const byRef = (q, n) => q.result.members[q.members.findIndex((m) => m.ref === sy
 // --- Parity with the roster's canonical duty grouping -----------------------------------------------
 
 test('parity: crew duty grouping equals the roster fcv2Duties_ rule (same gap constant, same duties and ids)', () => {
-  assert.equal(core.FCV2_CREW_DUTY_GAP_MS_, rosterModel.FCV2_DUTY_GAP_MS_);
   const r = rng(42);
   const airports = ['FRA', 'PMI', 'LPA', 'HER'];
   const flights = [];
@@ -379,12 +379,17 @@ test('T1: enrollment needs an owner-issued, unexpired, single-use code; 5 failur
   assert.deepEqual(plain(core.fcv2CrewEnroll_(ok.state, null, { code: CODE, grant: 'g1' }, enrollCtx(NOW))).result, { ok: true, enrolled: true, G: 1 });
 });
 
-test('T13a/b: enrollment never interleaves with a revocation, and a delayed enroll retry after a revoke never restores access', () => {
+test('T13a/b: enrollment during a revocation needs an owner code and supersedes it under the lock; and a delayed enroll retry after a revoke never restores access', () => {
   const h = harness();
   const begun = plain(core.fcv2CrewBeginRevoke_(h.state, { revokeId: 'r1', grant: 'grant-1' }, { hash: deps.hash, now: NOW }));
   assert.equal(begun.state.phase, 'revoking');
   assert.equal(begun.state.G, h.state.G + 1);
-  assert.equal(plain(core.fcv2CrewEnroll_(begun.state, `NEWCODE0123456789ABCDEFGHIJ|${NOW + 60000}`, { code: 'NEWCODE0123456789ABCDEFGHIJ', grant: 'g9' }, enrollCtx(NOW))).result.error, 'busy');
+  // Phase 1b correction: a valid owner code supersedes an interrupted revocation (serialized by the lock):
+  // new generation, cleanup pending, the revocation recorded, the old grant dead.
+  const superseding = plain(core.fcv2CrewEnroll_(begun.state, `NEWCODE0123456789ABCDEFGHIJ|${NOW + 60000}`, { code: 'NEWCODE0123456789ABCDEFGHIJ', grant: 'g9' }, enrollCtx(NOW)));
+  assert.deepEqual([superseding.result.ok, superseding.state.G, superseding.state.purge.pending, superseding.state.lastRevoke.outcome], [true, begun.state.G + 1, true, 'superseded']);
+  assert.equal(core.fcv2CrewAuthorized_(superseding.state, deps.hash('grant-1'), 'pid-1'), false);
+  assert.equal(plain(core.fcv2CrewEnroll_(begun.state, null, { code: 'NO-CODE', grant: 'g9' }, enrollCtx(NOW))).result.error, 'enroll-closed', 'never without an owner code');
   const done = plain(core.fcv2CrewRevoke_(h.env, { revokeId: 'r1', grant: 'grant-1' }));
   assert.equal(done.state, 'deleted');
   const late = plain(core.fcv2CrewEnroll_(h.state, null, { code: CODE, grant: 'grant-1' }, enrollCtx(NOW)));
@@ -533,6 +538,7 @@ test('T17a/b/c: commits of adjacent months and a moved duty identity during a qu
     h.commit('2025-10', v2);                  // … and October no longer does
     h.now += 121000;                          // reader delayed beyond the GC grace
     core.fcv2CrewGc_(h.env);
+    MONTHS3.filter((m) => h.manifest().months[m].neighbour).forEach((m) => h.touch(m));   // reconciliation re-verifies flagged neighbours
   };
   const q = h.query(MONTHS3, sel, v2, [], hook);
   assert.equal(q.snap.attempts, 2, 'the whole query restarted');
@@ -588,6 +594,8 @@ test('privacy + storage: Aug 2022 → Oct 2026 synthetic history fits the limits
     const out = h.commit(m, flights);
     assert.equal(out.outcome, 'committed', m);
   }
+  h.now += 121000;
+  core.fcv2CrewGc_(h.env);                    // retired year documents removed before measuring
   const values = h.store.keys().map((k) => h.store.get(k));
   assert.ok(values.every((v) => v.length <= core.FCV2_CREW_PART_MAX_));
   const manifestBytes = h.store.get('fcx.m').length;
@@ -701,13 +709,26 @@ test('parity (randomised ties): coarse departure grid with many ties, shuffled i
 
 // --- Correction pass: manifest schema validation ---------------------------------------------------
 
+/** Applies `mutate(root, yearDoc)` to the stored root and the 2025 year document (re-signing the year digest,
+ * so the failure under test is validation, not a torn read), then checks reads, commits and GC refuse it. */
 function invalidManifestCase(mutate) {
   const h = harness();
   const f = [flight('2025-01-05T06:00:00Z', '2025-01-05T08:30:00Z', 'FRA', 'PMI', crewOf(97))];
   h.commit('2025-01', f);
   h.store.map.set('fcx.s.1.epoch-1.2024-12.1.0', 'orphan');
-  const m = JSON.parse(h.store.get('fcx.m'));
-  h.store.map.set('fcx.m', typeof mutate === 'function' ? JSON.stringify(mutate(m)) : mutate);
+  if (typeof mutate === 'string') h.store.map.set('fcx.m', mutate);
+  else {
+    const root = JSON.parse(h.store.get('fcx.m'));
+    const ykey = core.fcv2CrewYearKey_(root.G, root.epoch, '2025', root.years['2025'][0]);
+    const value = h.store.get(ykey);
+    const header = value.slice(0, value.indexOf('{'));
+    const doc = JSON.parse(value.slice(header.length));
+    const out = mutate(root, doc);
+    const body = JSON.stringify(doc);
+    h.store.map.set(ykey, header + body);
+    if (out.years && out.years['2025'] && Array.isArray(out.years['2025'])) out.years['2025'][1] = deps.hash(body).slice(0, 32);
+    h.store.map.set('fcx.m', JSON.stringify(out));
+  }
   const before = new Map(h.store.map);
   const snap = plain(core.fcv2CrewReadSnapshot_({ ...h.env, now: NOW }, ['2025-01']));
   const built = core.fcv2CrewBuildMonth_('2025-02', reader(f), ctxAt(NOW));
@@ -723,17 +744,20 @@ function invalidManifestCase(mutate) {
 
 test('schema: an unsupported version (schema 99) is never read, committed over or garbage-collected', () => {
   invalidManifestCase((m) => ({ ...m, schema: 99 }));
+  invalidManifestCase((m) => ({ ...m, schema: 1 }));               // the Phase 1a single-manifest format is not read either
 });
 
 test('schema: missing required fields are rejected', () => {
   invalidManifestCase((m) => { const { mgen, ...rest } = m; return rest; });
   invalidManifestCase((m) => { const { retired, ...rest } = m; return rest; });
+  invalidManifestCase((m) => { const { years, ...rest } = m; return rest; });
 });
 
 test('schema: valid JSON with an invalid structure is rejected', () => {
-  invalidManifestCase((m) => ({ ...m, months: [] }));
-  invalidManifestCase((m) => ({ ...m, months: { '2025-01': [1, 1, 'nothex', 0, 'o', 0, 0] } }));
-  invalidManifestCase((m) => ({ ...m, months: { '2025-13': m.months['2025-01'] } }));
+  invalidManifestCase((m) => ({ ...m, years: [] }));
+  invalidManifestCase((m, doc) => { doc.m['01'] = [1, 1, 'nothex', 0, 'o', 0, 0, '', 0]; return m; });
+  invalidManifestCase((m, doc) => { doc.m['13'] = doc.m['01']; return m; });
+  invalidManifestCase((m, doc) => { doc.m['01'] = doc.m['01'].slice(0, 7); return m; });
   invalidManifestCase((m) => ({ ...m, retired: [['other.key', 1]] }));
   invalidManifestCase((m) => ({ ...m, G: '1' }));
   invalidManifestCase('[]');

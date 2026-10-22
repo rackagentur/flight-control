@@ -52,7 +52,9 @@ export function flight(dep, arr, origin, destination, crew, opts = {}) {
   return { sourceId: opts.id ?? `src-${seq}`, start: Date.parse(dep), end: Date.parse(arr), origin, destination, flightNumber: opts.fn ?? `DE${1000 + seq}`, crew };
 }
 
-export const member = (n, rank = 'FA') => ({ rank, id: synthId(n), family: `SAMPLE${n}`, given: `PERSON${n}` });
+/** Letters-only suffix for synthetic names (real names contain no digits; the parser rejects them). */
+export const letters = (n) => { let s = ''; let x = n + 1; while (x > 0) { x -= 1; s = String.fromCharCode(65 + (x % 26)) + s; x = Math.floor(x / 26); } return s; };
+export const member = (n, rank = 'FA') => ({ rank, id: synthId(n), family: `SAMPLE${letters(n)}`, given: `PERSON${letters(n)}` });
 export const owner = () => ({ rank: 'FA', id: SELF, family: 'OWNER', given: 'SYNTHETIC' });
 export const crewOf = (...ns) => [owner(), ...ns.map((n) => member(n))];
 
@@ -158,4 +160,47 @@ export function fakeStore(initial = {}) {
     },
     bytes,
   };
+}
+
+// --- Phase 1b: raw calendar events, handler dependencies -------------------------------------------
+
+/** Start of a base-zone local day (ms). */
+export function dayStart(key) {
+  const guess = Date.parse(`${key}T00:00:00Z`);
+  let t = guess - offsetMs(guess);
+  t = guess - offsetMs(t);
+  return t;
+}
+
+/** Handler dependencies: Node versions of what Apps Script would provide through Utilities. */
+export function handlerDeps() {
+  let n = 0;
+  const base = cryptoDeps();
+  return {
+    ...base,
+    hmacHex: (pepper, text) => createHmac('sha256', pepper).update(String(text)).digest('hex'),
+    hmacKey: (pepper, text) => createHmac('sha256', pepper).update(String(text)).digest('base64url').slice(0, 22),
+    localDate: (ms) => localDate(ms, TZ),
+    dayStart,
+    newId: () => `epoch${String(++n).padStart(4, '0')}`,
+  };
+}
+
+/** A crew-list line in the airline's layout, built at runtime from synthetic entries. */
+export const crewLine = (c) => (c.parseFailed ? 'CP ### broken line' : `${c.rank} ${c.id ? `${c.id} ` : ''}${c.family}, ${c.given} (FRA)`);
+
+/**
+ * A raw calendar event for a synthetic flight. synced: the v5 synced-copy form (title prefix, enriched
+ * description with a v5 "CREW HISTORY" block and the original text under "Original Notes:").
+ */
+export function toRaw(f, { synced = false } = {}) {
+  const lines = [`${f.origin} SAMPLE AIRPORT ${f.origin}`, `${f.destination} SAMPLE AIRPORT ${f.destination}`, '', 'DABCD (32N)', ''];
+  if (f.crew) lines.push(...f.crew.map(crewLine));
+  lines.push('', 'Booking code: SAMPLE9');
+  const original = lines.join('\n');
+  const title = `${f.flightNumber} ${f.origin}-${f.destination}`;
+  if (!synced) return { sourceId: f.sourceId, title, start: f.start, end: f.end, location: f.origin, description: original };
+  const v5 = f.crew && f.crew[1]?.id ? `\n\n👥 CREW HISTORY\n\n😊 Colleague ${f.crew[1].id}\n   • Flown together 3 times\n` : '';
+  return { sourceId: f.sourceId, title: `✈️✈️✈️ ${title}`, start: f.start, end: f.end, location: f.origin,
+    description: `✈️ Flight ${title}\n   Weather: sample${v5}\n---\nOriginal Notes:\n${original}` };
 }
