@@ -38,6 +38,8 @@ const FCV2_DEP_MAX_CARRIERS_ = 10;
 const FCV2_DEP_TEXT_MAX_ = 60;
 const FCV2_DEP_FLIGHT_MAX_ = 16;                   // longest normalized flight number; the cache-read validator uses the same bound
 const FCV2_DEP_HOST_ = 'aerodatabox.p.rapidapi.com';
+// Provider attribution (AeroDataBox terms: visible credit on no-payment plans). Added to success responses at response time, never cached.
+const FCV2_DEP_ATTRIBUTION_ = Object.freeze({ name: 'AeroDataBox', url: 'https://aerodatabox.com/' });
 const FCV2_DEP_STATUS_ = Object.freeze({
   expected: 'scheduled', checkin: 'scheduled', scheduled: 'scheduled',
   delayed: 'delayed',
@@ -416,5 +418,6 @@ function fcv2HandleDepartures_(req, env, now) {
     ok: true, contract: 'fc.roster', version: 2, action: 'departures',
     airport: checked.airport, airportTz: checked.tz, from: checked.from, to: checked.to, carriers: checked.carriers,
     provider: 'aerodatabox', generatedAt: now, fetchedAt: fetchedAt, dropped: dropped, flights: flights,
+    attribution: FCV2_DEP_ATTRIBUTION_,
   };
 }

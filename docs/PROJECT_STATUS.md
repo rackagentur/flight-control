@@ -15,6 +15,7 @@ taken from notes or docs and not re-checked.
 | Backend (Apps Script) | Contract fc.roster v2 installed privately; docs state **Version 29** (departures action), rollback Version 27, pre-v2 baseline 22. Live deployment **unverified** by agents (private) | `backend/apps-script/README.md`, `docs/BACKEND-HARDENING.md`; ask the owner |
 | Current phase | Two-theme restyle, **Step 6.6 awaiting physical iPhone acceptance** (preview tooling ready, nothing deployed). Step 7 (destination/layover) not started. In parallel: **Phase 0 of the direct ICS feed investigation** (preparation only) and **proposals** for multi-user onboarding (not approved) | `docs/NEXT_STEPS.md` |
 | Direct ICS probe | **PREPARED — NOT EXECUTED.** Private, outside Git: `~/.config/flight-control/feed-probe/`; offline tests 23/23 (2026-10-14); three independent review rounds, last verdict PASS_WITH_NOTES, final two fixes self-tested only. No request to the feed has ever been made by an agent | `cd ~/.config/flight-control/feed-probe && node --test feed-probe.test.mjs` |
+| V3 ICS (Milestones 1–2) | Parser committed `d9d3706` (`core/ics/ics.js`). Live feed validated 2026-10-15 (owner-authorized, 2 one-time reads): parses cleanly; Condor interpreter 52/53 events recognised. Backend comparison **not obtained** (HTTP 403, I-010). Unverified: UID ↔ Google id, stay end times, field-level parity — `docs/ARCHITECTURE.md` §4a | `node --test tests/ics-parser.test.js` |
 | Onboarding / multi-user | **PROPOSED — not approved, not implemented** (`docs/ARCHITECTURE.md` §5) | — |
 | Unresolved owner decisions | **Permission** for automated feed access (unknown); **hosting** for a multi-user service (P-003 vs D-003) | `docs/NEXT_STEPS.md` §3 |
 
@@ -51,12 +52,13 @@ duty end/check-out, crew data (excluded by decision D3), rotation ids, the calen
 | B2 (AUDIT) | Month-end hours forecast inflated by future rostered flights (v5 stats) | open, known-issue marker shown | Later cleanup (`docs/BACKEND-HARDENING.md` "Later") |
 | B3 | Monthly dashboard to re-check on **2026-11-01** | pending date | Owner check after 1 Nov |
 | I-001 | `README.md` status block stale on `main` (says V2 not live). The working tree's README is part of the uncommitted 6.6 change | open | Update with the next approved docs/frontend commit |
-| I-002 | Unrecognised live-feed codes stay `unknown`: `U1`, `SBX`, `HS5`, `EM`, `RE10S`, `DH/<flight>`, other carriers' flights | investigated | Owner to confirm meanings (handbook) before mapping; `DH/` (positioning) first |
+| I-002 | Unrecognised live-feed codes stay `unknown`: `U1`, `SBX`, `HS5`, `EM`, `RE10S`, `DH/<flight>`, other carriers' flights. **`SBX` meaning confirmed by owner 2026-10-15 (D-013: travel to the standby location before SB; not yet mapped)** | investigated | Owner to confirm meanings (handbook) before mapping; `DH/` (positioning) first |
 | I-003 | Flaky test `S6` (token removal vs in-flight load) | **resolved 2026-10-14** | Test waited one `setTimeout(0)` while `runLoad` awaits WebCrypto first; now polls until the request starts |
 | I-006 | Service-worker updates wait until every old client closes (no `skipWaiting`); Home Screen app may serve the old shell long after a deploy | known limitation | Release checklist step; "update available" prompt later |
 | I-008 | Local branch `backup/v2-redesign-pre-rewrite-20261014` (old hashes `c8b0996`, `bb6c0f5`, `6959311`) kept after the history cleanup; never push it | local only | Delete after the owner confirms the pushed branch (`git branch -D …`) |
 | I-009 | A deployed rollback worker reaches a device only through the browser lifecycle: an update check (usually on launch; ≤ 24 h), and in 2 of 30 desktop-Chrome runs a waiting rollback worker needed one relaunch. Rollback artifact `scripts/rollback/sw.js` + procedure prepared and browser-tested, never activated | known limitation | Optional: `registration.update()` on launch/foreground (I-006, app change, needs approval) |
 | I-007 | A valid but completely empty roster is refused (shows refresh failure) | known limitation | **Must be resolved before multi-user onboarding** (contract signal "published, no events") |
+| I-010 | Read-only `roster` POST from a Node script got HTTP 403 "Zugriff verweigert" (HTML, first hop, before `doPost`) twice on 2026-10-15. Endpoint matches production; access "Jeder"; phone app loads the roster (may be offline copy). Cause unknown | **deferred** (owner) | Revisit only if it blocks an essential milestone; options: browser-equivalent request, Executions log |
 | I-004 | Google refreshes the subscribed Condor calendar on its own schedule; delay unmeasured | under investigation (Phase 0) | `docs/ARCHITECTURE.md` §4 |
 | I-005 | v5 sync still scans event title+description for colleagues' employee numbers ("colleague history", v5 `Code.gs`); V2 never reads it (D3) | known, out of scope | Owner decision whether to retire in v5 |
 
@@ -70,3 +72,33 @@ duty end/check-out, crew data (excluded by decision D3), rotation ids, the calen
 - Next actions and checkpoint procedure: `docs/NEXT_STEPS.md`
 - Roadmap and session history: `docs/ROADMAP.md`, `docs/SESSION_LOG.md`
 - Private, git-ignored: `reference/` (v5 Apps Script with personal identifiers). Never copy from it into tracked files.
+
+
+## 2026-10-15 — final release handover checkpoint
+
+Final handover verification: v2-redesign d9d3706; gate/attribution uncommitted; 918/918 full tests and offline integrity passed (73 assets). Browser readiness failed twice (active/cached worker, uncontrolled page). Newer public synthetic preview is deployed but predates gates/attribution. Physical iPhone acceptance remains unverified. See FINAL-RELEASE-HANDOVER.md; earlier state-table counts and "nothing deployed" statements are historical.
+
+
+## 2026-10-15 — release prerequisites follow-up
+
+IMPLEMENTED locally: first-install worker-control recovery and synthetic gate/Radar fixture responses. Verified 923/923 automated tests, 73 shell assets, desktop offline/protected/subpath/update/rollback checks. Labels - / U verified unchanged. Isolated-preview candidate ready for review; remote backend compatibility/publication approval and physical-iPhone acceptance outstanding. Production NO-GO; no commit/push/deploy or production operation. See RELEASE-PREREQUISITES.md.
+
+
+## 2026-10-16 — iPhone layout remediation (local only)
+
+Local iPhone layout remediation: Flight Detail time values no longer inherit browser definition-list indentation; narrow columns, status and credit wrap without clipping. A theme-matched top-inset cover protects scrolled content. Physical owner reports gates/terminals/revised times/credit working, Radar succeeding after an error with 15–20 s loading. Screenshots were not attached to this remediation request. Corrections are local only; physical Safari/Home Screen recheck and remaining acceptance are pending. Production remains NO-GO.
+
+
+## 2026-10-16 — local service-worker diagnostics
+
+IMPLEMENTED locally: More → Settings → About now observes the controlling worker build, control status, waiting update and combined offline readiness. No worker lifecycle changes. Final local build 882166161364bd0a9c0f; 74 shell assets; 940/940 tests passed, including 11 new diagnostics tests. Desktop browser verified uncontrolled-to-controlled transition, waiting update distinct from controller, and normal adoption after client closure. Mobile-width light/dark checks passed. Physical iPhone adoption and STR diagnosis remain unverified. Not published; production NO-GO.
+
+
+## 2026-10-16 — responsive-layout follow-up (local only)
+
+Responsive follow-up IMPLEMENTED and verified locally: narrow timing rows wrap into separate time/label/countdown/note lines; timeline labels fit measured pixel bounds with next-stop priority and retain all stops plus the full accessible summary; hotel name/address are separated and wrap. UTC timeline badge reserves its own row. Local candidate worker: d34c49e1c3955d525def, 74 verified assets. Full regression: 945/945; browser matrix: 24/24 cases, 408/408 assertions (375/393px, 100/125/200% root text, light/dark, Local/UTC). Calendar mappings, timestamps, backend, authentication and safe-area implementation unchanged. No publication in this session. Physical-device acceptance is pending; production remains NO-GO.
+
+
+## 2026-10-16 — durable sign-out correction (local only)
+
+IMPLEMENTED locally: durable sign-out now checks the persisted marker, retries after roster cleanup, and removes the endpoint if marker persistence remains unavailable. Persistent failures are reported; the current page remains signed out through refresh/reconnect/storage events. Normal preferences and successful reset semantics remain unchanged. Full regression 954/954; local worker 807357dcd3bb9ef3e92e, 74 assets. Owner reports prior physical-device acceptance passed; this new correction is not published or physically accepted. Production remains NO-GO.

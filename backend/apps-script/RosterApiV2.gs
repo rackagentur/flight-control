@@ -9,6 +9,8 @@
 //           | stats (BH-2: the unchanged v5 getStats payload, now behind the token)
 //           | departures {airport, from, to, carriers?} (provider schedule data, DeparturesV2.gs;
 //             offered only while Script Property FC_ADB_RAPIDAPI_KEY is set)
+//           | flight {flightNumber, date, origin} (one flight's live gate/terminal/status from the
+//             same provider, FlightInfoV2.gs; offered under the same key condition)
 // Auth    : shared secret in Script Property FC_V2_TOKEN, compared in constant time.
 //           No property → every call is refused ("not-configured"). The correct token is
 //           always accepted; only failed attempts are counted and limited, so failures by
@@ -16,8 +18,8 @@
 // Output  : JSON, always HTTP 200 (Apps Script cannot set status codes);
 //           failures are {ok:false, error:<code>}.
 //
-// The only outbound request is the departures action's UrlFetchApp call to the flight-data
-// provider (see fcv2LiveEnv_); the provider key lives only in a Script Property.
+// The only outbound requests are the departures and flight actions' UrlFetchApp calls to the
+// flight-data provider (see fcv2LiveEnv_); the provider key lives only in a Script Property.
 // Reads only: the airline calendar (fresh window), the synced calendar (earlier part
 // of the window and history; only events carrying the sync tag), and the hotel Sheet
 // (read-only; never getHotelSheet(), which rewrites the header row).
@@ -52,6 +54,11 @@ function fcv2DeparturesAvailable_() {
   return typeof fcv2HandleDepartures_ === 'function';
 }
 
+/** False when FlightInfoV2.gs is missing from the project (e.g. only this file was replaced). */
+function fcv2FlightAvailable_() {
+  return typeof fcv2HandleFlight_ === 'function';
+}
+
 /** Month arithmetic on 'YYYY-MM-DD' keys. */
 function fcv2MonthStart_(key, deltaMonths) {
   const p = key.split('-').map(Number);
@@ -63,7 +70,7 @@ function fcv2MonthStart_(key, deltaMonths) {
  * env: {token():string|null, now():number, stats():Object (v5 payload), config, failures:{get():number, add():void},
  *       airlineEvents(fromMs,toMs), syncedEvents(fromMs,toMs), startOfDay(key):number,
  *       cacheGet(key), cachePut(key,value,ttlSeconds?), deps:{hash, localIso, localDate, tzOf, hotelLookup},
- *       departures action only: departuresKey():string|null, providerFetch(url,key):{status,body}, sleep(ms)}
+ *       departures and flight actions only: departuresKey():string|null, providerFetch(url,key):{status,body}, sleep(ms)}
  */
 function fcv2HandlePost_(body, env) {
   if (typeof body !== 'string' || !body || body.length > FCV2_MAX_BODY_) return { ok: false, error: 'bad-request' };
@@ -93,10 +100,15 @@ function fcv2HandlePost_(body, env) {
     const actions = ['capabilities', 'roster', 'history', 'stats'];
     // Only when DeparturesV2.gs is part of the deployment AND the key is set (partial-deploy safety).
     if (fcv2DeparturesAvailable_() && typeof depKey === 'string' && depKey) actions.push('departures');
+    // Same condition for the single-flight lookup (FlightInfoV2.gs part of the deployment AND the key set).
+    const flightOffered = fcv2FlightAvailable_() && typeof depKey === 'string' && !!depKey;
+    if (flightOffered) actions.push('flight');
+    const limits = { rosterMaxDays: FCV2_WINDOW_MAX_DAYS_, historyMaxMonths: FCV2_HISTORY_MAX_MONTHS_, historyMaxSectors: FCV2_HISTORY_MAX_SECTORS_, departuresMaxHours: 24 };
+    if (flightOffered) limits.flightDaysAhead = 7;
     return {
       ok: true, contract: FCV2_CONTRACT_, version: FCV2_VERSION_, action: 'capabilities', generatedAt: now,
       actions: actions,
-      limits: { rosterMaxDays: FCV2_WINDOW_MAX_DAYS_, historyMaxMonths: FCV2_HISTORY_MAX_MONTHS_, historyMaxSectors: FCV2_HISTORY_MAX_SECTORS_, departuresMaxHours: 24 },
+      limits: limits,
       source: { adapter: config.adapter, baseTimeZone: config.baseTimeZone },
     };
   }
@@ -153,6 +165,11 @@ function fcv2HandlePost_(body, env) {
   if (req.action === 'departures') {
     if (!fcv2DeparturesAvailable_()) return { ok: false, error: 'departures-not-configured' };
     return fcv2HandleDepartures_(req, env, now);
+  }
+
+  if (req.action === 'flight') {
+    if (!fcv2FlightAvailable_()) return { ok: false, error: 'flight-not-configured' };
+    return fcv2HandleFlight_(req, env, now);
   }
 
   return { ok: false, error: 'unknown-action' };
@@ -239,7 +256,7 @@ function fcv2LiveEnv_() {
     },
     cacheGet: function (key) { const v = cache.get(key); return v ? JSON.parse(v) : null; },
     cachePut: function (key, value, ttlSeconds) { const s = JSON.stringify(value); if (s.length < 90000) cache.put(key, s, ttlSeconds || FCV2_CACHE_SECONDS_); },
-    // departures action (DeparturesV2.gs): the key is read from Script Properties only.
+    // departures and flight actions (DeparturesV2.gs, FlightInfoV2.gs): the key is read from Script Properties only.
     departuresKey: function () { return props.getProperty('FC_ADB_RAPIDAPI_KEY'); },
     providerFetch: function (url, key) {
       const res = UrlFetchApp.fetch(url, {

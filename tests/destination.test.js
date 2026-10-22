@@ -10,6 +10,17 @@ import { at } from './helpers.js';
 const P = DEFAULT_PROFILE;
 const H = 3600000;
 
+test('hotel name and address are separate, escaped display fields; missing address stays absent', () => {
+  const dest = { iata: 'BKK', city: 'Bangkok', tz: null, hotel: { record: {
+    name: 'Sample <Hotel>', address: '99 Sample Street', phone: '+66 2 000 0000',
+  } } };
+  const html = String(destinationView(dest, null, { now: 0 }));
+  assert.match(html, /class="dest-hotel-name">Sample &lt;Hotel&gt;<\/span> <span class="dest-note dest-hotel-address">99 Sample Street<\/span>/);
+  assert.match(html, /href="tel:\+6620000000"/);
+  dest.hotel.record.address = null;
+  assert.doesNotMatch(String(destinationView(dest, null, { now: 0 })), /dest-hotel-address/);
+});
+
 test('home-base arrivals have no destination layer at all', () => {
   const now = at('2026-10-04T06:00:00Z');
   assert.equal(buildDestination({ iata: 'FRA', tz: 'Europe/Berlin', arrival: now + H, stay: null }, P, now), null);

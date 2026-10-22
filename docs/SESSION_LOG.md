@@ -93,3 +93,33 @@ Facts only; link to decisions/issues by ID. Never paste URLs with tokens, calend
 - Created `docs/PROJECT_STATUS.md`, `docs/NEXT_STEPS.md`, `docs/DECISIONS.md`, `docs/ROADMAP.md`,
   `docs/SESSION_LOG.md`, `docs/ARCHITECTURE.md`, `CLAUDE.md`, `AGENTS.md`. No production change, no deploy,
   no feed access.
+
+
+## 2026-10-15 — final release handover checkpoint
+
+Codex final handover: read Claude's existing reports and current Git/preview metadata; preserved all pre-existing content. Full suite 918/918, check:offline current, diff check passed. Desktop offline harness failed twice at initial controller readiness despite 73 cached assets; no fix attempted. Verified Condor labels in source/tests and the public preview profile. Staged 75 files locally outside Git; prepared the release/device checklist. No production roster/feed/provider request, credential output, code change, commit, push or deployment.
+
+
+## 2026-10-15 — release prerequisites follow-up
+
+Continued v2-redesign @ d9d3706, preserving existing uncommitted work. Deterministically reproduced activated-but-uncontrolled startup during navigation, added bounded claim recovery and regression. Prepared synthetic flight/Radar scenarios via real handlers with no live bindings or credentials. Full suite 923/923; 73-asset integrity, normal/protected offline, root/subpath race, A→B update and rollback PASS. Local artifacts and detailed findings in RELEASE-PREREQUISITES.md. Physical iPhone and remote publication remain pending. No commits, pushes, deployments, provider calls, production or authentication-setting changes.
+
+
+## 2026-10-16 — iPhone layout remediation (local only)
+
+Owner-reported iPhone 13 mini findings investigated locally. Added a network-free browser regression fixture using the actual Flight Detail renderer/styles; reproduced arrival-column overflow at 375 px. Corrected scoped CSS and regenerated offline shell. Radar investigation reused recorded HTTP evidence and local generated-backend timing; no new remote/provider requests or changes. No commit, push or deployment. Detailed measurements and screenshots retained outside the repository.
+
+
+## 2026-10-16 — local service-worker diagnostics
+
+Implemented local About diagnostics and 11 focused regression tests. npm run build and npm run check passed; npm test 940/940, no failures/skips. Local browser showed intermediate controller e4677d59595445558f27 with a distinct waiting update, then final controller 882166161364bd0a9c0f after normal client closure/reopen. No saved roster in this browser: diagnostics correctly withheld offline readiness. Verified 375px light / 393px dark layout without horizontal overflow. Existing dirty tree preserved; no backend, credential, provider, remote, commit, push or deployment operation. Physical-device testing remains owner-only.
+
+
+## 2026-10-16 — responsive-layout follow-up (local only)
+
+Approved local responsive follow-up implemented on v2-redesign, HEAD d9d3706, preserving existing dirty work. Used the prior iPhone investigation report. Changed components/screens CSS, destination/horizon views and screen mount cleanup; added focused hotel/pixel-fit/observer-cleanup tests plus a network-free browser matrix. Full tests 945/945; build/check pass with 74 assets and worker d34c49e1c3955d525def. Browser 24 cases / 408 assertions pass at 375/393px and 100/125/200% root text, both themes and Local/UTC; visual checks and live resize also performed. Synthetic fixtures only, no provider requests or remote changes. No commit/push/deploy. Physical-iPhone testing and release approval remain outstanding.
+
+
+## 2026-10-16 — durable sign-out correction (local only)
+
+Corrected the confirmed unchecked sign-out marker on v2-redesign at d9d3706. Added nine synthetic fault/restart/race regressions; six failed against the pre-fix implementation. Focused checks 202/202 and full regression 954/954 passed. Regenerated static manifest: worker 807357dcd3bb9ef3e92e, 74 assets; worker lifecycle source unchanged. Retained all unrelated working-tree changes. No browser session, real credential, backend, provider or production resource accessed; no commit/push/deploy. Separate publication approval and sign-out/reset device acceptance remain required.

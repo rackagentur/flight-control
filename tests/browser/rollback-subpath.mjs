@@ -197,7 +197,10 @@ try {
     // controls an open page. A relaunch (iPhone: force-close + reopen) releases it. Model exactly that.
     for (let relaunch = 1; relaunch <= 2 && !(await page.evaluate(handedOver).catch(() => false)); relaunch++) {
       updateCalls.push(`before relaunch ${relaunch}: ${JSON.stringify(await workerStates())}`);
-      for (const p of context.pages()) await p.close();
+      for (const p of context.pages()) await p.close({ runBeforeUnload: false });
+      // A real force-close is followed by a pause before the next launch; an instant reopen can race the release
+      // of the old shell's last client (observed: 0 s left the waiting worker waiting).
+      await new Promise((r) => setTimeout(r, 3000));
       page = await context.newPage();
       await page.goto(appUrl);
       trigger = `relaunch ×${relaunch} after the rollback worker waited`;

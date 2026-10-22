@@ -21,6 +21,7 @@ overwrite: add a new entry that names what it supersedes). Status: `active` · `
 | D-012 | 2026-10-15 | active, implemented (uncommitted) | **Condor display terminology** (Condor pack only; classifications unchanged: `-` = `unassigned`, `U` = `off`/`leave`). Strichtag: calendar cell, key sample and 7-day strip show the roster code `-` (ASCII hyphen-minus U+002D); Today title "Strichtag", description "No duty assigned"; still not a guaranteed day off. Urlaub: cell, key and strip show `U`; Today title "Urlaub", description "Holiday"; key "Urlaub · holiday". Never `STR` / `LEAVE` for Condor. **Supersedes** the display part of D-005 (`STRICHTAG` / `STR`) and corrects D-008's `–` (en dash) to `-`; the D-008 "subdued completed flights" part stays open. Generic pack unchanged (`LEAVE`, `UNAS`) | owner (conversation) |
 | D-011 | 2026-10-14 | active, implemented (Step 6.6) | **Token change** invalidates the previous credentials' roster, history and departures cache; preferences stay. **Sign out** removes token, roster, history, operational caches (departures, weather memory), revokes other tabs (sign-out marker) and the account-specific profile fields `name` and `hotelListUrl`; keeps home base, wake-up offset, other operational profile fields, theme, Local/UTC, endpoint. **Reset** removes everything (`fc.v2.*`) and returns to setup. Sign out and Reset are explained separately in Settings. Supersedes the earlier 6.6 draft in which Sign out removed the whole profile | owner (conversation) |
 | D-010 | 2026-10-14 | active | Direct ICS feed: Phase 0 approved for **preparation and read-only local investigation only**. No request to the original feed until the owner confirms automated access is permitted **and** explicitly authorizes the probe. URL lives only in Script Property `FC_DIRECT_FEED_URL` (separate probe project), never in Git, chat, logs or responses | owner |
+| D-013 | 2026-10-15 | active, **not implemented** (next implementation milestone) | **Condor code `SBX`** = the scheduled travel window to the standby location before an SB duty. Classify as **standby-related travel**, a kind of its own, separate from the SB standby duty; keep the original scheduled start/end; never a flight, day off or standby duty. Until implemented it stays `unknown` (I-002). Meaning lives in the Condor pack (`src/airlines/condor/`), not core. Observed once in the live feed (Milestone 2, 2026-10-15) | owner (conversation) |
 
 ## Proposed (need approval)
 
@@ -29,3 +30,28 @@ overwrite: add a new entry that names what it supersedes). Status: `active` · `
 | P-001 | **Hybrid ICS architecture**: direct feed only for "today onward", Google subscription + synced copy kept for history and as fallback; Script Property mode `off`/`shadow`/`primary`; contract and frontend unchanged | Phase 0 results: permission, reachability, deterministic UID ↔ Google-id mapping, measured freshness gain. If any fails → keep Google sync |
 | P-002 | **Three-step onboarding** (account + airline → connect roster link with preview → personalize) on a hosted multi-user service reusing the pure Condor adapter/model; Condor only | Permission/legal review, hosting choice, P-003 |
 | P-003 | **Revisit D-003** for multi-user: a separate backend (e.g. Supabase EU or Vercel functions + managed DB) is required for per-user isolation; the Apps Script path stays for the owner | Owner decision; would supersede D-003 for the multi-user service only |
+
+
+## 2026-10-15 — release prerequisites follow-up
+
+Release-prerequisite correction (no product-scope change): recover the first-install/navigation claim race with a one-time message to a complete active worker; retain no-skipWaiting and controller-confirmed readiness. Synthetic provider acceptance uses existing pure handlers plus local fixtures; generated code omits live bindings. This supersedes the handover assumption that missing provider fixtures/readiness diagnosis remain unprepared. No remote auth/protection decision is made; existing synthetic backend property-name mismatch must be reviewed before any publication. Production remains frontend first.
+
+
+## 2026-10-16 — iPhone layout remediation (local only)
+
+Additive layout correction only: retain two Flight Detail columns and existing typography/colors; remove default dd indentation and permit wrapping under width/text-size pressure. Retain current safe-area padding and cover only the top system inset during scrolling. No matching, timezone, authentication, request/retry or backend policy changes. This does not supersede any release decision.
+
+
+## 2026-10-16 — local service-worker diagnostics
+
+About diagnostics observe the existing FC_SHELL_STATUS reply from navigator.serviceWorker.controller, with a bounded timeout and stale-reply rejection. getRegistration is read-only and used only for waiting-update observation. Registration.active and network sw.js are never evidence of the current controller identity. No lifecycle decision is superseded: no update(), skipWaiting, reload, claim or unregister is introduced. Unknown/unsupported/uncontrolled states remain explicit; overall readiness requires both worker cache evidence and existing controller roster readiness.
+
+
+## 2026-10-16 — responsive-layout follow-up (local only)
+
+Additive correction to responsive presentation only: narrow milestone containers use stacked rows rather than four competing shared columns. Timeline visibility now uses rendered label bounds and 8px clearance, superseding fractional-only collision decisions when mounted. Existing priority is retained (next stop, then final arrival); every track stop and complete accessible summary remain. Refit on container/font changes, dispose observers with the screen. UTC badge takes its own grid row to avoid enlarged-text collisions. Hotel address is a separate block with an explicit text separator. No calendar mapping, model, timezone, authentication, backend or release-policy decision is superseded.
+
+
+## 2026-10-16 — durable sign-out correction (local only)
+
+Refines D-011 sign-out failure handling without changing normal preference retention or reset semantics: retry the verified marker write after cleanup frees quota. If it still fails, remove and verify the endpoint, report storage failure even when disconnection succeeds, and retain the in-memory signed-out block until explicit reconnection. This supersedes only the implicit assumption that the initial marker write always succeeds. Successful reset clears the namespace without requiring a surviving marker. No backend authentication, worker lifecycle or release-policy change.

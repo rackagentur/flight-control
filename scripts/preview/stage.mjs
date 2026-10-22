@@ -3,13 +3,18 @@
 // directory outside the repository, plus the preview's vercel.json. It never deploys and never
 // reads reference/, docs/, tests/, local configuration or credentials.
 //
-//   node scripts/preview/stage.mjs [outDir]      (default: a new directory under the OS temp dir)
+//   node scripts/preview/stage.mjs [outDir] [--label B]   (default outDir: a new directory under the OS temp dir)
+//
+// --label X (preview only, for the service-worker update test in docs/IPHONE-ACCEPTANCE.md): in the STAGED copy
+// only, Settings → About reads "Version 2.0 · preview build X", and the staged sw.js is regenerated for that
+// staged tree (new cache version, hashes match the staged files). The repository is never modified.
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync, copyFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { dirname, join, resolve, relative, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
+import { buildWorker } from '../build-offline.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
@@ -39,8 +44,12 @@ export function precacheList(swSource) {
   return JSON.parse(match[1]);
 }
 
-/** Copies the preview files into `outDir` (absent or empty, outside the repository). */
-export function stage(outDir) {
+export const ABOUT_LINE = 'Version 2.0 · operational preview (Phase 4)';
+const LABEL = /^[A-Z0-9-]{1,12}$/;
+
+/** Copies the preview files into `outDir` (absent or empty, outside the repository); optional preview build label. */
+export function stage(outDir, { label = null } = {}) {
+  if (label !== null && !LABEL.test(label)) throw new Error('A build label is 1-12 characters A-Z, 0-9 or "-".');
   const out = resolve(outDir);
   const rel = relative(root, out);
   if (rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))) throw new Error('Refusing to stage inside the repository.');
@@ -55,14 +64,27 @@ export function stage(outDir) {
     mkdirSync(dirname(join(out, file)), { recursive: true });
     copyFileSync(join(root, file), join(out, file));
   }
+  let version = null;
+  if (label !== null) {
+    const settings = join(out, 'src/ui/screens/settings.js');
+    const text = readFileSync(settings, 'utf8');
+    if (text.split(ABOUT_LINE).length !== 2) throw new Error('Settings About line not found exactly once; label not applied.');
+    writeFileSync(settings, text.replace(ABOUT_LINE, `Version 2.0 · preview build ${label}`));
+    const worker = buildWorker(out);
+    writeFileSync(join(out, 'sw.js'), worker.source);
+    version = worker.version;
+  }
   writeFileSync(join(out, 'vercel.json'), `${JSON.stringify(PREVIEW_CONFIG, null, 2)}\n`);
-  return { out, files: [...files, 'vercel.json'].sort() };
+  return { out, files: [...files, 'vercel.json'].sort(), label, version };
 }
 
 if (resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url)) {
   // Also refuses when a new frontend file is not yet in the worker's list.
   execFileSync(process.execPath, [join(root, 'scripts/build-offline.mjs'), '--check'], { stdio: 'inherit' });
-  const { out, files } = stage(process.argv[2] ?? join(tmpdir(), `fc-preview-${Date.now()}`));
-  console.log(`Staged ${files.length} files in ${out}`);
+  const args = process.argv.slice(2);
+  const at = args.indexOf('--label');
+  const label = at >= 0 ? args.splice(at, 2)[1] ?? '' : null;
+  const { out, files, version } = stage(args[0] ?? join(tmpdir(), `fc-preview-${Date.now()}`), { label });
+  console.log(`Staged ${files.length} files in ${out}${label !== null ? ` · preview build ${label} · shell ${version}` : ''}`);
   console.log('Not deployed. See docs/IPHONE-ACCEPTANCE.md for the approved deployment commands.');
 }

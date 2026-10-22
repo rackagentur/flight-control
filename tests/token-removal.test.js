@@ -12,6 +12,7 @@ import { today as todayScreen } from '../src/ui/screens/today.js';
 import { calendar } from '../src/ui/screens/calendar.js';
 import { flights as flightsScreen } from '../src/ui/screens/flights.js';
 import { contractLine } from '../src/ui/screens/settings.js';
+import { syncStatusText } from '../src/ui/sync-status.js';
 import { PROFILE, loadFixture, at } from './helpers.js';
 
 const NOW = at(loadFixture()._now);
@@ -28,8 +29,8 @@ function memoryStorage() {
 }
 
 /** Store holding every roster key plus the preferences that must survive. */
-function seeded({ token = TOKEN } = {}) {
-  const store = createStore(memoryStorage());
+function seeded({ token = TOKEN, storage = memoryStorage() } = {}) {
+  const store = createStore(storage);
   store.set(ENDPOINT_KEY, ENDPOINT);
   if (token) store.set(TOKEN_KEY, token);
   store.set('theme', 'dark');
@@ -43,14 +44,14 @@ function seeded({ token = TOKEN } = {}) {
   return store;
 }
 
-function harness(store, { stats, post } = {}) {
-  const calls = { stats: 0 };
+function harness(store, { stats, post, online = true } = {}) {
+  const calls = { stats: 0, post: 0 };
   const api = {
     fetchStats: async () => { calls.stats += 1; if (stats) return stats(); return { data: loadFixture(), meta: {} }; },
-    postContract: async (...args) => { if (post) return post(...args); throw new ApiError('html-response', 'no v2'); },
+    postContract: async (...args) => { calls.post += 1; if (post) return post(...args); throw new ApiError('html-response', 'no v2'); },
   };
   let last = null;
-  const c = createController({ profile: PROFILE, onChange: (v) => { last = v; }, store, api, clock: () => NOW });
+  const c = createController({ profile: PROFILE, onChange: (v) => { last = v; }, store, api, clock: () => NOW, isOnline: () => online });
   return { c, calls, view: () => last ?? c.view() };
 }
 
@@ -70,7 +71,7 @@ test('Sign out: purges credentials, roster, history and operational caches; keep
   const h = harness(store, { stats: refuse });
   await h.c.load({ force: true });
   assert.ok(h.view().snapshot, 'cached roster shown while the token is stored');
-  h.c.removeToken();
+  assert.equal(h.c.removeToken(), true);
   await tick();
   for (const key of ROSTER_KEYS) assert.equal(store.get(key), null, `${key} removed`);
   assert.equal(store.get(TOKEN_KEY), null);
@@ -274,4 +275,126 @@ test('S6: Settings says the access token is required when none is stored and the
   assert.equal(contractLine({ ...v, snapshot: {} }, false), 'Not loaded yet');
   assert.equal(contractLine({ ...v, error: { code: 'network' } }, false), 'Not loaded yet');
   assert.equal(contractLine({ ...v, error: null }, false), 'Not loaded yet');
+});
+
+// Faults are armed only after the synthetic roster has been stored successfully.
+function signOutStorage({ markerFailures = Infinity, endpointFailure = false, tokenFailure = false, silentMarkerFailure = false } = {}) {
+  const storage = memoryStorage(), set = storage.setItem, remove = storage.removeItem;
+  let armed = false;
+  const attempts = [];
+  storage.setItem = (key, value) => {
+    if (armed && key === 'fc.v2.signedOut') {
+      attempts.push(storage.getItem('fc.v2.roster.v1') !== null);
+      if (attempts.length <= markerFailures) {
+        if (silentMarkerFailure) return;
+        throw new Error('Synthetic quota failure');
+      }
+    }
+    set(key, value);
+  };
+  storage.removeItem = (key) => {
+    if (armed && ((endpointFailure && key === 'fc.v2.endpoint') || (tokenFailure && key === 'fc.v2.token.v2'))) throw new Error('Synthetic deletion failure');
+    remove(key);
+  };
+  return { storage, attempts, arm: () => { armed = true; } };
+}
+
+async function assertEmptyRestart(store) {
+  for (const online of [true, false]) {
+    const restarted = harness(store, { online }); // An open legacy source would return a roster if called.
+    await restarted.c.load({ force: true });
+    assert.equal(restarted.c.view().snapshot, null);
+    assert.deepEqual(restarted.calls, { stats: 0, post: 0 });
+    assert.equal(store.get('roster.v1'), null);
+  }
+}
+
+test('durable sign-out: initial quota failure retries after roster cleanup, retains preferences and blocks open-source restart', async () => {
+  const fault = signOutStorage({ markerFailures: 1 }), store = seeded({ storage: fault.storage }), h = harness(store);
+  await h.c.load(); fault.arm();
+  assert.equal(h.c.removeToken(), true);
+  assert.deepEqual(fault.attempts, [true, false], 'retry happens after removing the saved roster');
+  assert.equal(store.get('signedOut'), 'true');
+  assert.equal(h.c.view().storageError, false);
+  assert.equal(store.get(ENDPOINT_KEY), ENDPOINT);
+  assert.equal(store.get('theme'), 'dark');
+  assert.equal(store.get('timeDisplay'), 'utc');
+  assert.deepEqual(store.getJSON('profile'), PREFS);
+  await assertEmptyRestart(store);
+});
+
+for (const silentMarkerFailure of [false, true]) test(`durable sign-out: persistent ${silentMarkerFailure ? 'silent' : 'throwing'} marker failure disconnects, reports failure and cannot restore on restart`, async () => {
+  const fault = signOutStorage({ silentMarkerFailure }), store = seeded({ storage: fault.storage }), h = harness(store);
+  await h.c.load(); fault.arm();
+  assert.equal(h.c.removeToken(), false, 'fallback secures access but marker failure must be reported');
+  assert.equal(store.get('signedOut'), null);
+  assert.equal(store.get(ENDPOINT_KEY), null);
+  assert.equal(store.get(TOKEN_KEY), null);
+  for (const key of [...ROSTER_KEYS, 'departures.v2']) assert.equal(store.get(key), null);
+  assert.equal(h.c.view().snapshot, null);
+  assert.equal(h.c.view().storageError, true);
+  assert.match(syncStatusText(h.c.view()), /Clear website data in browser settings/);
+  assert.equal(store.get('theme'), 'dark');
+  assert.deepEqual(store.getJSON('profile'), PREFS);
+  await h.c.refresh(); // The failure remains actionable even with no endpoint.
+  assert.equal(h.c.view().error.code, 'storage');
+  await assertEmptyRestart(store);
+});
+
+for (const tokenFailure of [false, true]) test(`durable sign-out: marker and endpoint removal failures keep current session closed (token deletion blocked: ${tokenFailure})`, async () => {
+  const fault = signOutStorage({ endpointFailure: true, tokenFailure }), store = seeded({ storage: fault.storage }), h = harness(store);
+  await h.c.load(); fault.arm();
+  assert.equal(h.c.removeToken(), false);
+  assert.equal(store.get(ENDPOINT_KEY), ENDPOINT);
+  assert.equal(store.get('signedOut'), null);
+  assert.equal(h.c.view().snapshot, null);
+  assert.equal(h.c.view().profile.name, '');
+  const before = { ...h.calls };
+  await h.c.refresh(); await h.c.tick(); await h.c.connectivityChanged();
+  h.c.accessChanged(); await tick(); // A storage event must not lift the failed local logout.
+  assert.deepEqual(h.calls, before);
+  assert.equal(h.c.view().snapshot, null);
+  assert.equal(h.c.view().storageError, true);
+  assert.equal(h.c.view().error.code, 'storage');
+  assert.match(h.c.view().error.message, /Clear website data/);
+});
+
+test('durable sign-out: protected source still rejects missing credentials if persistent storage prevents disconnect', async () => {
+  const fault = signOutStorage({ endpointFailure: true }), store = seeded({ storage: fault.storage }), h = harness(store);
+  await h.c.load(); fault.arm(); assert.equal(h.c.removeToken(), false);
+  const restarted = harness(store, { stats: refuse, post: async () => ({ data: { ok: false, error: 'unauthorized' } }) });
+  await restarted.c.load();
+  assert.equal(store.get(TOKEN_KEY), null);
+  assert.equal(restarted.c.view().snapshot, null);
+  assert.equal(store.get('roster.v1'), null);
+  assert.equal(restarted.c.view().error.code, 'auth-required');
+});
+
+test('reset: marker write failure does not prevent successful namespace removal or recreate preferences', async () => {
+  const fault = signOutStorage(), store = seeded({ storage: fault.storage }), h = harness(store);
+  fault.storage.setItem('unrelated', 'keep');
+  await h.c.load(); fault.arm();
+  assert.equal(h.c.resetLocalData(), true);
+  assert.equal(h.c.view().storageError, false);
+  assert.equal(h.c.view().error, null);
+  assert.equal(h.c.view().profile.base, 'FRA');
+  assert.equal(fault.storage.length, 1);
+  assert.equal(fault.storage.getItem('unrelated'), 'keep');
+  await assertEmptyRestart(store);
+});
+
+for (const reset of [false, true]) test(`durable ${reset ? 'reset' : 'sign-out'}: same-credential reconnection rejects a pre-cleanup response`, async () => {
+  const fault = signOutStorage({ markerFailures: 1 }), store = seeded({ storage: fault.storage });
+  let release;
+  const h = harness(store, { stats: () => release ? { data: loadFixture() } : new Promise((r) => { release = r; }) });
+  const old = h.c.load(); await until(() => release, 'pending roster request'); fault.arm();
+  assert.equal(reset ? h.c.resetLocalData() : h.c.removeToken(), true);
+  store.set(ENDPOINT_KEY, ENDPOINT); store.set(TOKEN_KEY, TOKEN);
+  h.c.forgetContractData(); await h.c.load();
+  const saved = store.get('roster.v1'); assert.ok(saved);
+  const stale = loadFixture(); stale.upcoming[0].flightNumber = 'DE9998';
+  release({ data: stale }); await old; await tick();
+  assert.equal(store.get('roster.v1'), saved);
+  assert.equal(h.c.view().error, null);
+  assert.ok(h.c.view().snapshot);
 });

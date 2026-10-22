@@ -1,0 +1,144 @@
+{
+  "_synthetic": true,
+  "_comment": "Synthetic AeroDataBox FlightContract-shaped responses for GET /flights/number/<number>/<date>; invented flights, gates and times, no real registrations or people. Every value under `cases` is the whole JSON array body the provider would return. Origin is FRA (Europe/Berlin); tests run with now = `now`.",
+  "now": "2026-10-06T08:00:00Z",
+  "origin": "FRA",
+  "cases": {
+    "bothGates": [
+      {
+        "number": "DE 1234",
+        "status": "Delayed",
+        "lastUpdatedUtc": "2026-10-06 07:55Z",
+        "codeshareStatus": "IsOperator",
+        "departure": {
+          "airport": { "iata": "FRA", "name": "Synthetic Frankfurt" },
+          "scheduledTime": { "utc": "2026-10-06 08:30Z", "local": "2026-10-06 10:30+02:00" },
+          "revisedTime": { "utc": "2026-10-06 08:50Z", "local": "2026-10-06 10:50+02:00" },
+          "terminal": "1",
+          "gate": "A 24",
+          "checkInDesk": "101-110",
+          "quality": ["Basic", "Live"]
+        },
+        "arrival": {
+          "airport": { "iata": "PMI", "name": "Synthetic Palma" },
+          "scheduledTime": { "utc": "2026-10-06 11:00Z", "local": "2026-10-06 13:00+02:00" },
+          "revisedTime": { "utc": "2026-10-06 11:20Z", "local": "2026-10-06 13:20+02:00" },
+          "terminal": "B",
+          "gate": "12",
+          "baggageBelt": "4",
+          "quality": ["Basic", "Live"]
+        },
+        "airline": { "name": "Synthetic Air", "iata": "DE" }
+      },
+      {
+        "number": "LH 7777",
+        "status": "Delayed",
+        "lastUpdatedUtc": "2026-10-06 07:55Z",
+        "codeshareStatus": "IsCodeshared",
+        "departure": {
+          "airport": { "iata": "FRA" },
+          "scheduledTime": { "utc": "2026-10-06 08:30Z", "local": "2026-10-06 10:30+02:00" },
+          "terminal": "2",
+          "gate": "Z 99",
+          "quality": ["Basic"]
+        },
+        "arrival": {
+          "airport": { "iata": "PMI" },
+          "scheduledTime": { "utc": "2026-10-06 11:00Z", "local": "2026-10-06 13:00+02:00" },
+          "quality": ["Basic"]
+        },
+        "airline": { "name": "Synthetic Other Air", "iata": "LH" }
+      }
+    ],
+    "departureGateOnly": [
+      {
+        "number": "DE 1300",
+        "status": "Boarding",
+        "lastUpdatedUtc": "2026-10-06 07:40Z",
+        "departure": {
+          "airport": { "iata": "FRA" },
+          "scheduledTime": { "utc": "2026-10-06 09:00Z", "local": "2026-10-06 11:00+02:00" },
+          "gate": "B 7",
+          "quality": ["Live"]
+        },
+        "arrival": {
+          "airport": { "iata": "HER" },
+          "scheduledTime": { "utc": "2026-10-06 12:45Z", "local": "2026-10-06 15:45+03:00" },
+          "quality": ["Basic"]
+        }
+      }
+    ],
+    "noGates": [
+      {
+        "number": "DE 1400",
+        "status": "Expected",
+        "lastUpdatedUtc": "2026-10-06 06:00Z",
+        "departure": {
+          "airport": { "iata": "FRA" },
+          "scheduledTime": { "utc": "2026-10-06 13:15Z", "local": "2026-10-06 15:15+02:00" },
+          "quality": ["Basic"]
+        },
+        "arrival": {
+          "airport": { "iata": "AYT" },
+          "scheduledTime": { "utc": "2026-10-06 17:05Z", "local": "2026-10-06 20:05+03:00" },
+          "quality": ["Basic"]
+        }
+      }
+    ],
+    "overnight": [
+      {
+        "number": "DE 2016",
+        "status": "Scheduled",
+        "lastUpdatedUtc": "2026-10-06 07:10Z",
+        "departure": {
+          "airport": { "iata": "FRA" },
+          "scheduledTime": { "utc": "2026-10-06 22:40Z", "local": "2026-10-07 00:40+02:00" },
+          "terminal": "1",
+          "gate": "C 3",
+          "quality": ["Basic", "Live"]
+        },
+        "arrival": {
+          "airport": { "iata": "HER" },
+          "scheduledTime": { "utc": "2026-10-07 02:10Z", "local": "2026-10-07 05:10+03:00" },
+          "quality": ["Basic"]
+        }
+      }
+    ],
+    "multiLeg": [
+      {
+        "number": "DE 5500",
+        "status": "Arrived",
+        "lastUpdatedUtc": "2026-10-06 05:30Z",
+        "departure": {
+          "airport": { "iata": "PMI" },
+          "scheduledTime": { "utc": "2026-10-06 04:00Z", "local": "2026-10-06 06:00+02:00" },
+          "gate": "P 1",
+          "quality": ["Basic"]
+        },
+        "arrival": {
+          "airport": { "iata": "FRA" },
+          "scheduledTime": { "utc": "2026-10-06 06:45Z", "local": "2026-10-06 08:45+02:00" },
+          "gate": "P 2",
+          "quality": ["Basic"]
+        }
+      },
+      {
+        "number": "DE 5500",
+        "status": "Expected",
+        "lastUpdatedUtc": "2026-10-06 07:20Z",
+        "departure": {
+          "airport": { "iata": "FRA" },
+          "scheduledTime": { "utc": "2026-10-06 10:00Z", "local": "2026-10-06 12:00+02:00" },
+          "terminal": "2",
+          "gate": "D 41",
+          "quality": ["Basic", "Live", "Approximate"]
+        },
+        "arrival": {
+          "airport": { "iata": "HER" },
+          "scheduledTime": { "utc": "2026-10-06 13:50Z", "local": "2026-10-06 16:50+03:00" },
+          "quality": ["Basic"]
+        }
+      }
+    ]
+  }
+}

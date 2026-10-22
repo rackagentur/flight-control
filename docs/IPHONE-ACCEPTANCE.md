@@ -76,3 +76,53 @@ offline launch, is a release blocker.
 - Service-worker update latency (I-006) is expected; do not treat 11(a) as a failure.
 - Preview URLs are public while protection is off: keep data synthetic, delete the preview project after acceptance.
 - Never enter the production endpoint or token on the preview host.
+
+## 4. Service-worker update test (A → B), prepared 2026-10-15, not deployed
+
+Purpose: verify on the iPhone that an installed Home Screen app picks up a new shell version after a force-close
+and keeps its saved roster. Both builds come from the same commit. Only the **staged copy** differs:
+`node scripts/preview/stage.mjs <dir> --label A|B` makes Settings → About read "Version 2.0 · preview build A|B" and
+regenerates that copy's `sw.js` (new cache version, self-consistent hashes). The repository is never modified.
+
+Expected lifecycle (no `skipWaiting`, by design):
+1. The first launch after deploying B still runs A, while B downloads and waits.
+2. After a force-close, the next launch runs B.
+
+Desktop-Chrome check: `tests/browser/update-ab.mjs`, 6 of 6 passes. In 1 run, B needed the explicit update fallback
+(I-009). Immediate reopen: closing and reopening at once (0 s) left B waiting in 3 of 3 runs. With a pause of 3 s or
+more, B activated.
+
+**Deployment plan (owner approval for each deploy; separate preview project only):**
+The installed app is bound to the alias `flight-control-preview.vercel.app`. A plain `vercel deploy` creates a new
+URL, and the installed app would never see it. Each build is therefore deployed with `--prod` to the **isolated**
+`flight-control-preview` project, which updates only that project's alias, never Flight Control production
+(GitHub Pages, `main`).
+```
+DIR="$(mktemp -d)/site" && node scripts/preview/stage.mjs "$DIR" --label A && vercel deploy "$DIR" --project flight-control-preview --prod --yes
+DIR="$(mktemp -d)/site" && node scripts/preview/stage.mjs "$DIR" --label B && vercel deploy "$DIR" --project flight-control-preview --prod --yes
+```
+The synthetic Apps Script test backend stays as it is. No backend change is needed.
+
+**iPhone run sheet** (record the result of each step and the number of relaunches needed):
+1. *(after deploying A)* Open the installed app online. Wait 10 s, swipe it away, wait 5 s, reopen. Settings → About
+   reads **"preview build A"**. If not, repeat the close, wait and reopen once.
+2. Refresh on Today. Note "Last synced". Optionally confirm one offline launch (airplane mode on, reopen, then off).
+3. *(after deploying B)* Open the app online. It still reads **build A**, and the roster is visible and usable. Wait 15 s.
+4. Swipe it away, **wait at least 5 s**, reopen. Settings → About reads **"preview build B"**. If it still reads A, close, wait and
+   reopen again. Note how many relaunches were needed (I-006 / I-009).
+5. On B, without signing in again: same roster, same "Last synced", no token prompt, Local/UTC preference kept.
+6. Airplane mode on, Wi-Fi off. Swipe away, reopen. B launches offline with the cached roster (Today, Calendar, Flights).
+7. *(optional)* Settings → Reset local data (two taps) on B. Returns to setup; the app still launches.
+
+**Pass:** B shows within 2 relaunches after step 3, the data survives (step 5), and B works offline (step 6).
+
+**Rollback / cleanup:** redeploy the unlabelled build to the preview project
+(`node scripts/preview/stage.mjs "$DIR"`, then the same deploy command). The installed app moves to it the same way
+(launch, then close and reopen). The repository changes (`scripts/build-offline.mjs` refactor,
+`scripts/preview/stage.mjs --label`, tests) are plain source changes and can be reverted with git. Production is not
+involved.
+
+
+## 2026-10-15 — release prerequisites follow-up
+
+Use RELEASE-PREREQUISITES.md for the current candidate, fixture modes and release gates. The older Setup A/B above is historical: do not create another Apps Script project, rotate tokens, disable protection or upload anything from those commands without fresh approval. Current local worker `d5ef75e0f080be14ff62` has 73 verified assets; the candidate includes gates/attribution and the first-install control-race fix. Desktop browser checks pass, including simulated protection. Physical-iPhone acceptance is still NOT RUN. Reconcile the existing FC66_TEST_TOKEN backend with the newer FC_TEST_TOKEN generator before publication. No remote access/security settings changed.

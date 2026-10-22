@@ -9,6 +9,7 @@ const code = readFileSync(new URL('sw.js', ROOT), 'utf8');
 function worker({ broken = false } = {}) {
   const buckets = new Map([['fc-shell-previous', new Map([['old', new Response('old working shell')]])]]);
   const events = new Map(); let claimed = false;
+  const registration = { active: { state: 'activated' }, installing: null, waiting: null };
   const caches = { keys: async () => [...buckets.keys()], delete: async (key) => buckets.delete(key), open: async (key) => {
     if (!buckets.has(key)) buckets.set(key, new Map()); const entries = buckets.get(key);
     return { put: async (url, response) => entries.set(url, response.clone()), match: async (url) => entries.get(url)?.clone() };
@@ -16,7 +17,7 @@ function worker({ broken = false } = {}) {
   const fetches = []; let replacement = null, unavailable = false;
   const messages = [];
   const context = vm.createContext({ URL, crypto: globalThis.crypto, caches,
-    self: { location: { href: 'https://example.invalid/flight-control/sw.js' }, clients: { matchAll: async () => [{ postMessage: (m) => messages.push(m) }], claim: async () => { claimed = true; } }, addEventListener: (name, handler) => events.set(name, handler) },
+    self: { registration, location: { href: 'https://example.invalid/flight-control/sw.js' }, clients: { matchAll: async () => [{ postMessage: (m) => messages.push(m) }], claim: async () => { claimed = true; } }, addEventListener: (name, handler) => events.set(name, handler) },
     fetch: async (url, options) => {
       fetches.push({ url, options });
       if (unavailable) throw new Error('offline');
@@ -25,7 +26,7 @@ function worker({ broken = false } = {}) {
       return new Response(broken && path === 'src/main.js' ? 'partially deployed file' : readFileSync(new URL(path, ROOT)));
     } });
   vm.runInContext(code, context);
-  return { buckets, events, fetches, messages, replace: (v) => { replacement = v; }, offline: () => { unavailable = true; }, get claimed() { return claimed; }, async run(name, extra = {}) {
+  return { buckets, events, fetches, messages, registration, replace: (v) => { replacement = v; }, offline: () => { unavailable = true; }, get claimed() { return claimed; }, async run(name, extra = {}) {
     let result; events.get(name)({ ...extra, waitUntil: (p) => { result = p; }, respondWith: (p) => { result = p; } }); return result;
   } };
 }
@@ -103,5 +104,44 @@ test('readiness retries a timed-out worker message, stays conservative and bound
     await finished;
     assert.equal(attempts, recovers ? 2 : 3);
     assert.equal(statuses[0], false); assert.equal(statuses.at(-1), recovers);
+  }
+});
+
+
+test('claim recovery requires an in-scope window, complete shell, and no pending update', async () => {
+  const source = { type: 'window', url: 'https://example.invalid/flight-control/' };
+  const claim = (w, source) => w.run('message', { data: { type: 'FC_SHELL_CLAIM' }, source });
+  const w = worker();
+  await claim(w, source); assert.equal(w.claimed, false, 'incomplete shell');
+  await w.run('install');
+  for (const bad of [null, { ...source, type: 'worker' }, { ...source, url: 'https://other.invalid/flight-control/' }, { ...source, url: 'https://example.invalid/elsewhere/' }]) {
+    await claim(w, bad); assert.equal(w.claimed, false);
+  }
+  for (const key of ['installing', 'waiting']) {
+    w.registration[key] = {}; await claim(w, source); assert.equal(w.claimed, false);
+    w.registration[key] = null;
+  }
+  w.registration.active.state = 'activating'; await claim(w, source); assert.equal(w.claimed, false);
+  w.registration.active.state = 'activated'; await claim(w, source); assert.equal(w.claimed, true);
+});
+
+test('uncontrolled document requests claim once, stays unready until controlling worker confirms cache', async () => {
+  const { watchOfflineShell } = await import('../src/offline-shell.js');
+  for (const pending of [null, 'waiting', 'installing']) {
+    const messages = [], statuses = [], listeners = new Map();
+    const active = { state: 'activated', postMessage: (message, ports) => {
+      messages.push(message.type);
+      if (ports) { ports[0].postMessage({ ready: true }); ports[0].close(); }
+    } };
+    const registration = { active, addEventListener() {}, ...(pending ? { [pending]: { addEventListener() {} } } : {}) };
+    const serviceWorker = { controller: null, register: async () => registration, addEventListener: (type, fn) => listeners.set(type, fn) };
+    watchOfflineShell((ready) => statuses.push(ready), { nav: { serviceWorker }, events: null });
+    await new Promise((r) => setTimeout(r, 0));
+    listeners.get('controllerchange')(); // duplicate lifecycle notification while still uncontrolled
+    assert.deepEqual(messages, pending ? [] : ['FC_SHELL_CLAIM']);
+    assert.ok(statuses.every((ready) => !ready));
+    serviceWorker.controller = active; listeners.get('controllerchange')();
+    await new Promise((r) => setTimeout(r, 20));
+    assert.equal(statuses.at(-1), true);
   }
 });

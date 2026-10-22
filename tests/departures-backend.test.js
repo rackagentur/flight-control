@@ -361,6 +361,7 @@ test('action over the fixture: [from,to) filtering, cancelled kept, dedupe, sort
   assert.deepEqual(envelope, {
     ok: true, contract: 'fc.roster', version: 2, action: 'departures', airport: 'FRA', airportTz: 'Europe/Berlin',
     from: FX.from, to: FX.to, carriers: null, provider: 'aerodatabox', generatedAt: NOW, fetchedAt: NOW, dropped: 4,
+    attribution: { name: 'AeroDataBox', url: 'https://aerodatabox.com/' },
   });
   assert.equal(s.calls.provider.length, 2);
 });
@@ -1244,16 +1245,91 @@ test('partial deploy: without DeparturesV2.gs, departures is not offered and ans
   assert.equal(f.calls.provider.length, 0);
   assert.equal(f.calls.sleeps.length, 0);
   const caps = run(partial, live, { action: 'capabilities' }).res;
-  assert.deepEqual(caps.actions, ['capabilities', 'roster', 'history', 'stats']);
+  assert.deepEqual(caps.actions, ['capabilities', 'roster', 'history', 'stats', 'flight']);
   assert.equal(caps.limits.departuresMaxHours, 24, 'limits are unchanged');
   // With the file present and the key set, nothing changes for a full deployment.
-  assert.deepEqual(run(gs, { departuresKey: KEY }, { action: 'capabilities' }).res.actions, ['capabilities', 'roster', 'history', 'stats', 'departures']);
+  assert.deepEqual(run(gs, { departuresKey: KEY }, { action: 'capabilities' }).res.actions, ['capabilities', 'roster', 'history', 'stats', 'departures', 'flight']);
   // Existing actions answer exactly as with the full deployment.
   for (const body of [{ action: 'roster' }, { action: 'history', to: '2026-10-03' }, { action: 'stats' }, { action: 'nope' }]) {
     assert.deepEqual(run(partial, live, body).res, run(gs, {}, body).res, JSON.stringify(body));
   }
   // Auth still comes first.
   assert.equal(plain(partial.fcv2HandlePost_(JSON.stringify({ contract: 'fc.roster', version: 2, token: 'wrong', ...req }), fakeEnv(partial, { now: ROSTER_NOW, ...live }).env)).error, 'unauthorized');
+});
+
+// --- Provider attribution (additive, success responses only) ----------------------------
+
+const ATTRIBUTION = { name: 'AeroDataBox', url: 'https://aerodatabox.com/' };
+const FX_URLS = [
+  'https://aerodatabox.p.rapidapi.com/flights/airports/iata/FRA/2026-10-06T12:00/2026-10-07T00:00?withLeg=false&direction=Departure&withCancelled=true&withCodeshared=false&withCargo=false&withPrivate=false&withLocation=false',
+  'https://aerodatabox.p.rapidapi.com/flights/airports/iata/FRA/2026-10-06T23:00/2026-10-07T08:00?withLeg=false&direction=Departure&withCancelled=true&withCodeshared=false&withCargo=false&withPrivate=false&withLocation=false',
+];
+
+test('attribution: the constant is frozen and exactly { name, url }', () => {
+  assert.deepEqual(plain(gs.FCV2_DEP_ATTRIBUTION_), ATTRIBUTION);
+  assert.equal(Object.isFrozen(gs.FCV2_DEP_ATTRIBUTION_), true);
+  assert.deepEqual(Object.keys(gs.FCV2_DEP_ATTRIBUTION_), ['name', 'url']);
+});
+
+test('attribution: present with the exact value on a fresh success and on one served wholly from the server cache', () => {
+  const s = setup({ providerFetch: fixtureFetch });
+  const fresh = s.post({ airport: 'FRA', ...FX });
+  assert.equal(fresh.ok, true);
+  assert.deepEqual(fresh.attribution, ATTRIBUTION);
+  assert.equal(Object.keys(fresh).at(-1), 'attribution', 'additive: appended after the existing keys');
+  assert.equal(s.calls.provider.length, 2);
+  const cached = s.post({ airport: 'FRA', ...FX });
+  assert.equal(s.calls.provider.length, 2, 'second request is a pure cache hit');
+  assert.deepEqual(cached.attribution, ATTRIBUTION);
+  assert.deepEqual(cached, fresh);
+  // an empty result is still a success and still carries it
+  const empty = setup({ providerFetch: () => ok(adb()) }).post(range(3));
+  assert.equal(empty.ok, true);
+  assert.deepEqual(empty.flights, []);
+  assert.deepEqual(empty.attribution, ATTRIBUTION);
+});
+
+test('attribution: cache entries never contain it (it is added at response time)', () => {
+  const s = setup({ providerFetch: fixtureFetch });
+  s.post({ airport: 'FRA', ...FX });
+  assert.equal(s.cache.size, 2);
+  for (const value of s.cache.values()) {
+    assert.deepEqual(Object.keys(plain(value)).sort(), ['dropped', 'droppedKeys', 'fetchedAt', 'flights']);
+    assert.ok(!JSON.stringify(value).includes('AeroDataBox') && !JSON.stringify(value).includes('aerodatabox.com'));
+  }
+});
+
+test('attribution: absent on every error response', () => {
+  const noAttribution = (res, label) => {
+    assert.equal(res.ok, false, label);
+    assert.equal(typeof res.error, 'string', label);
+    assert.equal(Object.hasOwn(res, 'attribution'), false, label);
+    assert.ok(!JSON.stringify(res).includes('AeroDataBox'), label);
+  };
+  const failing = (reply) => setup({ providerFetch: typeof reply === 'function' ? reply : () => reply });
+  const refused = setup({ providerFetch: () => { throw new Error('must not be called'); } });
+  for (const body of [{ ...range(3), airport: 'XXX' }, { ...range(3), to: undefined }, { ...range(3), to: range(3).from + 25 * H }, { ...range(3), carriers: 'DE' }, { ...range(3), from: NOW - 48 * H, to: NOW - 47 * H }]) {
+    noAttribution(refused.post(body), JSON.stringify(body));
+  }
+  noAttribution(refused.post(range(3), 'wrong-token'), 'unauthorized');
+  noAttribution(plain(gs.fcv2HandlePost_(JSON.stringify({ contract: 'fc.roster', version: 3, action: 'departures', token: TOKEN, ...range(3) }), refused.env)), 'unsupported-contract');
+  noAttribution(setup({ departuresKey: null }).post(range(3)), 'departures-not-configured');
+  noAttribution(failing({ status: 429, body: '' }).post(range(3)), '429 exhausted');
+  noAttribution(failing({ status: 401, body: '' }).post(range(3)), '401');
+  noAttribution(failing({ status: 500, body: '' }).post(range(3)), '500');
+  noAttribution(failing({ status: 200, body: '<html>' }).post(range(3)), 'garbage body');
+  noAttribution(failing(() => { throw new Error('network'); }).post(range(3)), 'throw');
+  // a first chunk that succeeds followed by a failing second chunk is still an error without it
+  noAttribution(failing((_u, _k, n) => (n === 1 ? ok({ departures: fixture.departures }) : { status: 500, body: '' })).post({ airport: 'FRA', ...FX }), 'second chunk fails');
+});
+
+test('attribution: provider requests (URLs, key, chunking, spacing) are unchanged', () => {
+  const s = setup({ providerFetch: fixtureFetch });
+  s.post({ airport: 'FRA', ...FX });
+  assert.deepEqual(s.calls.provider.map((p) => p[0]), FX_URLS);
+  assert.deepEqual(s.calls.provider.map((p) => p[1]), [KEY, KEY]);
+  assert.deepEqual(s.calls.sleeps, [1100]);
+  assert.deepEqual(s.calls.cachePuts.map((p) => p[1]), [600, 3600]);
 });
 
 // --- Secrecy ----------------------------------------------------------------------
@@ -1268,14 +1344,21 @@ test('secrecy: neither the key, the URL, nor any provider body appears in any re
     () => ({ status: 200, body: '<html>PROVIDER-BODY-SECRET</html>' }),
     () => ({ status: 200, body: JSON.stringify({ departures: [{ number: 'DE9701', movement: { scheduledTime: { utc: '2026-10-06 11:00Z' } }, secret: 'PROVIDER-BODY-SECRET', url: 'https://x.invalid' }], note: KEY }) }),
   ];
+  // The attribution is the one deliberate, fixed provider URL in a success response; it is checked on its own in the attribution tests.
+  // It is removed only after checking it is exactly that constant, so nothing provider-supplied can hide in it.
+  const withoutAttribution = (r) => {
+    const { attribution, ...rest } = plain(r);
+    if (attribution !== undefined) assert.deepEqual(attribution, { name: 'AeroDataBox', url: 'https://aerodatabox.com/' });
+    return rest;
+  };
   for (const providerFetch of scenarios) {
     const s = setup({ providerFetch });
-    const text = JSON.stringify(s.post(range(3)));
+    const text = JSON.stringify(withoutAttribution(s.post(range(3))));
     for (const secret of secrets) assert.ok(!text.includes(secret), `${secret} in ${text}`);
     assert.doesNotThrow(() => s.post(range(3)));
   }
   const s = setup({ providerFetch: fixtureFetch });
-  const full = JSON.stringify(s.post({ airport: 'FRA', ...FX }));
+  const full = JSON.stringify(withoutAttribution(s.post({ airport: 'FRA', ...FX })));
   for (const secret of [KEY, 'rapidapi', 'http', 'PROVIDER-BODY-SECRET']) assert.ok(!full.includes(secret));
   assert.ok(!JSON.stringify(s.post({ contract: 'x' })).includes(KEY));
   assert.ok(![...s.cache.values()].some((v) => JSON.stringify(v).includes(KEY)), 'the key is never cached');
@@ -1309,7 +1392,7 @@ test('capabilities gating: departures only with a key, limits always carry depar
   const caps = (opts) => plain(gs.fcv2HandlePost_(JSON.stringify({ contract: 'fc.roster', version: 2, action: 'capabilities', token: TOKEN }), fakeEnv(gs, { now: NOW, ...opts }).env));
   assert.deepEqual(caps({}).actions, ['capabilities', 'roster', 'history', 'stats']);
   assert.deepEqual(caps({ departuresKey: '' }).actions, ['capabilities', 'roster', 'history', 'stats']);
-  assert.deepEqual(caps({ departuresKey: KEY }).actions, ['capabilities', 'roster', 'history', 'stats', 'departures']);
+  assert.deepEqual(caps({ departuresKey: KEY }).actions, ['capabilities', 'roster', 'history', 'stats', 'departures', 'flight']);
   assert.equal(caps({}).limits.departuresMaxHours, 24);
   assert.equal(caps({ departuresKey: KEY }).limits.departuresMaxHours, 24);
   const without = caps({});
@@ -1351,12 +1434,13 @@ function runFiles(files, extra = '') {
 }
 
 test('load order: DeparturesV2.gs is last in GS_FILES, loads alone, and nothing else needs it while loading', () => {
-  assert.equal(GS_FILES.at(-1), 'DeparturesV2.gs');
+  assert.equal(GS_FILES.at(-2), 'DeparturesV2.gs');
   assert.doesNotThrow(() => runFiles(['DeparturesV2.gs']), 'no top-level dependency on any other file');
   assert.doesNotThrow(() => runFiles(GS_FILES.filter((f) => f !== 'DeparturesV2.gs')), 'the others load without it (functions reference it only at call time)');
   assert.doesNotThrow(() => runFiles(GS_FILES));
   // Any order of the departures file still loads (file-by-file top-level evaluation).
-  for (const order of [['DeparturesV2.gs', ...GS_FILES.slice(0, -1)], [...GS_FILES.slice(0, 3), 'DeparturesV2.gs', ...GS_FILES.slice(3, -1)]]) {
+  const rest = GS_FILES.filter((f) => f !== 'DeparturesV2.gs');
+  for (const order of [['DeparturesV2.gs', ...rest], [...rest.slice(0, 3), 'DeparturesV2.gs', ...rest.slice(3)]]) {
     assert.doesNotThrow(() => runFiles(order));
   }
 });

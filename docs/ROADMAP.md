@@ -23,7 +23,7 @@ Every step needs the owner's review/approval before commit; any change to `main`
 | # | Item | Status |
 |---|---|---|
 | B1 | Backend hardening BH-1/BH-2, contract v2, Condor code table, departures (Version 29 per docs) | DONE |
-| B2 | Map remaining live codes (`DH/<flight>` positioning first; `U1`, `SBX`, `HS5`, `EM`, `RE10S`) | PROPOSED (needs meanings, I-002) |
+| B2 | Map remaining live codes (`DH/<flight>` positioning first; `U1`, `SBX`, `HS5`, `EM`, `RE10S`) | PROPOSED (needs meanings, I-002; `SBX` meaning confirmed, D-013 — in next implementation milestone) |
 | B3 | B2-sync: v5 05:00 sync `DEADLINE_EXCEEDED` | open (owner reads Executions log) |
 | B4 | Calendar data audit | DONE 2026-10-14 (`docs/ARCHITECTURE.md` §3) |
 | B5 | Direct ICS probe | PREPARED — NOT EXECUTED (`~/.config/flight-control/feed-probe/`, 23/23 offline tests) |
@@ -40,3 +40,33 @@ Every step needs the owner's review/approval before commit; any change to `main`
 | C3 | Three-step onboarding UI + session transport + sync states | PROPOSED |
 | C4 | Closed Condor beta | PROPOSED |
 | C5 | Further airlines (only with real sample feeds + documented codes) | LATER |
+
+
+## 2026-10-15 — final release handover checkpoint
+
+A6 wording portion is committed in 714326e: ASCII - / Strichtag and U / Urlaub (D-012); do not reimplement it or infer completion of subdued completed-flight styling. Gates and attribution are implemented but uncommitted. A5/A9 remain blocked on browser readiness and physical acceptance. The current public synthetic preview lacks gates/attribution. See FINAL-RELEASE-HANDOVER.md.
+
+
+## 2026-10-15 — release prerequisites follow-up
+
+Release prerequisites IMPLEMENTED locally: worker control-race recovery; synthetic flight/departures acceptance fixtures. Desktop and automated verification PASS (923 tests, 73 assets). Physical-iPhone acceptance and approved isolated publication remain pending; production remains NO-GO. No new phase/feature scope started. See RELEASE-PREREQUISITES.md.
+
+
+## 2026-10-16 — iPhone layout remediation (local only)
+
+iPhone acceptance: IN PROGRESS, with owner-reported gate/terminal/time/credit success and intermittent Radar loading. Layout corrections IMPLEMENTED locally, pending isolated publication approval and physical-device retest. Production remains blocked by unfinished acceptance; no Step 6.7 work.
+
+
+## 2026-10-16 — local service-worker diagnostics
+
+IMPLEMENTED locally: read-only worker diagnostics under More → Settings → About for Step 6.6 acceptance. Isolated publication awaits approval; physical iPhone acceptance and production release remain blocked. No later milestone started.
+
+
+## 2026-10-16 — responsive-layout follow-up (local only)
+
+Responsive timing, rotation-label and hotel-formatting corrections: IMPLEMENTED locally, automated/browser verification complete. Isolated-preview publication awaits separate approval; physical-iPhone acceptance remains IN PROGRESS. Production release stays NO-GO until corrected layout and remaining device checks pass. No Step 6.7 work.
+
+
+## 2026-10-16 — durable sign-out correction (local only)
+
+Step 6.6 durable-sign-out correction: IMPLEMENTED locally and regression-verified. Publication approval and sign-out/reset acceptance remain pending; prior physical layout acceptance is owner-reported passed. Production remains NO-GO. No later milestone started.

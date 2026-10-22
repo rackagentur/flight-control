@@ -247,3 +247,8 @@ the waiting case.
 - the rollback: an installed 6.6 shell with a full cache; same-origin neighbour app and caches; rollback
   deployed; shell caches and registration removed; neighbours, roster, token and settings intact; the
   restored `0ae7d58` app loads from the network and shows its roster; no worker re-registered.
+
+
+## 2026-10-15 — release prerequisites follow-up
+
+First-install navigation race corrected: an execution-unready navigation can miss activate/clients.claim. An uncontrolled loaded page now requests a one-time claim from a complete active shell, excluding installing/waiting updates; readiness still requires controller/cache acknowledgement plus persisted roster. Deterministic regression at root and /flight-control/ and all offline/update/rollback browser checks PASS. No skipWaiting or automatic reload added. Worker d5ef75e0f080be14ff62, 73 assets. See RELEASE-PREREQUISITES.md. Not deployed; iPhone acceptance remains outstanding.

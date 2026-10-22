@@ -1344,3 +1344,43 @@ test('wording: the rendered strings obey the same rules in every state', async (
   states.push(...Object.values(TEXT).map((v) => (typeof v === 'function' ? v('FRA') : v)));
   for (const s of states) assert.equal(s.replaceAll(SENTENCE, '').match(FORBIDDEN), null, s.slice(0, 80));
 });
+
+// ---------- provider attribution (data from the backend, shown in the source caption) ----------
+
+const ATTR = { name: 'Example Data', url: 'https://data.example/' };
+const captionOf = (markup) => /<p class="t-caption t-secondary">(Schedule data[^]*?|Sample schedule data[^]*?)<\/p>/.exec(markup)?.[1] ?? '';
+
+test('attribution: production caption carries the "Data: <name>" link (fresh and cached), nothing without it', async () => {
+  const withAttr = harness({ load: (q) => Promise.resolve(resultFor(q, [flight()], { attribution: ATTR })) });
+  withAttr.go();
+  await tick();
+  assert.match(captionOf(withAttr.markup()), /^Schedule data · fetched \d\d:\d\d · <span class="attr">Data: <a class="attr-link" href="https:\/\/data\.example\/" target="_blank" rel="noopener">Example Data<span class="visually-hidden"> \(opens in a new tab\)<\/span><\/a><\/span>$/);
+  assert.doesNotMatch(withAttr.markup(), /noreferrer|referrerpolicy/);
+
+  const cached = harness({ load: (q) => Promise.resolve(resultFor(q, [flight()], { attribution: ATTR, fromCache: true })) });
+  cached.go();
+  await tick();
+  assert.match(captionOf(cached.markup()), /\(cached\) · <span class="attr">Data: <a class="attr-link"/);
+
+  for (const attribution of [null, undefined]) {
+    const none = harness({ load: (q) => Promise.resolve(resultFor(q, [flight()], { attribution })) });
+    none.go();
+    await tick();
+    assert.match(captionOf(none.markup()), /^Schedule data · fetched \d\d:\d\d$/);
+    assert.doesNotMatch(none.markup(), /attr-link|Data:/);
+  }
+});
+
+test('attribution: the name is escaped, and review mode (fictional data) never shows it', async () => {
+  const evil = harness({ load: (q) => Promise.resolve(resultFor(q, [flight()], { attribution: { name: '<b>x</b>', url: 'https://data.example/' } })) });
+  evil.go();
+  await tick();
+  assert.doesNotMatch(evil.markup(), /<b>x/);
+  assert.match(evil.markup(), /&lt;b&gt;x&lt;\/b&gt;/);
+
+  const review = reviewHarness();
+  review.go();
+  await tick();
+  assert.match(review.markup(), /Sample schedule data · fictional flights/);
+  assert.doesNotMatch(review.markup(), /attr-link|Data:/);
+});

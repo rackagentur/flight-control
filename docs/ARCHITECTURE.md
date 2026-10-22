@@ -86,6 +86,30 @@ change-detection stability (DTSTAMP churn), UID ↔ Google-id mapping, current G
 (30-min trigger, conditional requests, salted hashes, requires a deterministic mapping) measures the real Google
 delay. Read-only scopes: `calendar.readonly`, `script.external_request`, `script.scriptapp`.
 
+### 4a. V3 Milestone 2 — live ICS compatibility (2026-10-15) [verified unless marked]
+
+Owner-authorized: owner confirmed automated access is permitted; two one-time read-only GETs of the owner's own feed
+(URL kept in a private local file outside Git, never shown); two read-only `roster` POSTs to the v2 backend. Raw feed
+held in memory only. Parser: `core/ics/ics.js` (`d9d3706`); interpreter: unchanged `CondorAdapterV2.gs` +
+`RosterModelV2.gs` via `tests/gs-harness.js`. Only aggregates were recorded.
+
+| Area | Result |
+|---|---|
+| Access | HTTP 200 `text/calendar`, ~30 KB, no redirect; **ETag + Last-Modified present** (conditional GET possible) |
+| Format | ICS 2.0, `METHOD:PUBLISH`, CRLF, folded lines, valid UTF-8; 77 VEVENTs; **all times UTC**; no VTIMEZONE, TZID, all-day, RRULE, RECURRENCE-ID, SEQUENCE, STATUS, LAST-MODIFIED. Every event: UID, DTSTART, DTEND, DTSTAMP, SUMMARY, DESCRIPTION, LOCATION, CLASS |
+| Parser | `ok`, 0 errors, 0 warnings |
+| Horizon | about 15 days back to 47 days ahead |
+| Interpreter (feed segment, 53 events) | 52/53 recognised (flight, check-in, pickup, standby, OFF/Urlaub/ORT, Strichtag); 1 `SBX` (meaning now D-013, not mapped). 9 sectors, all zones derived, aircraft on all; 9 duties, every C/I and P/U attached; 7 stays with hotel name (address/phone on 1) |
+| Privacy | Employee-number tokens present in descriptions; **0 reach the contract** |
+| Implications | Change detection must hash content per UID (no SEQUENCE/LAST-MODIFIED); cancellation = disappearance only |
+| Backend comparison | **Not obtained.** Both POSTs got HTTP 403 "Zugriff verweigert" (HTML) from `script.google.com` on the first hop, before `doPost` ran (not a token error, no redirect). Local endpoint verified identical to the production deployment URL; owner confirms access "Jeder". Cause **unknown**; investigation deferred (I-010) |
+| Production usability | Owner reports the app on the phone loads the roster (2026-10-15). **Not** proof that a fresh backend request succeeded at that time (the app may show its stored offline roster) |
+
+**Still unverified:** (1) Google event id ↔ ICS UID mapping (needs the backend comparison); (2) hotel stay end times —
+the validation script read a non-existent field, so the 7 "open-ended" results are a script artifact, not a finding;
+(3) field-level parity with the Google-powered output (days, sectors, duties, windows, stays); (4) whether missing
+hotel address/phone is absent in the feed or dropped by the fail-closed parser.
+
 ## 5. Multi-user onboarding [PROPOSED — not approved, not implemented]
 
 Requirements: per-user accounts and isolation; per-user encrypted roster link; no shared token; per-user history

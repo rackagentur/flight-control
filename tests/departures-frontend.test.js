@@ -148,7 +148,7 @@ test('adapter: copies only known fields; nothing extra leaks; roster-only fields
   p.flights[0].aircraft.extra = 'y';
   p.extra = 'z';
   const r = adaptDepartures(p);
-  assert.deepEqual(Object.keys(r).sort(), ['airport', 'airportTz', 'carriers', 'dropped', 'fetchedAt', 'flights', 'from', 'generatedAt', 'provider', 'to']);
+  assert.deepEqual(Object.keys(r).sort(), ['airport', 'airportTz', 'attribution', 'carriers', 'dropped', 'fetchedAt', 'flights', 'from', 'generatedAt', 'provider', 'to']);
   assert.deepEqual(Object.keys(r.flights[0]).sort(), ['aircraft', 'carrier', 'destTz', 'destination', 'destinationName', 'flightNumber', 'id', 'origin', 'originTz', 'provenance', 'revisedDep', 'scheduledDep', 'status']);
   assert.deepEqual(Object.keys(r.flights.find((f) => f.flightNumber === 'DE9101').aircraft).sort(), ['model', 'registration']);
   for (const f of r.flights) for (const k of ['pickup', 'report', 'dep', 'arr', 'blockMin', 'duty', 'legacy']) assert.equal(k in f, false, k);

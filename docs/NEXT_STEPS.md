@@ -45,3 +45,33 @@ Last updated: 2026-10-14. Agents act only on items marked **approved**; everythi
 7. Scan for secrets before committing: `npm test` (repo-hygiene test) and no URLs with tokens, calendar ids,
    names or employee numbers in the diff.
 8. Commit **only** the documentation files (explicit paths), never unrelated work in progress. Push only with approval.
+
+
+## 2026-10-15 — final release handover checkpoint
+
+Next release action: diagnose the reproduced browser readiness failure and prepare synthetic flight/departures responses, then seek approval for the current candidate preview. Owner must review attribution visuals, approve V2 release scope, and complete device acceptance. No commit, push, deployment or production change is authorized by this handover. See FINAL-RELEASE-HANDOVER.md for the ordered release gates.
+
+
+## 2026-10-15 — release prerequisites follow-up
+
+Approved local readiness/fixture preparation is complete. Next owner approval: review the candidate and choose the existing synthetic backend/preview target with an explicit token-property compatibility plan. No automatic project creation, credential change, backend publication or frontend upload. Then separately approve isolated publication and complete physical-iPhone acceptance. Keep the frontend-first production sequence in FINAL-RELEASE-HANDOVER.md. See RELEASE-PREREQUISITES.md for evidence.
+
+
+## 2026-10-16 — iPhone layout remediation (local only)
+
+Next: owner reviews local mobile-layout correction and separately approves isolated frontend publication, then repeats iPhone 13 mini Safari/Home Screen overflow, top-inset scrolling, offline and sign-out/reset checks. No publication is authorized by this local remediation. Backend/authentication remain unchanged; investigate transport timing further only if device evidence warrants it.
+
+
+## 2026-10-16 — local service-worker diagnostics
+
+Await separate owner approval to publish the local diagnostic candidate to the existing isolated preview. Then inspect More → Settings → About separately in Safari and Home Screen on iPhone 13 mini and iPhone 15: record application version, controlling build, control status, waiting status and offline readiness. Expected candidate build: 882166161364bd0a9c0f after adoption. If diagnostics are absent, record that fact rather than clearing data or claiming adoption. Recheck October 18 and Urlaub. No production authorization.
+
+
+## 2026-10-16 — responsive-layout follow-up (local only)
+
+Next owner action: review the local responsive-layout candidate and separately approve isolated-preview publication. Then verify the actual controlling worker in About on iPhone 13 mini and iPhone 15, separately in Safari and Home Screen, before testing normal/enlarged text, departure/arrival timing, dense rotation labels, hotel/address wrapping and Local/UTC. Recheck native status-bar scrolling and calendar -/U independently: neither is resolved by this layout task. No production release before device evidence; no commit/push/deployment authorized by this checkpoint.
+
+
+## 2026-10-16 — durable sign-out correction (local only)
+
+Next: owner reviews the local durable-sign-out correction and separately approves isolated-preview publication. Then verify sign-out/reset, offline relaunch and fresh authentication in Safari and Home Screen using synthetic-only state. Disposable-browser acceptance remains deferred by owner choice. If browser storage blocks both marker writes and endpoint removal, clear website data manually before relying on restart isolation. No commit, push, deployment or production operation is authorized by this checkpoint.
