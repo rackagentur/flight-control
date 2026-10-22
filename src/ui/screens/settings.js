@@ -126,14 +126,14 @@ export const settings = {
                   <span class="list-label">Flight Control calendar</span>
                   <span class="t-caption">Your processed roster from the Flight Control backend. The web-app URL is stored only in this browser and is never shown again after saving.</span>
                 </div>
-                <span class="t-caption" data-endpoint-state>${connected ? 'Connected' : 'Not connected'}</span>
+                <span class="t-caption" data-endpoint-state>${connected ? 'URL saved' : 'Not configured'}</span>
               </div>
               <form class="source-form" data-endpoint-form novalidate>
                 <label class="visually-hidden" for="endpoint-input">Backend web-app URL</label>
                 <input class="field-input" id="endpoint-input" name="endpoint" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false"
                   placeholder="${connected ? 'Connected · paste a new URL to replace it' : 'https://script.google.com/macros/s/…/exec'}">
                 <div class="source-actions">
-                  <button type="submit" class="btn btn-primary">Save and test</button>
+                  <button type="submit" class="btn btn-primary">Save credentials</button>
                   <button type="button" class="btn btn-quiet" data-roster-refresh ${connected ? '' : 'disabled'}>Refresh roster</button>
                   <button type="button" class="btn btn-quiet" data-endpoint-test ${connected ? '' : 'disabled'}>Test connection</button>
                   <button type="button" class="btn btn-critical" data-endpoint-remove ${connected ? '' : 'disabled'}>Disconnect</button>
@@ -153,7 +153,7 @@ export const settings = {
                   data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"
                   placeholder="${hasToken ? 'Token saved · paste a new one to replace it' : 'Access token'}">
                 <div class="source-actions">
-                  <button type="submit" class="btn btn-primary" ${connected ? '' : 'disabled'}>Save and test</button>
+                  <button type="submit" class="btn btn-primary" ${connected ? '' : 'disabled'}>Save credentials</button>
                   <button type="button" class="btn btn-critical" data-token-remove ${hasToken || ctx.view().savedRoster ? '' : 'disabled'}>Sign out</button>
                 </div>
                 <p class="t-caption">Sign out removes the access token, the saved roster and remembered flights from this browser. Home base, wake-up time and display preferences stay. To remove everything, use Reset under Data on this device.</p>
@@ -222,21 +222,28 @@ export const settings = {
     const onSubmit = async (event) => {
       event.preventDefault();
       const check = validateEndpoint(input.value);
-      if (!check.ok) { show({ ok: false, code: 'invalid-endpoint', message: check.reason }); return; }
-      const ticket = ++operation, access = identity();
-      show({ pending: true });
-      const result = await testEndpoint(check.url);
-      if (!alive || ticket !== operation || access !== identity()) return;
-      if (result.ok) {
-        if (!store.set(ENDPOINT_KEY, check.url)) { show({ ok: false, code: 'storage', message: 'Connection could not be saved on this device.' }); return; }
-        input.value = '';
-        ctx.controller.forgetContractData();
-        if (!ctx.review()) ctx.controller.setMode({ kind: 'production' });
-        root.querySelector('[data-endpoint-state]').textContent = 'Connected';
-        for (const b of root.querySelectorAll('[data-roster-refresh], [data-endpoint-test], [data-endpoint-remove], [data-token-form] button[type="submit"]')) b.disabled = false;
-        input.placeholder = 'Connected · paste a new URL to replace it';
+      if (!check.ok) {
+        show({ ok: false, code: 'invalid-endpoint', message: check.reason });
+        return;
       }
-      show(result);
+
+      operation += 1;
+      if (!store.set(ENDPOINT_KEY, check.url)) {
+        show({ ok: false, code: 'storage', message: 'Connection URL could not be saved.' });
+        return;
+      }
+
+      input.value = '';
+      ctx.controller.forgetContractData();
+      if (!ctx.review()) ctx.controller.setMode({ kind: 'production' });
+
+      root.querySelector('[data-endpoint-state]').textContent = 'URL saved';
+      for (const button of root.querySelectorAll(
+        '[data-roster-refresh], [data-endpoint-test], [data-endpoint-remove], [data-token-form] button[type="submit"]'
+      )) button.disabled = false;
+
+      input.placeholder = 'URL saved · paste a new URL to replace it';
+      render(out, h`<p class="source-verdict is-ok">Backend URL saved · connection not verified</p>`);
     };
     const refreshButton = root.querySelector('[data-roster-refresh]');
     const onRefresh = () => ctx.controller.refresh({ force: true });
@@ -258,20 +265,22 @@ export const settings = {
     const tokenOut = tokenForm.querySelector('[data-token-result]');
     const onToken = async (event) => {
       event.preventDefault();
-      const value = tokenForm.querySelector('#token-input').value.trim();
+      const field = tokenForm.querySelector('#token-input');
+      const value = field.value.trim();
       const endpoint = store.get(ENDPOINT_KEY);
       if (!value || !endpoint) return;
-      const ticket = ++operation, access = identity();
-      render(tokenOut, h`<p class="t-caption">Testing contract v2…</p>`);
-      const result = await testContract(endpoint, value);
-      if (!alive || ticket !== operation || access !== identity()) return;
-      if (result.ok) {
-        if (!store.set(TOKEN_KEY, value)) { render(tokenOut, h`<p class="t-caption">The token could not be saved on this device.</p>`); return; }
-        ctx.controller.forgetContractData();
-        if (!ctx.review()) ctx.controller.setMode({ kind: 'production' });
+
+      operation += 1;
+      if (!store.set(TOKEN_KEY, value)) {
+        render(tokenOut, h`<p class="source-verdict is-error">Access token could not be saved.</p>`);
+        return;
       }
-      tokenForm.querySelector('#token-input').value = '';
-      render(tokenOut, h`<p class="source-verdict ${result.ok ? 'is-ok' : 'is-error'}">${result.text}</p>${result.ok ? '' : h`<p class="t-caption">The token was not saved.</p>`}`);
+
+      ctx.controller.forgetContractData();
+      if (!ctx.review()) ctx.controller.setMode({ kind: 'production' });
+
+      field.value = '';
+      render(tokenOut, h`<p class="source-verdict is-ok">Access token saved · connection not verified</p>`);
     };
     const onTokenRemove = () => {
       operation += 1;

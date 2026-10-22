@@ -158,9 +158,9 @@ test('.btn-primary is the brand fill with on-brand ink, readable in both themes;
   assert.match(withSelector('.btn:active:not(:disabled)').map((r) => r.body).join(''), /scale\(0\.96\)/);
 });
 
-test('settings: both "Save and test" buttons are primary', () => {
+test('settings: both "Save credentials" buttons are primary', () => {
   const src = read('src/ui/screens/settings.js');
-  const buttons = [...src.matchAll(/<button\b[^>]*>\s*Save and test\s*<\/button>/g)].map((m) => m[0]);
+  const buttons = [...src.matchAll(/<button\b[^>]*>\s*Save credentials\s*<\/button>/g)].map((m) => m[0]);
   assert.equal(buttons.length, 2);
   for (const b of buttons) {
     assert.match(b, /class="btn btn-primary"/, b);
