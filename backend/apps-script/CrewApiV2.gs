@@ -6,7 +6,9 @@
 //   crewEnroll {code, grant}   owner-issued single-use code (Script Property FC_CREW_ENROLL) → crew grant
 //   crewIndex  {verifyBefore?, retryUncovered?} bounded, resumable indexing / re-verification / capacity recovery
 //   crew       {sectorId, date} crew of one owned sector with recorded familiarity before it
-//   crewRevoke {revokeId}      idempotent revocation and namespace-safe deletion (never gated)
+//   crewRevoke {revokeId}      idempotent revocation and namespace-safe deletion (never gated); for a grant that is
+//                              not live it records a tombstone instead (state 'cancelled', §8.7)
+// Editor-only (not routable): crewPurgeAll() — owner-confirmed purge of every crew record (§8.3).
 // Every request carries the roster token; every action except crewEnroll and crewRevoke-retries also
 // needs the crew grant. Responses are built field by field from an allow-list; employee ids, keyed
 // hashes, crew bases and index internals never leave. Nothing is logged; any unexpected error becomes
@@ -173,7 +175,7 @@ function fcv2CrewRotate_(env) {
     if (purge.complete) {
       env.props.set('FC_CREW_STATE', JSON.stringify(Object.assign({}, revoking, {
         phase: 'deleted', revoke: null,
-        lastRevoke: { revokeId: revoking.revoke.revokeId, G: revoking.G, outcome: 'deleted', deletedKeys: purge.deleted, at: now },
+        lastRevoke: { revokeId: revoking.revoke.revokeId, G: revoking.G, outcome: 'deleted', deletedKeys: purge.deleted, at: now, credHash: fcv2CrewShortHash_(revoking.revoke.credHash) },
       })));
     }
     return true;
@@ -320,4 +322,101 @@ function fcv2AddDaysKey_(key, n) {
   const d = new Date(key + 'T00:00:00Z');
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
+}
+
+// ---------------------------------------------------------------------------
+// Capabilities (crew part, merged by a future router: Phase 1d.2B) and the editor-only purge (§8.3)
+// ---------------------------------------------------------------------------
+
+/**
+ * The crew part of `capabilities`. Pure. While crew is enabled: every crew action. While disabled (kill switch):
+ * only crewRevoke, which is never gated (§8.1), so an app can still learn crewCancel and finish a deletion.
+ */
+function fcv2CrewCapabilities_(env) {
+  if (!fcv2CrewSettings_(env).enabled) return { actions: ['crewRevoke'], limits: { crewCancel: 1 } };
+  return { actions: FCV2_CREW_ACTIONS_.slice(), limits: { crewCancel: 1 } };
+}
+
+const FCV2_CREW_PURGE_CONFIRM_KEY_ = 'FC_CREW_PURGE_CONFIRM';
+const FCV2_CREW_PURGE_CONFIRM_VALUE_ = 'PURGE-ALL-CREW-DATA';
+
+/**
+ * Owner-confirmed purge of every crew record (§8.3). Pure: env = { props:{get,set,del}, store:{keys,get,del},
+ * cache:{removeAll}, lock(fn) -> {ok, value}, now() }. Under the lock:
+ *   1. A persisted fence (`FC_CREW_STATE.purging`) means a retry: no confirmation needed (the fence is the
+ *      owner's durable intent). Otherwise FC_CREW_PURGE_CONFIRM must equal exactly PURGE-ALL-CREW-DATA.
+ *   2. Fence: G+1 (only when not already fenced), phase deleted, no grant, no revocation, no pending purge,
+ *      `purging: true`; verified by read-back before anything is destroyed. Then the confirmation is consumed.
+ *   3. Delete FC_CREW_ENROLL, every fcx.* key (namespace-safe) and the registered cache keys.
+ *   4. Verify (no enrollment code, no fcx.* key, purge complete); only then remove the fence and write the
+ *      unbound purge receipt, verified by read-back -> 'deleted'. Any failure after step 2 leaves the fence.
+ * `cancelled` tombstones and codeHash are kept. Never touches the roster token, pepper, owner id, the crew switch
+ * or any other property. Returns ONLY { outcome: 'deleted'|'incomplete'|'refused'|'busy'|'error', deletedKeys,
+ * remaining } (no ids, names or hashes).
+ */
+function fcv2CrewPurgeAll_(env) {
+  const crewKeys = function () { return env.store.keys().filter(function (k) { return k.indexOf(FCV2_CREW_PREFIX_) === 0; }).length; };
+  const readState = function () { const raw = env.props.get('FC_CREW_STATE'); return raw ? JSON.parse(raw) : null; };
+  try {
+    const lock = env.lock(function () {
+      const state = fcv2CrewState_(env);
+      const retry = state.purging === true;
+      if (!retry && env.props.get(FCV2_CREW_PURGE_CONFIRM_KEY_) !== FCV2_CREW_PURGE_CONFIRM_VALUE_) {
+        return { outcome: 'refused', deletedKeys: 0, remaining: crewKeys() };
+      }
+      let manifestKeys = [];
+      try { manifestKeys = JSON.parse(env.store.get(FCV2_CREW_MANIFEST_KEY_) || '{}').cacheKeys || []; } catch (err) { manifestKeys = []; }
+      const cacheKeys = manifestKeys
+        .concat(state.revoke && state.revoke.cacheKeys ? state.revoke.cacheKeys : [])
+        .concat(state.purge && state.purge.cacheKeys ? state.purge.cacheKeys : []);
+      const fence = Object.assign({}, state, {
+        G: retry ? state.G : state.G + 1, phase: 'deleted', grantHash: null, revoke: null, purge: null, purging: true,
+      });
+      env.props.set('FC_CREW_STATE', JSON.stringify(fence));            // logical invalidation + durable fence
+      const fenced = readState();
+      if (!fenced || fenced.purging !== true || fenced.G !== fence.G || fenced.phase !== 'deleted') {
+        return { outcome: 'incomplete', deletedKeys: 0, remaining: crewKeys() };   // nothing destroyed
+      }
+      if (env.props.get(FCV2_CREW_PURGE_CONFIRM_KEY_) !== null) env.props.del(FCV2_CREW_PURGE_CONFIRM_KEY_);
+      env.props.del('FC_CREW_ENROLL');
+      const purge = fcv2CrewPurge_(env.store);
+      if (cacheKeys.length) env.cache.removeAll(cacheKeys);
+      const remaining = crewKeys();
+      if (!purge.complete || remaining !== 0 || env.props.get('FC_CREW_ENROLL') !== null) {
+        return { outcome: 'incomplete', deletedKeys: purge.deleted, remaining: remaining };   // the fence stays
+      }
+      const done = Object.assign({}, fence, {
+        lastRevoke: { revokeId: 'purge-' + (fence.G - 1), G: fence.G - 1, outcome: 'deleted', deletedKeys: purge.deleted, at: env.now(), aliases: [] },
+      });
+      delete done.purging;
+      env.props.set('FC_CREW_STATE', JSON.stringify(done));
+      const after = readState();
+      const ok = !!after && after.purging === undefined && after.phase === 'deleted' && after.G === fence.G;
+      return { outcome: ok ? 'deleted' : 'incomplete', deletedKeys: purge.deleted, remaining: remaining };
+    });
+    if (!lock.ok) return { outcome: 'busy', deletedKeys: 0, remaining: crewKeys() };
+    return lock.value;
+  } catch (err) {
+    return { outcome: 'error', deletedKeys: 0, remaining: null };
+  }
+}
+
+/**
+ * Editor-only entry point (Run menu in the Apps Script editor; names ending in "_" are hidden there). Not routed:
+ * doGet/doPost never call it. Logs and returns only the outcome summary.
+ */
+function crewPurgeAll() {
+  const result = fcv2CrewPurgeAll_({
+    props: (function (p) { return { get: function (k) { return p.getProperty(k); }, set: function (k, v) { p.setProperty(k, v); }, del: function (k) { p.deleteProperty(k); } }; })(PropertiesService.getScriptProperties()),
+    store: (function (u) { return { keys: function () { return u.getKeys(); }, get: function (k) { return u.getProperty(k); }, del: function (k) { u.deleteProperty(k); } }; })(PropertiesService.getUserProperties()),
+    cache: (function (c) { return { removeAll: function (keys) { c.removeAll(keys); } }; })(CacheService.getScriptCache()),
+    lock: function (fn) {
+      const lock = LockService.getScriptLock();
+      if (!lock.tryLock(5000)) return { ok: false };
+      try { return { ok: true, value: fn() }; } finally { lock.releaseLock(); }
+    },
+    now: function () { return Date.now(); },
+  });
+  console.log(JSON.stringify(result));
+  return result;
 }

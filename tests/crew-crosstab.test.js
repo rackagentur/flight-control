@@ -27,9 +27,10 @@ async function until(condition, message, limitMs = 10000) {
   }
 }
 
-async function world() {
+async function world({ cancel = false } = {}) {
   const bclock = { t: T0 + 3 * 86400000 };
-  const sim = await simulatedCrewBackend({ now: () => bclock.t });
+  // Earlier protocol (before Phase 1d.2A) unless a test asks for cancellation (crew-cancel tests cover it).
+  const sim = await simulatedCrewBackend({ now: () => bclock.t, legacyRevoke: !cancel });
   const buffers = createSharedBuffers();
   const ctl = sharedControls(buffers);
   const workers = [];
@@ -40,7 +41,7 @@ async function world() {
     record: () => { const raw = ctl.raw(STORED); return raw === null ? null : JSON.parse(raw); },
     tab(tabId) {
       const worker = new Worker(new URL('./fixtures/crew-crosstab-worker.mjs', import.meta.url), {
-        workerData: { buffers, tabId, credentialModule: MODULE, endpoint: ENDPOINT, token: TOKEN, accessId: 'same-origin' },
+        workerData: { buffers, tabId, credentialModule: MODULE, endpoint: ENDPOINT, token: TOKEN, accessId: 'same-origin', cancel },
       });
       workers.push(worker);
       const results = new Map();
@@ -171,6 +172,33 @@ test('restart recovery: a tab closed mid-enrollment (request processed, no answe
     assert.equal(r.value?.status, 'deleted', JSON.stringify(r));
     assert.equal(w.sim.phase(), 'deleted');
     assert.equal(w.record(), null);
+  } finally {
+    await w.close();
+  }
+});
+
+test('Phase 1d.2A cancellation across tabs: tab A cancels tab B\'s in-flight enrollment; B\'s late request is refused, never active', async () => {
+  const w = await world({ cancel: true });
+  try {
+    w.sim.issueCode(GOOD);
+    const A = w.tab(1);
+    const B = w.tab(2);
+    let held = null;
+    w.route = (body, reply) => {
+      if (body.action === 'crewEnroll' && !held) { held = { body, reply }; return; }   // B's request is in transit
+      reply({ data: w.sim.handle(body) });
+    };
+    const pB = B.call('enroll', { code: GOOD });
+    await until(() => held !== null, 'B dispatched (its candidate persisted as inflight first)');
+    const first = await A.call('revoke');
+    assert.equal(first.value?.status, 'superseded', 'the candidate is cancelled: resolved, never a deletion claim');
+    assert.equal(w.record(), null);
+    held.reply({ data: w.sim.handle(held.body) });                    // B's enrollment arrives after the cancellation
+    assert.equal(w.sim.phase(), 'none', 'never active');
+    const b = await pB;
+    assert.ok(b.error, 'B is not enrolled');
+    invariant(w);
+    assert.equal(w.record(), null, 'nothing left behind');
   } finally {
     await w.close();
   }

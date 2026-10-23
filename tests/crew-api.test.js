@@ -192,7 +192,8 @@ test('handlers: disabled by default; crewRevoke still answers when disabled', ()
   const t = makeEnv({ props: { FC_CREW_ENABLED: '' } });
   assert.equal(call(t.env, { action: 'crew', grant: 'g', sectorId: 's_0123456789abcdef', date: '2026-10-01' }).error, 'crew-disabled');
   assert.equal(call(t.env, { action: 'crewEnroll', code: 'x', grant: 'g' }).error, 'crew-disabled');
-  assert.equal(call(t.env, { action: 'crewRevoke', revokeId: 'r1', grant: 'g' }).error, 'stale-request', 'reaches the revoke logic');
+  // Phase 1d.2A: a grant that is not live is cancelled (tombstone) instead of 'stale-request' (§8.7).
+  assert.equal(call(t.env, { action: 'crewRevoke', revokeId: 'r1', grant: 'g' }).state, 'cancelled', 'reaches the revoke logic');
   assert.equal(call({ ...t.env, token: () => TOKEN }, { action: 'crew', token: 'wrong' }).error, 'unauthorized');
 });
 
@@ -424,8 +425,17 @@ test('privacy: durable records, state, cache and responses hold no names or raw 
   }
   assert.equal(/SAMPLE[A-Z]|PERSON[A-Z]/.test(all), false, 'name stored');
   for (const f of ['CrewCoreV2.gs', 'CrewCondorV2.gs', 'CrewApiV2.gs']) {
-    const src = readFileSync(new URL(f, dir), 'utf8');
-    assert.equal(/\bLogger\.|console\.|UrlFetchApp|CacheService|PropertiesService|CalendarApp/.test(src), false, `${f} uses no live service or log`);
+    let src = readFileSync(new URL(f, dir), 'utf8');
+    if (f === 'CrewApiV2.gs') {
+      // Phase 1d.2A: the editor-only crewPurgeAll() wrapper is the ONE place with live services and one log line,
+      // and it logs only the outcome summary. Everything else stays service- and log-free.
+      const wrapper = src.match(/\nfunction crewPurgeAll\(\) \{[\s\S]*?\n\}\n/);
+      assert.ok(wrapper, 'crewPurgeAll wrapper present');
+      assert.deepEqual(wrapper[0].match(/console\.\w+\(.*\);/g), ['console.log(JSON.stringify(result));']);
+      assert.equal(/\bLogger\.|UrlFetchApp|CalendarApp/.test(wrapper[0]), false);
+      src = src.replace(wrapper[0], '\n');
+    }
+    assert.equal(/\bLogger\.|console\.|UrlFetchApp|CacheService|PropertiesService|LockService|CalendarApp/.test(src), false, `${f} uses no live service or log`);
   }
 });
 
@@ -531,7 +541,8 @@ test('P1 interrupted pepper rotation: deletion failure → storage restored → 
   assert.equal(call(t.env, { action: 'crewIndex', grant: 'grant-A' }).error, 'crew-revoked', 'cleanup resumed with the recorded grant');
   assert.deepEqual([stateOf(t).phase, fcxKeys(t)], ['deleted', []]);
   assert.equal(call(t.env, { action: 'crewIndex', grant: 'grant-A' }).error, 'crew-not-enrolled', 'access never restored under the old pepper');
-  assert.equal(call(t.env, { action: 'crewRevoke', revokeId: 'app-retry', grant: 'grant-A' }).error, 'stale-request');
+  // Phase 1d.2A: the old grant is not live, so a new revokeId cancels it (tombstone) instead of 'stale-request'.
+  assert.equal(call(t.env, { action: 'crewRevoke', revokeId: 'app-retry', grant: 'grant-A' }).state, 'cancelled');
   assert.equal(enroll(t, 'grant-C', 'POST-ROTATION-CODE-012345').ok, true);
   indexAll(t, 'grant-C');
   const sel = history.filter((f) => f.end < Date.parse('2023-12-01T00:00:00Z')).at(-1);

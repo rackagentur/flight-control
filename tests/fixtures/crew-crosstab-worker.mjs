@@ -8,7 +8,7 @@ import { ApiError } from '../../src/api/appscript.js';
 import { crewEnrollRequest, validateCrewEnroll } from '../../src/sources/crew-v2.js';
 import { sharedStorage } from './crew-shared-storage.mjs';
 
-const { buffers, tabId, credentialModule, endpoint, token, accessId } = workerData;
+const { buffers, tabId, credentialModule, endpoint, token, accessId, cancel = false } = workerData;
 const C = await import(credentialModule ?? new URL('../../src/sources/crew-credential.js', import.meta.url).href);
 const S = await import(new URL('../../src/sources/crew-service.js', import.meta.url).href);
 
@@ -25,7 +25,7 @@ const post = (ep, body) => new Promise((resolve, reject) => {
   parentPort.postMessage({ type: 'post', reqId: seq, body });
 });
 const svc = typeof credentials.detailed === 'object'
-  ? S.createCrewService({ credentials, access: () => access, post, sleep: async () => {}, isVisible: () => true, isOnline: () => true })
+  ? S.createCrewService({ credentials, access: () => access, post, sleep: async () => {}, isVisible: () => true, isOnline: () => true, cancelSupported: () => cancel === true })
   : null;
 
 const DEFINITIVE = new Set(['unauthorized', 'enroll-closed', 'bad-request', 'crew-disabled', 'unknown-action', 'unsupported-contract', 'not-configured', 'rate-limited']);

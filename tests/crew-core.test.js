@@ -410,7 +410,10 @@ test('T13c / T8: delayed revoke retries return the recorded outcome or stale-req
   assert.equal(core.fcv2CrewAuthorized_(h.state, deps.hash('grant-2'), 'pid-1'), true, 'new grant still valid');
   assert.equal(plain(core.fcv2CrewRevoke_(h.env, { revokeId: 'r2', grant: 'grant-2' })).state, 'deleted');
   h.state = plain(core.fcv2CrewEnroll_(h.state, `CODE3CODE3CODE3CODE3CODE3|${NOW + 60000}`, { code: 'CODE3CODE3CODE3CODE3CODE3', grant: 'grant-3' }, enrollCtx(NOW, 0, 'epoch-3'))).state;
-  assert.equal(plain(core.fcv2CrewRevoke_(h.env, { revokeId: 'r1', grant: 'grant-1' })).error, 'stale-request');
+  // Phase 1d.2A: grant-1 is not live (receipt r1 was replaced by r2): cancellation tombstone, nothing else changes.
+  const g3 = JSON.stringify({ ...h.state, cancelled: undefined });
+  assert.equal(plain(core.fcv2CrewRevoke_(h.env, { revokeId: 'r1', grant: 'grant-1' })).state, 'cancelled');
+  assert.equal(JSON.stringify({ ...h.state, cancelled: undefined }), g3, 'never touches the newer generation');
   assert.equal(core.fcv2CrewAuthorized_(h.state, deps.hash('grant-3'), 'pid-1'), true);
 });
 

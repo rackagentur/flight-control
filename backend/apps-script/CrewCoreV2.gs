@@ -40,6 +40,7 @@ const FCV2_CREW_FRESH_MS_ = 14 * 86400000;        // verification freshness wind
 const FCV2_CREW_SNAPSHOT_ATTEMPTS_ = 3;
 const FCV2_CREW_ENROLL_MAX_MS_ = 15 * 60000;
 const FCV2_CREW_ENROLL_MAX_FAILURES_ = 5;
+const FCV2_CREW_CANCEL_MAX_ = 64;                 // grant tombstones kept in FC_CREW_STATE.cancelled (never evicted)
 
 // ---------------------------------------------------------------------------
 // Duties
@@ -339,6 +340,17 @@ function fcv2CrewSafeEqual_(a, b) {
   return diff === 0;
 }
 
+/** First 32 hex of a grant hash: the form kept in tombstones and revocation receipts (no crew data). */
+function fcv2CrewShortHash_(hash) {
+  return typeof hash === 'string' ? hash.slice(0, 32) : null;
+}
+
+/** True when this grant hash was cancelled (§8.7): it can never be activated. */
+function fcv2CrewTombstoned_(state, grantHash) {
+  const list = state && Array.isArray(state.cancelled) ? state.cancelled : [];
+  return list.indexOf(fcv2CrewShortHash_(grantHash)) >= 0;
+}
+
 /** Access check used at the start of a request and again right before its response. */
 function fcv2CrewAuthorized_(state, grantHash, pid) {
   return state.phase === 'active' && fcv2CrewSafeEqual_(state.grantHash, grantHash) && state.pid === pid;
@@ -358,6 +370,12 @@ function fcv2CrewEnroll_(state, enrollProp, req, ctx) {
   if (!req || typeof req.code !== 'string' || typeof req.grant !== 'string') return { result: { ok: false, error: 'bad-request' } };
   const codeHash = ctx.hash(req.code);
   const grantHash = ctx.hash(req.grant);
+  // An unfinished owner purge (durable fence, §8.3) closes enrollment until the purge completes. Checked first,
+  // under the lock; no failure count, no burn, no consume, no state change.
+  if (state.purging === true) return { result: { ok: false, error: 'enroll-closed' } };
+  // A cancelled grant can never be activated (§8.7): checked first, under the same lock as cancellation. No
+  // failure count, no burn, no consume, no state change; the outstanding code stays available for other grants.
+  if (fcv2CrewTombstoned_(state, grantHash)) return { result: { ok: false, error: 'enroll-closed' } };
   if (state.phase === 'active' && fcv2CrewSafeEqual_(state.codeHash, codeHash) && fcv2CrewSafeEqual_(state.grantHash, grantHash) && state.pid === ctx.pid) {
     return { result: { ok: true, enrolled: true, G: state.G } };     // idempotent retry, nothing changes
   }
@@ -373,30 +391,48 @@ function fcv2CrewEnroll_(state, enrollProp, req, ctx) {
   // A valid owner code may also supersede an interrupted revocation (e.g. a pepper rotation whose cleanup
   // failed): the old index is never reinterpreted (new G and epoch) and is purged under `purge` (§8.6).
   const interrupted = state.phase === 'revoking' && state.revoke
-    ? { revokeId: state.revoke.revokeId, G: state.G, outcome: 'superseded', deletedKeys: 0, at: ctx.now, aliases: [] } : null;
+    ? { revokeId: state.revoke.revokeId, G: state.G, outcome: 'superseded', deletedKeys: 0, at: ctx.now, aliases: [], credHash: fcv2CrewShortHash_(state.revoke.credHash) } : null;
   return {
     result: { ok: true, enrolled: true, G: state.G + 1 }, consume: true,
     state: {
       G: state.G + 1, phase: 'active', pid: ctx.pid, epoch: ctx.newEpoch, grantHash: grantHash, codeHash: codeHash,
       enrolledAt: ctx.now, revoke: null, lastRevoke: interrupted || state.lastRevoke || null,
       purge: { pending: true, cacheKeys: (ctx.cacheKeys || []).concat(state.revoke ? state.revoke.cacheKeys || [] : []) },
+      cancelled: Array.isArray(state.cancelled) ? state.cancelled.slice() : [],   // tombstones are never evicted
     },
   };
 }
 
-/** Revocation start (§8.1, §8.2 step 1). Returns { result } (done, nothing to do) or { state?, proceed: true }. */
+/**
+ * Revocation start (§8.1, §8.2 step 1, §8.7). Returns { result } (done, nothing to do), { state?, proceed: true },
+ * or { cancel: true, state } (append a grant tombstone, nothing else changes).
+ * Order: 1 receipt of this revokeId bound to this grant; 2 the live grant -> revoke; 3 the revocation in progress
+ * for this grant -> proceed; 4 any other grant -> cancellation (tombstone). Every state built here keeps the
+ * purge fence (`purging`, §8.3) via Object.assign.
+ */
 function fcv2CrewBeginRevoke_(state, req, ctx) {
   if (!req || typeof req.revokeId !== 'string' || typeof req.grant !== 'string') return { result: { ok: false, error: 'bad-request' } };
-  if (state.lastRevoke && (state.lastRevoke.revokeId === req.revokeId || (state.lastRevoke.aliases || []).indexOf(req.revokeId) >= 0)) {
-    return { result: { ok: true, state: 'deleted', recorded: true, deletedKeys: state.lastRevoke.deletedKeys } };
-  }
   const grantHash = ctx.hash(req.grant);
+  const last = state.lastRevoke;
+  // A receipt answers ONLY for the grant it was issued for. Unbound receipts (legacy records, system or purge
+  // receipts: no credHash) never answer; the request falls through to the normal order below.
+  if (last && typeof last.credHash === 'string' && last.credHash === fcv2CrewShortHash_(grantHash)
+    && (last.revokeId === req.revokeId || (last.aliases || []).indexOf(req.revokeId) >= 0)) {
+    return { result: { ok: true, state: 'deleted', recorded: true, deletedKeys: last.deletedKeys } };
+  }
   if (state.phase === 'revoking') {
     const system = state.revoke.revokeId.indexOf('system-') === 0;
-    if ((state.revoke.revokeId === req.revokeId || system) && fcv2CrewSafeEqual_(state.revoke.credHash, grantHash)) return { proceed: true, alias: req.revokeId };
-    return { result: { ok: false, error: 'busy' } };
+    const sameGrant = fcv2CrewSafeEqual_(state.revoke.credHash, grantHash);
+    if ((state.revoke.revokeId === req.revokeId || system) && sameGrant) return { proceed: true, alias: req.revokeId };
+    if (sameGrant) return { result: { ok: false, error: 'busy' } };
   }
-  if (state.phase !== 'active' || !fcv2CrewSafeEqual_(state.grantHash, grantHash)) return { result: { ok: false, error: 'stale-request' } };
+  if (state.phase !== 'active' || !fcv2CrewSafeEqual_(state.grantHash, grantHash)) {
+    // Cancellation (§8.7): this grant is not live; record a tombstone so it can never be activated later.
+    const list = Array.isArray(state.cancelled) ? state.cancelled : [];
+    if (list.indexOf(fcv2CrewShortHash_(grantHash)) >= 0) return { result: { ok: true, state: 'cancelled', recorded: true, deletedKeys: 0 } };
+    if (list.length >= FCV2_CREW_CANCEL_MAX_) return { result: { ok: false, error: 'busy' } };   // never falsely definitive
+    return { cancel: true, short: fcv2CrewShortHash_(grantHash), state: Object.assign({}, state, { cancelled: list.concat([fcv2CrewShortHash_(grantHash)]) }) };
+  }
   return {
     proceed: true,
     state: Object.assign({}, state, {
@@ -486,6 +522,12 @@ function fcv2CrewRevoke_(env, req) {
     try { cacheKeys = raw ? (JSON.parse(raw).cacheKeys || []) : []; } catch (err) { cacheKeys = []; }
     const begin = fcv2CrewBeginRevoke_(state, req, { hash: env.hash, cacheKeys: cacheKeys, now: env.now });
     if (begin.result) return begin.result;
+    if (begin.cancel) {
+      env.setState(begin.state);                                       // only `cancelled` differs
+      const back = env.getState();
+      if (!back || !Array.isArray(back.cancelled) || back.cancelled.indexOf(begin.short) < 0) return { ok: false, error: 'crew-unavailable' };
+      return { ok: true, state: 'cancelled', deletedKeys: 0 };
+    }
     if (begin.state) env.setState(begin.state);
     const current = begin.state || state;
     const purge = fcv2CrewPurge_(env.store);
@@ -494,7 +536,7 @@ function fcv2CrewRevoke_(env, req) {
     const aliases = begin.alias && begin.alias !== current.revoke.revokeId ? [begin.alias] : [];
     const done = Object.assign({}, current, {
       phase: 'deleted', revoke: null, purge: null,
-      lastRevoke: { revokeId: current.revoke.revokeId, G: current.G, outcome: 'deleted', deletedKeys: purge.deleted, at: env.now, aliases: aliases },
+      lastRevoke: { revokeId: current.revoke.revokeId, G: current.G, outcome: 'deleted', deletedKeys: purge.deleted, at: env.now, aliases: aliases, credHash: fcv2CrewShortHash_(current.revoke.credHash) },
     });
     env.setState(done);
     return { ok: true, state: 'deleted', deletedKeys: purge.deleted, cacheCleared: cacheCleared };

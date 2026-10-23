@@ -7,6 +7,8 @@
 //   (memory only, the outcome is cached, failures included), and never while crew is disabled.
 // - Pending deletion: resumed on startup, when the page comes back online and when it becomes visible, only when a
 //   deletion is pending; independent of the opt-in (a requested deletion is always completed). Never on a timer.
+//   When that deletion still holds unresolved entries, the capability (limits.crewCancel) is learned once per
+//   access per session even with crew off (§8.7): such an entry may be answered by a cancellation.
 // - Crew answers stay in the service's memory; nothing here writes anything but `crew.enabled`.
 // - Authorization (what may be SHOWN): `authorization()` names the current consent epoch, access id and active
 //   grant; the UI shows an answer only under the exact authorization it was fetched with. Every change of consent
@@ -71,6 +73,16 @@ export function crewSupportedBy(data) {
 }
 
 /**
+ * Grant cancellation (§8.7) is trusted only when a v2 backend offers crewRevoke and advertises limits.crewCancel
+ * exactly 1. Independent of crewSupportedBy: with the backend kill switch on, crew stays hidden but a deletion
+ * can still complete. Pure.
+ */
+export function crewCancelSupported(data) {
+  return !!data && data.ok === true && data.contract === 'fc.roster' && data.version === 2 && Array.isArray(data.actions)
+    && data.actions.includes('crewRevoke') && !!data.limits && typeof data.limits === 'object' && data.limits.crewCancel === 1;
+}
+
+/**
  * The app-wide crew runtime.
  * @param {{
  *   store: ReturnType<import('./store.js').createStore>,
@@ -81,8 +93,13 @@ export function crewSupportedBy(data) {
  */
 export function createCrewRuntime({ store, access, post = postContract, credentials = null, service = null, onChange = null, now, isVisible, isOnline }) {
   const creds = credentials ?? createCrewCredentials({ store });
+  /** accessId -> resolved capability (synchronous view of the per-access cache, for the revoke dispatch). */
+  const known = new Map();
+  const currentId = () => String((access() ?? {}).accessId ?? '');
   const svc = service ?? createCrewService({
     credentials: creds, access, post,
+    // Only the capability learned for THAT access id (the one the revoke is sent with); unknown -> false.
+    cancelSupported: (target) => known.get(String(target?.accessId ?? ''))?.cancel === true,
     ...(now ? { now } : {}), ...(isVisible ? { isVisible } : {}), ...(isOnline ? { isOnline } : {}),
     onChange: (event) => { if (typeof onChange === 'function') onChange(event); },
   });
@@ -133,23 +150,38 @@ export function createCrewRuntime({ store, access, post = postContract, credenti
    * @returns {Promise<{supported:boolean, actions:string[]|null, error:string|null}>}
    */
   function capability() {
-    if (!enabled()) return Promise.resolve({ supported: false, actions: null, error: 'disabled' });
+    if (!enabled()) return Promise.resolve({ supported: false, cancel: false, actions: null, error: 'disabled' });
+    return fetchCapability();
+  }
+
+  /** At most one capabilities request per access id per session (the outcome is cached, failures included). */
+  function fetchCapability() {
     const a = access() ?? {};
-    if (!a.endpoint || !a.token) return Promise.resolve({ supported: false, actions: null, error: 'no-access' });
+    if (!a.endpoint || !a.token) return Promise.resolve({ supported: false, cancel: false, actions: null, error: 'no-access' });
     const key = String(a.accessId ?? '');
     if (!capabilities.has(key)) {
       capabilities.set(key, post(a.endpoint, v2Request('capabilities', a.token))
-        .then(({ data }) => ({ supported: crewSupportedBy(data), actions: Array.isArray(data?.actions) ? data.actions.slice() : null, error: data?.ok === true ? null : (typeof data?.error === 'string' ? data.error : 'invalid-response') }))
-        .catch((error) => ({ supported: false, actions: null, error: typeof error?.code === 'string' ? error.code : 'network' })));
+        .then(({ data }) => ({ supported: crewSupportedBy(data), cancel: crewCancelSupported(data), actions: Array.isArray(data?.actions) ? data.actions.slice() : null, error: data?.ok === true ? null : (typeof data?.error === 'string' ? data.error : 'invalid-response') }))
+        .catch((error) => ({ supported: false, cancel: false, actions: null, error: typeof error?.code === 'string' ? error.code : 'network' }))
+        .then((r) => { known.set(key, r); return r; }));
     }
     return capabilities.get(key);
+  }
+
+  /** A pending deletion that still has unresolved entries (candidates or confirmed grants may be answered 'cancelled'). */
+  function unresolvedDeletion() {
+    const r = creds.read();
+    return r?.phase === 'revoking' && r.grants.some((e) => !e.resolved);
   }
 
   /** Resumes a pending deletion (deduplicated); a no-op when none is pending. Works with the opt-in off. */
   function resumePendingDeletion() {
     if (resuming) return resuming;
     if (!creds.pendingRevoke()) return Promise.resolve({ status: 'nothing' });
-    resuming = svc.resumeRevoke()
+    // Exception to "no request while disabled": a pending deletion with unresolved entries may be answered by a
+    // cancellation (§8.7), so the capability is learned once per access per session even with crew off.
+    const learn = unresolvedDeletion() && !known.has(currentId()) ? fetchCapability().catch(() => null) : Promise.resolve(null);
+    resuming = learn.then(() => svc.resumeRevoke())
       .catch((error) => ({ status: 'pending', code: error?.code ?? 'error' }))
       .finally(() => { resuming = null; });
     return resuming;
@@ -196,6 +228,6 @@ export function createCrewRuntime({ store, access, post = postContract, credenti
       resumePendingDeletion();
     },
     /** Access changed or removed: capability answers of other accesses are forgotten; shown answers invalidated. */
-    accessChanged() { capabilities.clear(); invalidate('access'); },
+    accessChanged() { capabilities.clear(); known.clear(); invalidate('access'); },
   };
 }

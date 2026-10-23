@@ -97,5 +97,8 @@ test('the committed backend defines exactly one doGet and one doPost; helpers st
   assert.equal((all.match(/^function doGet\(/gm) ?? []).length, 1);
   assert.equal((all.match(/^function doPost\(/gm) ?? []).length, 1);
   const publicNames = [...all.matchAll(/^function ([A-Za-z0-9_$]+)\(/gm)].map((m) => m[1]).filter((n) => !n.endsWith('_'));
-  assert.deepEqual(publicNames.sort(), ['doGet', 'doPost']);
+  // Phase 1d.2A (disclosed): the editor-only crewPurgeAll is the one additional public name (the editor's Run menu
+  // hides names ending in "_"); it is defined only in CrewApiV2.gs and is never routed.
+  assert.deepEqual(publicNames.sort(), ['crewPurgeAll', 'doGet', 'doPost']);
+  assert.deepEqual(files.filter((f) => /^function crewPurgeAll\(/m.test(readFileSync(new URL(f, DIR), 'utf8'))), ['CrewApiV2.gs']);
 });

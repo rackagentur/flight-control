@@ -85,3 +85,4 @@ Adds provider schedule data (AeroDataBox via RapidAPI) to the existing doPost AP
 - BH-2 GET switch: Script Property `FC_V5_GET` = `open` serves the unauthenticated `getStats` again (instant, no redeploy); deleting it requires the token for every roster read.
 - Code: delete the six v2 files listed above (triggers run the current code, so this is the rollback for them).
 - App: Settings → Roster contract v2 → Remove token (the app then uses v5 only).
+- Crew Intelligence data (not deployed yet; Phase 1d.2A, simulated only): before rolling back to a version without the crew files while a crew deletion is still pending, or when a revocation is stuck at `revoke-incomplete`, run the editor-only purge: Script property `FC_CREW_PURGE_CONFIRM` = `PURGE-ALL-CREW-DATA` → Run `crewPurgeAll` → read the one-line log (`deleted` / `incomplete` / `refused` / `busy` / `error`) → confirm the property is gone. Full procedure: `docs/CREW-INTELLIGENCE.md` §8.3.

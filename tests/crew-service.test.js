@@ -860,7 +860,8 @@ test('item 8b: index-incompatible suspends indexing only; crew lookups continue'
 async function simulated() {
   let h = null;
   const bclock = { t: 0 };                       // the backend clock, separate from the client clock
-  const sim = await simulatedCrewBackend({ now: () => bclock.t });
+  // Earlier protocol (before Phase 1d.2A): these tests pin the stale-request rules; cancellation is in crew-cancel.
+  const sim = await simulatedCrewBackend({ now: () => bclock.t, legacyRevoke: true });
   const plan = {};
   h = harness({
     enrolled: false,

@@ -192,11 +192,15 @@ function transportCode(error) {
  *   access: () => ({endpoint:string|null, token:string|null, accessId:string}),
  *   post?: typeof postContract, now?: () => number, sleep?: (ms:number, signal?:AbortSignal) => Promise<void>,
  *   isVisible?: () => boolean, isOnline?: () => boolean, onChange?: (event:{type:string, progress?:object}) => void,
- * }} deps
+ *   cancelSupported?: (access:{endpoint:string|null, token:string|null, accessId:string}) => boolean,
+ * }} deps  `cancelSupported(access)`: whether the backend of exactly that access advertised limits.crewCancel = 1.
+ *   Asked BEFORE each revoke dispatch with the access snapshot the request is sent with; the captured answer is
+ *   what validates that response (nothing current is consulted after the await). Default false = the earlier
+ *   rules (an unconfirmed grant answered stale-request stays unresolved).
  */
 export function createCrewService({
   credentials, access, post = postContract, now = Date.now, sleep = defaultSleep,
-  isVisible = defaultVisible, isOnline = defaultOnline, onChange = null,
+  isVisible = defaultVisible, isOnline = defaultOnline, onChange = null, cancelSupported = () => false,
 }) {
   let hiddenAt = null;
 
@@ -694,6 +698,8 @@ export function createCrewService({
       if (current.kind === 'unreadable') { fault(); stop = stop ?? 'storage-unreadable'; break; }
       const e = current.record?.grants.find((x) => x.grant === planned.grant);
       if (!e || e.resolved) continue;
+      // Captured for the exact access this request is sent with (endpoint + accessId), before the await (§8.7).
+      const cancelTrusted = cancelSupported({ ...a }) === true;
       let data;
       try {
         ({ data } = await post(a.endpoint, crewRevokeRequest(a.token, e.grant, e.revokeId), { timeoutMs: CREW_TIMEOUT_MS }));
@@ -701,7 +707,15 @@ export function createCrewService({
         stop = stop ?? transportCode(error);
         continue;   // the other entries are still revoked in this pass
       }
-      const check = validateCrewRevoke(data);
+      // A cancellation ('cancelled': this grant is not live and is tombstoned, §8.7) is trusted only when the backend
+      // the request went to advertised it (captured above); it resolves ONLY this entry (of that endpoint), as dead.
+      // Never a deletion confirmation.
+      const check = validateCrewRevoke(data, { cancel: cancelTrusted });
+      if (check.ok && check.value.state === 'cancelled') {
+        const resolvedCancelled = await credentials.detailed.resolveEntry(e.grant, 'dead');
+        if (!resolvedCancelled.ok) { fault(); stop = stop ?? resolvedCancelled.error; }
+        continue;
+      }
       if (check.ok) {
         const resolvedDeleted = await credentials.detailed.resolveEntry(e.grant, 'deleted');
         if (!resolvedDeleted.ok) { fault(); stop = stop ?? resolvedDeleted.error; continue; }

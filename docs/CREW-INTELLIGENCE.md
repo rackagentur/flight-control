@@ -619,12 +619,63 @@ for readers and commits, GC skipped, **nothing modified**. Only an explicit revo
 | Grant lost on device | Owner purge (§8.3) |
 | New enrollment after revoke | Only from `phase = deleted` with a new code: `G+1`, new `epoch` |
 
-### 8.3 Owner purge path
+### 8.3 Owner purge path (Phase 1d.2A — simulated only, not deployed)
 
-Editor-run function `crewPurgeAll` (no web entry point; the project serves no HtmlService page, so it is not
-reachable through `google.script.run` — RouterV2 guarantee; exception to the `_` naming rule, Q7). It performs §8.2
-steps 1–3 with `revokeId = 'owner-<G>'` under the same lock and generation rules. User Properties are **not** visible
-in the Apps Script UI, so this function is the owner's only manual deletion path for the index. It removes only `fcx.*`.
+Editor-run function `crewPurgeAll()` in `CrewApiV2.gs` (a thin wrapper around the pure, Node-tested
+`fcv2CrewPurgeAll_(env)`). It has no web entry point: `fcv2CrewHandle_`, `fcv2HandlePost_` and `fcv2HandleGet_`
+refuse the action name (tested), and the project serves no HtmlService page, so it is not reachable through
+`google.script.run` (RouterV2 guarantee). It is the only public function besides `doGet`/`doPost`, because the
+editor's Run menu hides names ending in `_` (exception to the `_` naming rule, Q7; pinned by
+`tests/backend-router.test.js`). User Properties are **not** visible in the Apps Script UI, so this is the owner's
+only manual deletion path for the index.
+
+What it does, under the script lock (`tryLock`, short wait; otherwise `busy`, nothing changed):
+
+1. If `FC_CREW_STATE.purging` is already `true`, this is a **retry** of an unfinished purge: it proceeds without
+   the confirmation (the persisted fence is the owner's durable intent). Otherwise Script Property
+   `FC_CREW_PURGE_CONFIRM` must equal exactly `PURGE-ALL-CREW-DATA`; absent or different → `refused`, nothing changed.
+2. **Durable fence** — one write of `FC_CREW_STATE`: `G+1` (only when not already fenced), `phase: deleted`,
+   `grantHash: null`, `revoke: null`, `purge: null`, `purging: true`, verified by read-back. A failed or lost write
+   → `incomplete`/`error` with nothing destroyed and the confirmation kept. Only after the verified fence is the
+   confirmation deleted (consumed). While fenced, every enrollment is refused (`enroll-closed`, no failure counted,
+   code neither burned nor consumed), every grant is refused, and cancellations (§8.7) still work and keep the fence.
+   The `cancelled` tombstones and `codeHash` are kept.
+3. Deletes `FC_CREW_ENROLL`, every `fcx.*` User Property (namespace-safe, §8.2 step 2) and the registered cache keys.
+   It never touches `FC_V2_TOKEN`, `FC_CREW_PEPPER`, `FC_CREW_SELF`, `FC_CREW_ENABLED` or any other property.
+4. Verifies: no enrollment code, no `fcx.*` key, deletion complete. Only then one write removes the fence and
+   records the **unbound** receipt `lastRevoke = {revokeId: 'purge-<old G>', G: <old G>, outcome: 'deleted',
+   deletedKeys, at, aliases: []}` (no `credHash`, so it never answers a revoke); read back → `deleted`. Any failure or
+   exception after step 2 leaves the fence (`incomplete` / `error`, never `deleted`).
+
+It returns and logs **only** `{outcome: 'deleted'|'incomplete'|'refused'|'busy'|'error', deletedKeys, remaining}`
+(no ids, names or hashes; an exception yields `error` without a message).
+
+**When to use it:** a rollback to a backend version without the crew files while a deletion is still pending (the
+app can no longer complete it); a revocation stuck at `revoke-incomplete`; a lost device whose grant can no longer
+revoke.
+
+**Procedure (owner, Apps Script editor):**
+
+1. Project settings → Script properties → add `FC_CREW_PURGE_CONFIRM` = `PURGE-ALL-CREW-DATA`.
+2. Editor → select `crewPurgeAll` in the function menu → Run.
+3. Executions (or the run log): read the single line, e.g. `{"outcome":"deleted","deletedKeys":12,"remaining":0}`.
+   `incomplete` or `error` after the fence → simply Run again (no property needed: the fence persists until the
+   purge completes); `incomplete` with nothing done (fence write failed) → the property is still set, Run again;
+   `busy` → wait a moment and run again (the property is still set); `refused` → the property value was wrong.
+4. Confirm that `FC_CREW_PURGE_CONFIRM` is gone from Script properties.
+
+Limitation: registered cache keys are read from the manifest at the start of each run. If a run fails after the
+manifest was deleted, a retry no longer knows those keys; they are generation-scoped (unreachable) and expire
+within 6 h (§8.4).
+
+**Known technical debt (P2, open):** an interrupted purge may remove its cache-key manifest before all cache entries
+were successfully removed. In the current code the only cache writes are numeric counters (crew rate limit,
+enrollment failures); no cache entry authorizes access. Before real-platform integration testing: keep the cleanup
+keys (e.g. in the fenced state) until cache removal is verified, and add a regression test proving that a retry
+completes the cache cleanup. Not implemented in Phase 1d.2A.
+
+**Frontend afterwards:** the app's grant now answers `crew-not-enrolled` / stale; the app cleans up its local record
+conservatively. That is **not** a frontend-confirmed deletion: the confirmation is the editor log of step 3.
 
 ### 8.4 Cache keys
 
@@ -658,6 +709,57 @@ pepper is never restored: every grant is bound to the current `pid`. Rotation on
   generation's purge. Without a code, nothing changes (`enroll-closed`).
 - Cache-removal failures never block a revocation, rotation or purge: entries are generation-scoped (unreachable)
   and expire within 6 h; the response reports `cacheCleared: false`.
+
+### 8.7 Enrollment cancellation (Phase 1d.2A — simulated only, not deployed)
+
+Problem: an enrollment request whose answer never arrived (timeout, closed tab) leaves the app with an
+**unresolved candidate grant**. Before Phase 1d.2A a revoke with that grant answered `stale-request` (it was not the
+active grant), so the app could neither confirm that the candidate was dead nor stop a delayed enrollment from
+activating it later; the deletion stayed pending as `unresolved-enrollment`.
+
+**Backend (`crewRevoke`).** This section supersedes the "any other old `revokeId` → `stale-request`" bullet of §8.1
+for revokes whose grant is neither the active nor the revoking grant. Order of checks, under the lock:
+
+1. `lastRevoke` receipt with the same `revokeId` **and** a `credHash` equal to the first 32 hex digits of this
+   grant's hash → the recorded outcome (idempotent). Receipts written for a known grant (revocation done,
+   superseded by an enrollment, pepper rotation) carry `credHash`. A receipt **without** `credHash` (older records,
+   system receipts without a grant, purge receipts) **never** answers; the request falls through to steps 2–4.
+   Consequence: a lost answer of a revocation recorded before Phase 1d.2A is re-answered as `cancelled` (never as
+   a false `deleted`).
+2. `phase = active` and this is the active grant → normal revocation (§8.2), unchanged.
+3. `phase = revoking` with this grant → resume (same `revokeId` or a system revocation), unchanged.
+4. Otherwise → **cancellation**: the grant hash (32 hex) is appended to `FC_CREW_STATE.cancelled` (cap 64 entries,
+   no eviction; full → `busy`). Everything else in the state is byte-identical (G, phase, grant, revoke, purge,
+   epoch, index, `FC_CREW_ENROLL`). The write is read back; a failed or lost write → `crew-unavailable`, nothing
+   claimed. Already tombstoned → `{state: 'cancelled', recorded: true}` without a write.
+   Answer: `{ok: true, action: 'crewRevoke', state: 'cancelled', deletedKeys: 0}`.
+
+**Backend (`crewEnroll`).** The first check: a tombstoned grant → `enroll-closed` — no failure counted, the code is
+neither burned nor consumed, so the owner's outstanding code still works for a new grant. A newer active grant is
+never affected by cancelling another grant.
+
+**Capability.** `capabilities` always carries `limits.crewCancel: 1` (`fcv2CrewCapabilities_`): with every crew
+action while crew is enabled, and with `crewRevoke` only while the kill switch `FC_CREW_ENABLED` is off (revocation
+is never gated, §8.1). The frontend trusts a `cancelled` answer **only** when the current access answered a valid
+v2 `capabilities` that lists `crewRevoke` and `crewCancel === 1` exactly (`crewCancelSupported`; absent, `2`, `"1"`
+→ not trusted). It does not require the other crew actions, so crew stays hidden (`crewSupportedBy`) while a
+deletion can still complete. Untrusted → `invalid-response`; the deletion stays pending and nothing is reported as
+deleted.
+
+**Capability capture.** The service asks `cancelSupported(access)` **before** each revoke dispatch, with the
+access snapshot (endpoint, token, access id) the request is sent with; the runtime answers from its capability
+cache for exactly that access id (unknown → false). The captured boolean validates that response; nothing current
+is consulted after the await, so a capability learned for another backend never upgrades an answer. A response
+resolves only the entry the request was sent for, which belongs to that request's endpoint (Stage A per-entry
+evidence rule); while a deletion is pending no other endpoint can gain an entry (enrollment answers
+`revoke-pending`).
+
+**Frontend.** A trusted `cancelled` resolves only that grant entry as dead (never a deletion claim; a deletion
+consisting only of cancelled candidates ends as `superseded`, the record removed). Capability is learned per access
+id. Exception to "no request while crew is disabled": when a persisted pending deletion still holds any unresolved
+entry (candidate or confirmed grant, both may be answered `cancelled`) and the capability for this access is unknown, the runtime fetches `capabilities` **once per access per
+session** to learn `crewCancel`. Without the capability (older backend) the deletion stays pending as
+`unresolved-enrollment`, as before.
 
 ## 9. Storage model (evaluation against documented limits)
 

@@ -289,6 +289,25 @@ test('wire compatibility: answers of the simulated backend handlers (CrewApiV2.g
   const revoked = call({ action: 'crewRevoke', grant: 'grant-A', revokeId: 'revoke-1' });
   assert.equal(validateCrewRevoke(revoked).ok, true, JSON.stringify(revoked));
   assert.equal(validateCrewRevoke(call({ action: 'crewRevoke', grant: 'grant-A', revokeId: 'revoke-1' })).value.recorded, true, 'idempotent retry is recorded');
-  assert.deepEqual(validateCrewRevoke(call({ action: 'crewRevoke', grant: 'grant-A', revokeId: 'revoke-2' })), { ok: false, refused: 'stale-request' });
+  // Phase 1d.2A: a grant that is not live is cancelled (tombstone). Trusted only when the backend advertises it.
+  const cancelled = call({ action: 'crewRevoke', grant: 'grant-A', revokeId: 'revoke-2' });
+  assert.deepEqual(validateCrewRevoke(cancelled), { ok: false, reason: 'bad-state' }, 'without the capability: unresolved');
+  assert.deepEqual(validateCrewRevoke(cancelled, { cancel: true }).value, { ok: true, action: 'crewRevoke', state: 'cancelled', deletedKeys: 0 });
+  assert.deepEqual(validateCrewRevoke(call({ action: 'crewRevoke', grant: 'grant-A', revokeId: 'revoke-3' }), { cancel: true }).value,
+    { ok: true, action: 'crewRevoke', state: 'cancelled', deletedKeys: 0, recorded: true }, 'repeated cancellation is recorded');
   assert.deepEqual(validateCrew(call({ action: 'crew', grant: 'grant-A', sectorId: sid(flights[0]), date: '2026-10-02' }), { sectorId: sid(flights[0]) }), { ok: false, refused: 'crew-not-enrolled' });
+});
+
+test('Phase 1d.2A: cancelled revoke answers are strict and trusted only with the capability', () => {
+  const base = { ok: true, action: 'crewRevoke', state: 'cancelled', deletedKeys: 0 };
+  assert.equal(validateCrewRevoke(base).reason, 'bad-state');
+  assert.equal(validateCrewRevoke(base, { cancel: false }).reason, 'bad-state');
+  assert.deepEqual(validateCrewRevoke(base, { cancel: true }).value, base);
+  assert.deepEqual(validateCrewRevoke({ ...base, recorded: true }, { cancel: true }).value, { ...base, recorded: true });
+  assert.equal(validateCrewRevoke({ ...base, deletedKeys: 1 }, { cancel: true }).reason, 'bad-deleted-keys');
+  assert.equal(validateCrewRevoke({ ...base, recorded: false }, { cancel: true }).reason, 'bad-recorded');
+  assert.equal(validateCrewRevoke({ ...base, cacheCleared: false }, { cancel: true }).reason, 'unexpected-field');
+  assert.equal(validateCrewRevoke({ ...base, extra: 1 }, { cancel: true }).reason, 'unexpected-field');
+  assert.equal(validateCrewRevoke({ ...base, state: 'revoked' }, { cancel: true }).reason, 'bad-state');
+  assert.equal(validateCrewRevoke(revokeAnswer(), { cancel: true }).value.state, 'deleted', 'deleted unchanged');
 });

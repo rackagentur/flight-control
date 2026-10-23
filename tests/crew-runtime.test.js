@@ -42,7 +42,7 @@ test('opt-in: off by default; `crew.enabled` is the only key written', () => {
 
 test('capability: no request while crew is disabled', async () => {
   const h = setup();
-  assert.deepEqual(await h.runtime.capability(), { supported: false, actions: null, error: 'disabled' });
+  assert.deepEqual(await h.runtime.capability(), { supported: false, cancel: false, actions: null, error: 'disabled' });
   assert.equal(h.bodies.length, 0);
 });
 
@@ -68,8 +68,8 @@ test('capability: an unsupported or failing backend is cached as unsupported (no
   let n = 0;
   const h = setup({ handler: () => { n += 1; if (n === 1) throw Object.assign(new Error('x'), { code: 'network' }); return CAPS; } });
   h.runtime.setEnabled(true);
-  assert.deepEqual(await h.runtime.capability(), { supported: false, actions: null, error: 'network' });
-  assert.deepEqual(await h.runtime.capability(), { supported: false, actions: null, error: 'network' });
+  assert.deepEqual(await h.runtime.capability(), { supported: false, cancel: false, actions: null, error: 'network' });
+  assert.deepEqual(await h.runtime.capability(), { supported: false, cancel: false, actions: null, error: 'network' });
   assert.equal(n, 1);
   const u = setup({ handler: () => ({ ...CAPS, actions: ['capabilities', 'roster', 'history'] }) });
   u.runtime.setEnabled(true);
@@ -139,7 +139,8 @@ test('pending deletion: the real service completes it on start without the opt-i
   await seedPendingDeletion(h);
   const r = await h.runtime.start();
   assert.equal(r.status, 'deleted');
-  assert.deepEqual(h.bodies.map((b) => b.action), ['crewRevoke']);
+  // Phase 1d.2A correction: an unresolved pending deletion learns the capability once (crewCancel, §8.7) first.
+  assert.deepEqual(h.bodies.map((b) => b.action), ['capabilities', 'crewRevoke']);
   assert.equal(h.storage.getItem(`fc.v2.${CREW_CREDENTIAL_KEY}`), null);
 });
 

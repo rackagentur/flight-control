@@ -127,7 +127,7 @@ async function loadCrewGs() {
   vm.createContext(sandbox);
   const dir = new URL('../../backend/apps-script/', import.meta.url);
   const code = [...GS_FILES, 'CrewCoreV2.gs', 'CrewCondorV2.gs', 'CrewApiV2.gs'].map((f) => readFileSync(new URL(f, dir), 'utf8')).join('\n;\n');
-  vm.runInContext(`${code}\n;globalThis.__x = { handle: fcv2CrewHandle_, config: FCV2_CONDOR_CONFIG_ };`, sandbox);
+  vm.runInContext(`${code}\n;globalThis.__x = { handle: fcv2CrewHandle_, config: FCV2_CONDOR_CONFIG_, capabilities: typeof fcv2CrewCapabilities_ === 'undefined' ? undefined : fcv2CrewCapabilities_, purgeAll: typeof fcv2CrewPurgeAll_ === 'undefined' ? undefined : fcv2CrewPurgeAll_ };`, sandbox);
   crewGs = sandbox.__x;
   return crewGs;
 }
@@ -135,8 +135,13 @@ async function loadCrewGs() {
 /**
  * The simulated crew backend (fcv2CrewHandle_) with fake Apps Script services and a few synthetic flights
  * (October 2026). `now` is the backend clock (ms). `handle(body)` answers a request body as plain JSON.
+ * `legacyRevoke`: emulates the backend before Phase 1d.2A for a grant that is not live (answers 'stale-request',
+ * or 'busy' while another grant's revocation runs, and writes no tombstone), so earlier protocol tests keep their
+ * meaning. `capabilities` answers with fcv2CrewCapabilities_ (limits overridable for negotiation tests).
+ * `faults`: { lockBusy, stateWrite: 'throw'|'lost'|(value) => 'throw'|'lost'|null for FC_CREW_STATE writes,
+ * propsDel: (key) => true to make that Script Property deletion throw, cacheRemove: true to make removeAll throw }.
  */
-export async function simulatedCrewBackend({ now }) {
+export async function simulatedCrewBackend({ now, legacyRevoke = false, limits = undefined }) {
   const gs = await loadCrewGs();
   const syn = await import('./crew.synthetic.mjs');
   const deps = syn.handlerDeps();
@@ -149,12 +154,28 @@ export async function simulatedCrewBackend({ now }) {
     { sourceId: 'r-1', start: at('2026-10-02T06:00:00Z'), end: at('2026-10-02T08:30:00Z'), origin: 'FRA', destination: 'PMI', flightNumber: 'DE1501', crew },
     { sourceId: 'r-2', start: at('2026-10-15T06:00:00Z'), end: at('2026-10-15T08:30:00Z'), origin: 'FRA', destination: 'LPA', flightNumber: 'DE1503', crew },
   ];
+  const faults = { lockBusy: false, stateWrite: null, propsDel: null, cacheRemove: false };
   const env = {
     token: () => TOKEN, now, config: gs.config,
-    props: { get: (k) => (props.has(k) ? props.get(k) : null), set: (k, v) => props.set(k, v), del: (k) => props.delete(k) },
+    props: {
+      get: (k) => (props.has(k) ? props.get(k) : null),
+      set: (k, v) => {
+        const fault = k !== 'FC_CREW_STATE' ? null : (typeof faults.stateWrite === 'function' ? faults.stateWrite(v) : faults.stateWrite);
+        if (fault === 'throw') throw new Error('injected state write failure');
+        if (fault === 'lost') return;   // accepted, but never persisted
+        props.set(k, v);
+      },
+      del: (k) => {
+        if (typeof faults.propsDel === 'function' && faults.propsDel(k)) throw new Error('injected property delete failure');
+        props.delete(k);
+      },
+    },
     store,
-    cache: { get: (k) => cache.get(k) ?? null, put: (k, v) => cache.set(k, v), removeAll: (keys) => keys.forEach((k) => cache.delete(k)) },
-    lock: (fn) => ({ ok: true, value: fn() }),
+    cache: {
+      get: (k) => cache.get(k) ?? null, put: (k, v) => cache.set(k, v),
+      removeAll: (keys) => { if (faults.cacheRemove) throw new Error('injected cache failure'); keys.forEach((k) => cache.delete(k)); },
+    },
+    lock: (fn) => (faults.lockBusy ? { ok: false } : { ok: true, value: fn() }),
     readRaw: (from, to) => flights.filter((f) => f.end > from && f.start < to)
       .map((f) => syn.toRaw(f, { synced: f.start < syn.dayStart(deps.localDate(now())) })),
     deps,
@@ -163,8 +184,30 @@ export async function simulatedCrewBackend({ now }) {
     /** Answers one request body (the roster token in the body is accepted when it equals TOKEN or OTHER_TOKEN). */
     handle(body) {
       const token = body.token === OTHER_TOKEN ? TOKEN : body.token;
-      return JSON.parse(JSON.stringify(gs.handle(JSON.stringify({ ...body, token }), env)));
+      if (body.action === 'capabilities') {
+        const crewPart = gs.capabilities ? gs.capabilities(env) : null;
+        const answer = { ok: true, contract: 'fc.roster', version: 2, action: 'capabilities', actions: ['capabilities', 'roster', 'history'] };
+        if (crewPart) {
+          answer.actions = answer.actions.concat(crewPart.actions);
+          const merged = limits === undefined ? crewPart.limits : limits;
+          if (merged !== null) answer.limits = JSON.parse(JSON.stringify(merged));
+        }
+        return answer;
+      }
+      const before = props.get('FC_CREW_STATE');
+      const out = JSON.parse(JSON.stringify(gs.handle(JSON.stringify({ ...body, token }), env)));
+      if (legacyRevoke && body.action === 'crewRevoke' && out.ok && out.state === 'cancelled') {
+        if (before === undefined) props.delete('FC_CREW_STATE'); else props.set('FC_CREW_STATE', before);
+        const st = JSON.parse(before ?? '{"phase":"none"}');
+        return { ok: false, error: st.phase === 'revoking' ? 'busy' : 'stale-request' };
+      }
+      return out;
     },
+    /** Raw parsed FC_CREW_STATE (synthetic; assertions only). */
+    state: () => JSON.parse(props.get('FC_CREW_STATE') ?? 'null'),
+    props, store, cache, faults, env, gs,
+    /** sha256 of a grant, truncated as in tombstones. */
+    shortHash: (grant) => deps.hash(grant).slice(0, 32),
     /** The owner issues a single-use enrollment code valid for `ttlMs` (at most 15 min). */
     issueCode(code, ttlMs = 10 * 60000) { props.set('FC_CREW_ENROLL', `${code}|${now() + ttlMs}`); },
     phase: () => JSON.parse(props.get('FC_CREW_STATE') ?? '{"phase":"none"}').phase,

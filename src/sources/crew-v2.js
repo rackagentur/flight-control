@@ -289,13 +289,26 @@ export function validateCrewEnroll(payload) {
 }
 
 /**
- * Strict `crewRevoke` response: deletion is confirmed only by {ok:true, state:'deleted'}.
+ * Strict `crewRevoke` response: deletion is confirmed only by {ok:true, state:'deleted'}. A cancellation
+ * {ok:true, state:'cancelled', deletedKeys:0, recorded?:true} (the grant was not live and is now tombstoned, §8.7)
+ * is accepted ONLY with {cancel:true}, i.e. when the backend advertised limits.crewCancel = 1; otherwise it is
+ * rejected (the entry stays unresolved).
+ * @param {unknown} payload
+ * @param {{cancel?:boolean}} [options]
  * @returns {{ok:true, value:object}|{ok:false, reason:string}|{ok:false, refused:string}}
  */
-export function validateCrewRevoke(payload) {
+export function validateCrewRevoke(payload, { cancel = false } = {}) {
   return run(payload, (p) => {
     keys(p, ['ok', 'action', 'state', 'deletedKeys'], ['recorded', 'cacheCleared']);
     if (p.action !== 'crewRevoke') reject('wrong-action');
+    if (p.state === 'cancelled') {
+      if (cancel !== true) reject('bad-state');
+      if (p.deletedKeys !== 0) reject('bad-deleted-keys');
+      if ('cacheCleared' in p) reject('unexpected-field');
+      if ('recorded' in p && p.recorded !== true) reject('bad-recorded');
+      return p.recorded === true ? { ok: true, action: p.action, state: 'cancelled', deletedKeys: 0, recorded: true }
+        : { ok: true, action: p.action, state: 'cancelled', deletedKeys: 0 };
+    }
     if (p.state !== 'deleted') reject('bad-state');
     if (!isCount(p.deletedKeys)) reject('bad-deleted-keys');
     if ('recorded' in p && p.recorded !== true) reject('bad-recorded');
