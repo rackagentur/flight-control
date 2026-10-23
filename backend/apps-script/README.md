@@ -13,7 +13,7 @@ Status: **installed (private).** All seven v2 files (`CondorAdapterV2.gs`, `Cond
 | `DeparturesV2.gs` | **Not yet deployed (Phase 3).** The `departures` action: validates the request, chunks the range into provider windows, normalizes AeroDataBox responses (pure; unit-tested in Node). All I/O (key, `UrlFetchApp`, cache, sleep) is injected by `RosterApiV2.gs` `fcv2LiveEnv_`. No top-level dependency on any other file; must stay last / is added as a new file |
 | `CrewCoreV2.gs` | **Not deployed — do not install.** Crew Intelligence core (Phase 1a/1b, synthetic tests only: `tests/crew-core.test.js`, `tests/crew-api.test.js`); depends on `RosterModelV2.gs` (`fcv2Duties_`). Live backend actions are not authorized. Spec: `docs/CREW-INTELLIGENCE.md` |
 | `CrewCondorV2.gs` | **Not deployed — do not install.** Condor crew-list parser for Crew Intelligence (Phase 1b, synthetic). Reuses `CondorAdapterV2.gs` read-only; the installed adapter is unchanged |
-| `CrewApiV2.gs` | **Not deployed, not routed — do not install.** Simulated crew handlers (`crewEnroll`, `crewIndex`, `crew`, `crewRevoke`) tested with fake services only; `RosterApiV2.gs` does not call them |
+| `CrewApiV2.gs` | **Not deployed — do not install.** Crew handlers (`crewEnroll`, `crewIndex`, `crew`, `crewRevoke`), the routing hook, the execution-identity gate and the live env (Phase 1d.2B, local only). The local `RosterApiV2.gs` routes the four actions to it only when all three crew files are present; tested with fake services only |
 
 Rules the files follow:
 
@@ -77,6 +77,13 @@ Adds provider schedule data (AeroDataBox via RapidAPI) to the existing doPost AP
 4. **Version and deployment**: Deploy → Manage deployments → the existing *untitled* deployment → Edit → *New version* (description "fc.roster v2 departures") → Deploy. The /exec URL does not change.
 5. **Verify**: `capabilities` lists `departures` and `limits.departuresMaxHours: 24`; one small `departures` request (one airport, one hour); the other actions answer exactly as before.
 6. **Rollback**: Manage deployments → Edit → **Version 27** → Deploy (instant). Kill switch without redeploy: delete Script Property `FC_ADB_RAPIDAPI_KEY` (the action goes dark; everything else is unaffected).
+
+### Crew Intelligence (Phase 1d.2B — local only, NOT deployed; needs explicit approval)
+
+- **Deploy order:** frontend first; then, in **one** new version, the updated `RosterApiV2.gs` plus `CrewCoreV2.gs`, `CrewCondorV2.gs` and `CrewApiV2.gs`. With the crew files but without the properties below, every non-crew answer is byte-identical and crew actions answer `crew-disabled` / `crew-unavailable`.
+- **Properties (set by the owner in the editor, never in Git):** `FC_CREW_OWNER` (the owner's Google account email; the script must run as this account), `FC_CREW_PEPPER`, `FC_CREW_SELF`, `FC_CREW_ENABLED` = `on`. Without `FC_CREW_OWNER` nothing crew-related runs. Revocation keeps working with the switch off as long as `FC_CREW_OWNER` matches.
+- **OAuth authorization:** the chosen execution-identity check (`Session.getEffectiveUser().getEmail()`) requires the Google OAuth scope `https://www.googleapis.com/auth/userinfo.email`. Existing authorization for the installed Apps Script project has not been verified; reauthorization may be required before deploying. The separate test Apps Script project must validate authorization before any production rollout. No OAuth scopes or production configuration have been changed in this phase.
+- **Rollback:** the previous version (removes the hook and the crew files). If a crew deletion is pending, run `crewPurgeAll` first (procedure in the Rollback list below and `docs/CREW-INTELLIGENCE.md` §8.3). Kill switch: delete `FC_CREW_ENABLED` (revocation still works) or `FC_CREW_OWNER` (everything crew-related stops, including revocation).
 
 ## Rollback
 

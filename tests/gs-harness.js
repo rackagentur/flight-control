@@ -8,6 +8,8 @@ import { createHash } from 'node:crypto';
 export const GS_FILES = ['CondorAdapterV2.gs', 'RosterModelV2.gs', 'AirportsV2.gs', 'RosterApiV2.gs', 'RouterV2.gs', 'CondorCodesV2.gs', 'DeparturesV2.gs', 'FlightInfoV2.gs'];
 // DeparturesV2.gs and FlightInfoV2.gs are last on purpose: Apps Script appends a newly added file after the
 // existing ones (CondorCodesV2.gs was the previous newcomer). Neither has a top-level dependency on another file.
+// Crew Intelligence files (Phase 1b–1d), appended after the installed ones.
+export const CREW_GS_FILES = ['CrewCoreV2.gs', 'CrewCondorV2.gs', 'CrewApiV2.gs'];
 const dir = new URL('../backend/apps-script/', import.meta.url);
 
 function part(ms, tz, opts) {
@@ -36,13 +38,19 @@ const Utilities = {
   },
 };
 
-const GS_EXPORTS = ['FCV2_CONDOR_CONFIG_', 'FCV2_CONDOR_CODES_', 'FCV2_AIRPORT_TZ_', 'fcv2ClassifyEvent_', 'fcv2ParseDescription_', 'fcv2BuildRoster_', 'fcv2BuildHistory_', 'fcv2HandlePost_', 'fcv2SafeEqual_', 'fcv2StartOfDay_', 'fcv2LocalIso_', 'fcv2Range_', 'FCV2_HISTORY_MAX_SECTORS_', 'fcv2HandleGet_', 'FCV2_GET_REFUSED_', 'fcv2HandleDepartures_', 'fcv2DepartureChunks_', 'fcv2ProviderRange_', 'fcv2DepartureUrl_', 'fcv2DepartureRequest_', 'fcv2DepartureCarriers_', 'fcv2MapDepartureStatus_', 'fcv2ParseProviderUtc_', 'fcv2NormalizeAdb_', 'fcv2ValidWireFlight_', 'fcv2ValidChunkCache_', 'fcv2FilterCarriers_', 'FCV2_DEP_STATUS_', 'FCV2_DEP_KEY_PROPERTY_', 'FCV2_DEP_ATTRIBUTION_', 'fcv2HandleFlight_', 'fcv2FlightCanonical_', 'fcv2FlightRequest_', 'fcv2FlightUrl_', 'fcv2FlightStatus_', 'fcv2FlightParseUtc_', 'fcv2FlightText_', 'fcv2FlightQuality_', 'fcv2FlightMatches_', 'fcv2FlightNormalize_', 'fcv2FlightValidCache_', 'fcv2FlightCacheKey_', 'FCV2_FLT_STATUS_', 'FCV2_FLT_ATTRIBUTION_'];
+const GS_EXPORTS = ['FCV2_CONDOR_CONFIG_', 'FCV2_CONDOR_CODES_', 'FCV2_AIRPORT_TZ_', 'fcv2ClassifyEvent_', 'fcv2ParseDescription_', 'fcv2BuildRoster_', 'fcv2BuildHistory_', 'fcv2HandlePost_', 'fcv2SafeEqual_', 'fcv2StartOfDay_', 'fcv2LocalIso_', 'fcv2Range_', 'FCV2_HISTORY_MAX_SECTORS_', 'fcv2HandleGet_', 'FCV2_GET_REFUSED_', 'fcv2HandleDepartures_', 'fcv2DepartureChunks_', 'fcv2ProviderRange_', 'fcv2DepartureUrl_', 'fcv2DepartureRequest_', 'fcv2DepartureCarriers_', 'fcv2MapDepartureStatus_', 'fcv2ParseProviderUtc_', 'fcv2NormalizeAdb_', 'fcv2ValidWireFlight_', 'fcv2ValidChunkCache_', 'fcv2FilterCarriers_', 'FCV2_DEP_STATUS_', 'FCV2_DEP_KEY_PROPERTY_', 'FCV2_DEP_ATTRIBUTION_', 'fcv2HandleFlight_', 'fcv2FlightCanonical_', 'fcv2FlightRequest_', 'fcv2FlightUrl_', 'fcv2FlightStatus_', 'fcv2FlightParseUtc_', 'fcv2FlightText_', 'fcv2FlightQuality_', 'fcv2FlightMatches_', 'fcv2FlightNormalize_', 'fcv2FlightValidCache_', 'fcv2FlightCacheKey_', 'FCV2_FLT_STATUS_', 'FCV2_FLT_ATTRIBUTION_',
+  // Phase 1d.2B: live entry point and crew routing (undefined when a file is left out)
+  'doPost', 'doGet', 'fcv2LiveEnv_', 'fcv2CrewAvailable_', 'fcv2CrewRoute_', 'fcv2CrewRouteCapabilities_', 'fcv2CrewLiveEnv_', 'fcv2CrewMode_', 'fcv2CrewIdentityVerified_', 'fcv2CrewCapabilities_', 'fcv2CrewHandle_'];
 
-/** Loads the sources into one sandbox; `files` lets a test leave one out (a partial deploy). Names a file does not define stay undefined. */
-export function loadGs(files = GS_FILES) {
-  const sandbox = { Utilities, console };
+/**
+ * Loads the sources into one sandbox; `files` lets a test leave one out (a partial deploy). Names a file does not
+ * define stay undefined. `globals`: fake Apps Script services (tests/fixtures/crew-gas-fakes.mjs) placed in the
+ * sandbox. `transform(file, source)`: optional source rewrite (e.g. an older file version without one function).
+ */
+export function loadGs(files = GS_FILES, globals = {}, transform = null) {
+  const sandbox = { Utilities, console, ...globals };
   vm.createContext(sandbox);
-  const code = files.map((f) => readFileSync(new URL(f, dir), 'utf8')).join('\n;\n');
+  const code = files.map((f) => { const src = readFileSync(new URL(f, dir), 'utf8'); return transform ? transform(f, src) : src; }).join('\n;\n');
   const exported = GS_EXPORTS.map((n) => `${n}: typeof ${n} === 'undefined' ? undefined : ${n}`).join(', ');
   vm.runInContext(`${code}\n;globalThis.__gs = { ${exported} };`, sandbox);
   return sandbox.__gs;

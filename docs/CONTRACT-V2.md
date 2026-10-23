@@ -59,6 +59,14 @@ The feed keeps only a few days of past events and extends to the end of the next
 | `history` | optional `from`, `to` | My own flown sectors from the synced copy (sync-tagged events only). ≤ 13 months, ≥ configured start date, past only, ≤ 2,000 sectors (most recent kept, `truncated: true`). Cached 6 h |
 | `departures` | `airport` (IATA, in the zone table), `from`, `to` (epoch ms), optional `carriers` | Provider schedule data (AeroDataBox), **not** roster sectors and not assignments; see below. ≤ 24 h per request. Listed in `capabilities.actions` only while its Script Property is set |
 
+**Crew Intelligence actions (Phase 1d.2B — implemented locally, NOT deployed).** `crew`, `crewEnroll`, `crewIndex`
+and `crewRevoke` (spec and payloads: `docs/CREW-INTELLIGENCE.md`) use the same envelope and endpoint. `doPost`
+routes them only after the token check (with the failure limiter) and the contract check, and only when all three
+crew files are deployed; otherwise they answer the unchanged `unknown-action`. `capabilities` adds them only under
+the crew gate: full mode → `crew`, `crewEnroll`, `crewIndex`, `crewRevoke` and `limits.crewCancel: 1`;
+revocation-only mode → `crewRevoke` and `limits.crewCancel: 1`; otherwise the answer is byte-identical to a
+deployment without crew. `crewPurgeAll` is editor-only and never an action.
+
 ## `roster` response (synthetic example, shortened)
 
 ```json

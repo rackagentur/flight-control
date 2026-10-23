@@ -183,7 +183,13 @@ test('roster regression: loading the crew files changes no roster, history or cl
     assert.equal(JSON.stringify(gs.fcv2ClassifyEvent_(raw, CONFIG)).includes(synthId(7)), false, 'roster classification never carries crew');
   }
   assert.equal(readFileSync(new URL('RouterV2.gs', dir), 'utf8').includes('fcv2CrewHandle_'), false);
-  assert.equal(readFileSync(new URL('RosterApiV2.gs', dir), 'utf8').includes('fcv2Crew'), false, 'not routed');
+  // Phase 1d.2B (disclosed): RosterApiV2.gs now routes crew actions. It references exactly the four entry points of
+  // the routing hook, and only behind a typeof guard (a deployment without the crew files is unchanged; the
+  // byte-identity above and tests/crew-routing.test.js pin the behaviour).
+  const roster = readFileSync(new URL('RosterApiV2.gs', dir), 'utf8');
+  assert.deepEqual([...new Set(roster.match(/fcv2Crew\w+_/g))].sort(), ['fcv2CrewAvailable_', 'fcv2CrewLiveEnv_', 'fcv2CrewRouteCapabilities_', 'fcv2CrewRoute_']);
+  assert.equal((roster.match(/typeof fcv2CrewAvailable_ === 'function'/g) ?? []).length, 2, 'route and capabilities guarded');
+  assert.equal((roster.match(/typeof fcv2CrewLiveEnv_ === 'function'/g) ?? []).length, 1, 'crew env guarded');
 });
 
 // --- Handlers: gating, enrollment, authorization, rate limiting --------------------------------------
@@ -434,8 +440,14 @@ test('privacy: durable records, state, cache and responses hold no names or raw 
       assert.deepEqual(wrapper[0].match(/console\.\w+\(.*\);/g), ['console.log(JSON.stringify(result));']);
       assert.equal(/\bLogger\.|UrlFetchApp|CalendarApp/.test(wrapper[0]), false);
       src = src.replace(wrapper[0], '\n');
+      // Phase 1d.2B: the live env builder is the one other place with live services; it never logs, never fetches
+      // and never opens a calendar itself (the roster env's readers are reused).
+      const builder = src.match(/\nfunction fcv2CrewLiveEnv_\(base\) \{[\s\S]*?\n\}\n/);
+      assert.ok(builder, 'fcv2CrewLiveEnv_ present');
+      assert.equal(/\bLogger\.|console\.|UrlFetchApp|CalendarApp/.test(builder[0]), false);
+      src = src.replace(builder[0], '\n');
     }
-    assert.equal(/\bLogger\.|console\.|UrlFetchApp|CacheService|PropertiesService|LockService|CalendarApp/.test(src), false, `${f} uses no live service or log`);
+    assert.equal(/\bLogger\.|console\.|UrlFetchApp|CacheService|PropertiesService|LockService|CalendarApp|\bSession\./.test(src), false, `${f} uses no live service or log`);
   }
 });
 

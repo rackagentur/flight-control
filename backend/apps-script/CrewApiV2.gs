@@ -1,8 +1,9 @@
 // ============================================================================
 // FLIGHT CONTROL — CREW INTELLIGENCE: ACTION HANDLERS (Phase 1b, simulated only)
 // ============================================================================
-// NOT DEPLOYED and NOT ROUTED: RosterApiV2.gs / RouterV2.gs never call this file. Tests drive
-// fcv2CrewHandle_ with fake services. Actions (spec §3, §4, §7, §8):
+// NOT DEPLOYED. Phase 1d.2B: RosterApiV2.gs routes the four actions below through fcv2CrewRoute_ (after its
+// token and contract checks) when every crew file is present; the gate (execution identity + configuration) is
+// enforced there. Tests drive fcv2CrewHandle_ and doPost with fake services. Actions (spec §3, §4, §7, §8):
 //   crewEnroll {code, grant}   owner-issued single-use code (Script Property FC_CREW_ENROLL) → crew grant
 //   crewIndex  {verifyBefore?, retryUncovered?} bounded, resumable indexing / re-verification / capacity recovery
 //   crew       {sectorId, date} crew of one owned sector with recorded familiarity before it
@@ -419,4 +420,165 @@ function crewPurgeAll() {
   });
   console.log(JSON.stringify(result));
   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Routing, execution-identity gate and live services (Phase 1d.2B — local only, NOT deployed)
+// ---------------------------------------------------------------------------
+// RosterApiV2.gs routes crew, crewEnroll, crewIndex and crewRevoke here, AFTER its token check (with the failure
+// limiter) and contract check, and only when fcv2CrewAvailable_() is true. The crew env is built lazily
+// (env.crew()) only for those actions and for capabilities. crewPurgeAll is never routed.
+
+const FCV2_CREW_OWNER_PROPERTY_ = 'FC_CREW_OWNER';
+const FCV2_CREW_LOCK_WAIT_MS_ = 10000;
+
+/**
+ * True only when every crew function is part of the deployment (CrewCoreV2.gs, CrewCondorV2.gs, CrewApiV2.gs,
+ * including older copies of a file that lack a newer function). typeof never throws for a missing name.
+ */
+function fcv2CrewAvailable_() {
+  const kinds = [
+    // CrewCoreV2.gs
+    typeof fcv2CrewGroupDuties_, typeof fcv2CrewLinkDuties_, typeof fcv2CrewWindow_, typeof fcv2CrewEdges_,
+    typeof fcv2CrewNextMonth_, typeof fcv2CrewSectorKeys_, typeof fcv2CrewBuildMonth_, typeof fcv2CrewSealable_,
+    typeof fcv2CrewSelectedDuty_, typeof fcv2CrewCount_, typeof fcv2CrewSum_, typeof fcv2CrewResult_,
+    typeof fcv2CrewInitialState_, typeof fcv2CrewSafeEqual_, typeof fcv2CrewShortHash_, typeof fcv2CrewTombstoned_,
+    typeof fcv2CrewAuthorized_, typeof fcv2CrewFinalCheck_, typeof fcv2CrewEnroll_, typeof fcv2CrewBeginRevoke_,
+    typeof fcv2CrewSystemRevoke_, typeof fcv2CrewPurge_, typeof fcv2CrewCacheRemove_, typeof fcv2CrewResumePurge_,
+    typeof fcv2CrewRevoke_, typeof fcv2CrewEncodeMonth_, typeof fcv2CrewValidPayload_, typeof fcv2CrewDecodeMonth_,
+    typeof fcv2CrewPartKey_, typeof fcv2CrewPartHeader_, typeof fcv2CrewParts_, typeof fcv2CrewStoreBytes_,
+    typeof fcv2CrewUtf8_, typeof fcv2CrewPeak_, typeof fcv2CrewFingerprint_, typeof fcv2CrewEntryOut_,
+    typeof fcv2CrewEntryIn_, typeof fcv2CrewValidEntry_, typeof fcv2CrewValidRoot_, typeof fcv2CrewValidManifest_,
+    typeof fcv2CrewYearKey_, typeof fcv2CrewEmptyManifest_, typeof fcv2CrewManifest_, typeof fcv2CrewPublish_,
+    typeof fcv2CrewFailClosed_, typeof fcv2CrewAdjacentMonths_, typeof fcv2CrewCommitMonth_, typeof fcv2CrewTouchMonth_,
+    typeof fcv2CrewGc_, typeof fcv2CrewMonthIntegrity_, typeof fcv2CrewIndexPlan_, typeof fcv2CrewReadSnapshot_,
+    // CrewCondorV2.gs
+    typeof fcv2CrewParseLines_, typeof fcv2CrewNormalizeEvent_, typeof fcv2CrewReaderFrom_,
+    // CrewApiV2.gs
+    typeof fcv2CrewState_, typeof fcv2CrewSettings_, typeof fcv2CrewCtx_, typeof fcv2CrewCoreEnv_,
+    typeof fcv2CrewMonthList_, typeof fcv2CrewSealableMonths_, typeof fcv2CrewIsDate_, typeof fcv2CrewHandle_,
+    typeof fcv2CrewHandleEnroll_, typeof fcv2CrewHandleRevoke_, typeof fcv2CrewRotate_, typeof fcv2CrewHandleIndex_,
+    typeof fcv2CrewHandleCrew_, typeof fcv2CrewMemberOut_, typeof fcv2AddDaysKey_, typeof fcv2CrewCapabilities_,
+    typeof fcv2CrewPurgeAll_, typeof fcv2CrewAvailable_, typeof fcv2CrewIdentityVerified_, typeof fcv2CrewMode_,
+    typeof fcv2CrewRoute_, typeof fcv2CrewRouteCapabilities_, typeof fcv2CrewLiveEnv_, typeof fcv2CrewReadRaw_,
+    typeof fcv2CrewLiveDeps_,
+  ];
+  for (let i = 0; i < kinds.length; i++) if (kinds[i] !== 'function') return false;
+  return true;
+}
+
+/**
+ * Execution identity: the account this script RUNS AS (effective user, see fcv2CrewLiveEnv_) equals the owner-configured
+ * Script Property FC_CREW_OWNER (trimmed, case-insensitive). This is NOT authentication of the HTTP caller (the
+ * roster token and the crew grant do that); it only ensures crew data is processed under the owner's account and
+ * stored in the owner's User Properties. Fails closed: no owner configured, an empty email or any exception ->
+ * false. Without FC_CREW_OWNER, Session is never called. (Platform note, unverified: getEmail() may need the
+ * userinfo.email scope; without it it returns '' or throws, and crew stays unavailable.)
+ */
+function fcv2CrewIdentityVerified_(env) {
+  try {
+    const owner = String(env.props.get(FCV2_CREW_OWNER_PROPERTY_) || '').trim().toLowerCase();
+    if (!owner) return false;
+    const email = String(env.effectiveEmail() || '').trim().toLowerCase();
+    return !!email && email === owner;
+  } catch (err) {
+    return false;
+  }
+}
+
+/** 'full' (identity verified and crew enabled), 'revoke' (identity verified only) or null. */
+function fcv2CrewMode_(env) {
+  if (!fcv2CrewIdentityVerified_(env)) return null;
+  return fcv2CrewSettings_(env).enabled ? 'full' : 'revoke';
+}
+
+/**
+ * Routed crew action (called by fcv2HandlePost_ after its token and contract checks). The gate is enforced here,
+ * not only advertised: crew/crewEnroll/crewIndex need full mode ('crew-disabled'); crewRevoke needs at least
+ * revocation-only mode ('crew-unavailable': never a false confirmation; the owner's fallback is crewPurgeAll).
+ */
+function fcv2CrewRoute_(req, body, base) {
+  const env = typeof base.crew === 'function' ? base.crew() : null;
+  if (!env) return { ok: false, error: 'crew-unavailable' };
+  const mode = fcv2CrewMode_(env);
+  if (req.action === 'crewRevoke') {
+    if (!mode) return { ok: false, error: 'crew-unavailable' };
+  } else if (mode !== 'full') {
+    return { ok: false, error: 'crew-disabled' };
+  }
+  return fcv2CrewHandle_(body, env);
+}
+
+/** Crew part of capabilities under the gate: null (base answer unchanged), revocation-only or full (§8.7). */
+function fcv2CrewRouteCapabilities_(base) {
+  const env = typeof base.crew === 'function' ? base.crew() : null;
+  if (!env || !fcv2CrewMode_(env)) return null;
+  return fcv2CrewCapabilities_(env);
+}
+
+/** Raw events for the crew reader: synced copy (tagged only) before the start of today, airline feed from it. */
+function fcv2CrewReadRaw_(base, from, to) {
+  const today = base.startOfDay(base.deps.localDate(base.now(), base.config.baseTimeZone));
+  let out = [];
+  if (from < today) out = out.concat(base.syncedEvents(from, Math.min(to, today)));
+  if (to > today) out = out.concat(base.airlineEvents(Math.max(from, today), to));
+  return out;                                   // synced first: the reader keeps the first copy of a sourceId
+}
+
+/** Live primitives in the formats of the synthetic handler deps (base time zone, never UTC substitution). */
+function fcv2CrewLiveDeps_(base, tz) {
+  const hex = function (bytes) { return bytes.map(function (b) { return ('0' + (b & 0xff).toString(16)).slice(-2); }).join(''); };
+  const hmac = function (pepper, text) { return Utilities.computeHmacSha256Signature(String(text), String(pepper), Utilities.Charset.UTF_8); };
+  return {
+    hash: base.deps.hash,                                               // fcv2Hash_: hex SHA-256 of UTF-8
+    hmacHex: function (pepper, text) { return hex(hmac(pepper, text)); },
+    hmacKey: function (pepper, text) { return Utilities.base64EncodeWebSafe(hmac(pepper, text)).slice(0, 22); },   // 128 bits
+    pack: function (s) { return Utilities.base64Encode(Utilities.gzip(Utilities.newBlob('').setDataFromString(s, 'UTF-8')).getBytes()); },
+    unpack: function (s) { return Utilities.ungzip(Utilities.newBlob(Utilities.base64Decode(s), 'application/x-gzip')).getDataAsString('UTF-8'); },
+    monthStart: function (month) { return fcv2StartOfDay_(month + '-01', tz); },
+    monthOf: function (ms) { return fcv2LocalDate_(ms, tz).slice(0, 7); },
+    localDate: function (ms) { return fcv2LocalDate_(ms, tz); },
+    dayStart: function (key) { return fcv2StartOfDay_(key, tz); },
+    newId: function () { return Utilities.getUuid().replace(/-/g, '').toLowerCase(); },
+  };
+}
+
+/**
+ * Live crew env over Apps Script services; `base` is the roster env (fcv2LiveEnv_): token, clock and the calendar
+ * readers are shared, never duplicated. Built only for crew actions and capabilities.
+ */
+function fcv2CrewLiveEnv_(base) {
+  const config = FCV2_CONDOR_CONFIG_;
+  const script = PropertiesService.getScriptProperties();
+  const user = PropertiesService.getUserProperties();
+  const cache = CacheService.getScriptCache();
+  return {
+    token: base.token,
+    now: base.now,
+    config: config,
+    props: {
+      get: function (k) { return script.getProperty(k); },
+      set: function (k, v) { script.setProperty(k, v); },
+      del: function (k) { script.deleteProperty(k); },
+    },
+    store: {
+      keys: function () { return user.getKeys(); },
+      get: function (k) { return user.getProperty(k); },
+      set: function (k, v) { user.setProperty(k, v); },
+      del: function (k) { user.deleteProperty(k); },
+    },
+    cache: {
+      get: function (k) { return cache.get(k); },
+      put: function (k, v, ttl) { cache.put(k, v, ttl); },
+      removeAll: function (keys) { cache.removeAll(keys); },
+    },
+    lock: function (fn) {
+      const lock = LockService.getScriptLock();
+      if (!lock.tryLock(FCV2_CREW_LOCK_WAIT_MS_)) return { ok: false };
+      try { return { ok: true, value: fn() }; } finally { lock.releaseLock(); }
+    },
+    readRaw: function (from, to) { return fcv2CrewReadRaw_(base, from, to); },
+    effectiveEmail: function () { return Session.getEffectiveUser().getEmail(); },
+    deps: fcv2CrewLiveDeps_(base, config.baseTimeZone),
+  };
 }

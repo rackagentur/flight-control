@@ -1082,6 +1082,64 @@ storage-capacity validation against the real property store.
 - No frontend.
 
 
+## 16b. Phase 1d.2B: routing, live adapters, execution-identity gate (local only — NOT deployed)
+
+**Routing.** `fcv2HandlePost_` (`RosterApiV2.gs`) unchanged up to and including the token check (failure limiter)
+and the contract check. Then, for `crew`, `crewEnroll`, `crewIndex`, `crewRevoke` only and only when
+`fcv2CrewAvailable_()` (a `typeof` check of **every** function in the three crew files, so an older copy of one
+file also counts as missing): `fcv2CrewRoute_` (`CrewApiV2.gs`) inside `try/catch` → `{ok:false,
+error:'crew-unavailable'}` without details. Without the crew files the four names fall through to the unchanged
+`unknown-action`; `crewPurgeAll` and every other name are unchanged. The crew env is built lazily (`env.crew()`,
+at most once per request) only for these actions and for `capabilities`; a wrong token, the limiter or a wrong
+contract answer before any crew code runs (tested: User Properties never opened, Session never called).
+
+**Live env (`fcv2CrewLiveEnv_(base)`).** Token, clock and the calendar readers come from the roster env
+(`fcv2LiveEnv_`), so the CalendarApp/sync-tag mapping is shared, not duplicated, and roster output is unchanged.
+`props` = Script Properties, `store` = User Properties (only `fcx.*` is touched), `cache` = Script Cache, `lock` =
+`LockService.getScriptLock().tryLock(10 s)` with `releaseLock` in `finally` (a non-reentrant fake proves no nested
+locking), `readRaw(from, to)` = synced copy (sync-tagged events only) for `[from, min(to, start of today))` plus
+airline feed for `[max(from, start of today), to)`. Deps in the formats of the synthetic handler deps (tested for
+equality, including the DST days and month boundaries in Europe/Berlin): `hash` = the roster's `fcv2Hash_`,
+`hmacHex`/`hmacKey` via `Utilities.computeHmacSha256Signature` (hex / first 22 web-safe base64 chars = 128 bits),
+`pack`/`unpack` = UTF-8 → gzip → standard base64 and back (round trip with the synthetic format), base-zone
+`localDate`, `monthOf`, `monthStart`, `dayStart` via `fcv2LocalDate_` / `fcv2StartOfDay_` (never UTC), `newId` =
+`Utilities.getUuid()` without dashes.
+
+**Execution-identity + configuration gate (fail closed).** Script Property `FC_CREW_OWNER` = the owner's Google
+account email (set by the owner; never in Git). Identity verified ⇔ `FC_CREW_OWNER` non-empty **and** the
+effective user's email non-empty **and** equal (trimmed, case-insensitive); any exception or empty value → not
+verified; without `FC_CREW_OWNER` the Session service is never called. This checks **which account the script runs
+as** (so crew data is processed and stored only under the owner's account); it is **not** authentication of the
+HTTP caller — the roster token and the crew grant remain the only caller authentication.
+- Full mode ⇔ crew files available, identity verified, `FC_CREW_ENABLED = on`, `FC_CREW_PEPPER` and `FC_CREW_SELF`
+  set. `crew`, `crewEnroll`, `crewIndex` need full mode, else `crew-disabled`.
+- Revocation-only mode ⇔ crew files available and identity verified. `crewRevoke` needs at least this mode, else
+  `crew-unavailable` (never a false confirmation; the app stays pending; the owner's fallback is `crewPurgeAll`).
+- Purge fence and tombstones (§8.3, §8.7) are unchanged.
+- **Platform note (UNVERIFIED, founder decision item):** the effective user's `getEmail()` may need the
+  `userinfo.email` OAuth scope; without it, it returns `''` or throws, so crew stays unavailable and the roster is
+  unaffected.
+
+**Capabilities.** Base answer byte-identical unless crew is at least revocation-only; full → the four crew actions +
+`limits.crewCancel: 1`; revocation-only → `crewRevoke` + `limits.crewCancel: 1`; never `crewPurgeAll`. Any crew
+exception → the base answer. The frontend consumers (`crewSupportedBy`, `crewCancelSupported`, Settings
+`testContract`) accept all three shapes (tested; no frontend change).
+
+**Partial-deployment matrix** (`tests/crew-routing.test.js`, fake Apps Script services): no crew files; crew files
+without configuration; each of owner/switch/pepper/self missing, owner mismatch, Session throws, empty email; switch
+off; full; pending deletion with the switch off; interrupted purge with the switch on and off; a missing crew file
+or an older file without one function. In every case roster/history/stats/departures/flight answers are
+byte-identical to the no-crew baseline and nothing is logged.
+
+**Cache-cleanup debt (P2) — assessment.** The crew handlers cache only numeric counters (rate window, enrollment
+failures); the manifest's `cacheKeys` registry stays empty and the live adapters add no cache entries, so nothing
+needs cleanup today and no change is made. Before any crew answer is cached (e.g. aggregate chunks), each key must
+be registered in the manifest **before** it is written, so revocation and purge can remove it (§8.4).
+
+**Deploy order (when approved; not done):** frontend first (already tolerant), then add the three crew files and the
+updated `RosterApiV2.gs` in one version; set `FC_CREW_OWNER` only when crew should start; rollback = the previous
+version (the crew files and the hook leave with it) — run `crewPurgeAll` first if a deletion is pending (§8.3).
+
 ## 17. Decisions requiring founder approval
 
 | # | Decision | Proposal |

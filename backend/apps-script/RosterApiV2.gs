@@ -11,6 +11,8 @@
 //             offered only while Script Property FC_ADB_RAPIDAPI_KEY is set)
 //           | flight {flightNumber, date, origin} (one flight's live gate/terminal/status from the
 //             same provider, FlightInfoV2.gs; offered under the same key condition)
+//           | crew, crewEnroll, crewIndex, crewRevoke (Crew Intelligence, CrewApiV2.gs; routed only when every
+//             crew file is deployed, under its execution-identity + configuration gate; else unknown-action)
 // Auth    : shared secret in Script Property FC_V2_TOKEN, compared in constant time.
 //           No property → every call is refused ("not-configured"). The correct token is
 //           always accepted; only failed attempts are counted and limited, so failures by
@@ -32,6 +34,8 @@ const FCV2_TOKEN_PROPERTY_ = 'FC_V2_TOKEN';
 const FCV2_MAX_BODY_ = 8192;
 const FCV2_MAX_FAILURES_ = 20;          // bad tokens per 10 minutes before refusing for a while
 const FCV2_CACHE_SECONDS_ = 6 * 3600;   // history cache
+// Crew Intelligence actions (CrewApiV2.gs, optional): routed only when every crew file is part of the deployment.
+const FCV2_CREW_ROUTE_ACTIONS_ = ['crew', 'crewEnroll', 'crewIndex', 'crewRevoke'];
 
 function doPost(e) {
   const body = e && e.postData && typeof e.postData.contents === 'string' ? e.postData.contents : '';
@@ -70,7 +74,8 @@ function fcv2MonthStart_(key, deltaMonths) {
  * env: {token():string|null, now():number, stats():Object (v5 payload), config, failures:{get():number, add():void},
  *       airlineEvents(fromMs,toMs), syncedEvents(fromMs,toMs), startOfDay(key):number,
  *       cacheGet(key), cachePut(key,value,ttlSeconds?), deps:{hash, localIso, localDate, tzOf, hotelLookup},
- *       departures and flight actions only: departuresKey():string|null, providerFetch(url,key):{status,body}, sleep(ms)}
+ *       departures and flight actions only: departuresKey():string|null, providerFetch(url,key):{status,body}, sleep(ms),
+ *       crew actions and capabilities only (optional): crew():Object|null — the lazily built crew env}
  */
 function fcv2HandlePost_(body, env) {
   if (typeof body !== 'string' || !body || body.length > FCV2_MAX_BODY_) return { ok: false, error: 'bad-request' };
@@ -91,6 +96,16 @@ function fcv2HandlePost_(body, env) {
     return { ok: false, error: 'unsupported-contract', contract: FCV2_CONTRACT_, version: FCV2_VERSION_ };
   }
 
+  // Crew Intelligence: after the token (and limiter) and contract checks, only its four actions, only when the
+  // crew files are deployed (otherwise the unchanged unknown-action below). Any crew error stays inside.
+  if (FCV2_CREW_ROUTE_ACTIONS_.indexOf(req.action) >= 0 && typeof fcv2CrewAvailable_ === 'function') {
+    try {
+      if (fcv2CrewAvailable_()) return fcv2CrewRoute_(req, body, env);
+    } catch (err) {
+      return { ok: false, error: 'crew-unavailable' };
+    }
+  }
+
   const config = env.config;
   const now = env.now();
   const today = env.deps.localDate(now, config.baseTimeZone);
@@ -105,6 +120,13 @@ function fcv2HandlePost_(body, env) {
     if (flightOffered) actions.push('flight');
     const limits = { rosterMaxDays: FCV2_WINDOW_MAX_DAYS_, historyMaxMonths: FCV2_HISTORY_MAX_MONTHS_, historyMaxSectors: FCV2_HISTORY_MAX_SECTORS_, departuresMaxHours: 24 };
     if (flightOffered) limits.flightDaysAhead = 7;
+    // Crew Intelligence (CrewApiV2.gs): offered only under its gate; never fails the capabilities answer.
+    let crew = null;
+    try { crew = typeof fcv2CrewAvailable_ === 'function' && fcv2CrewAvailable_() ? fcv2CrewRouteCapabilities_(env) : null; } catch (err) { crew = null; }
+    if (crew) {
+      for (let i = 0; i < crew.actions.length; i++) actions.push(crew.actions[i]);
+      limits.crewCancel = crew.limits.crewCancel;
+    }
     return {
       ok: true, contract: FCV2_CONTRACT_, version: FCV2_VERSION_, action: 'capabilities', generatedAt: now,
       actions: actions,
@@ -233,7 +255,7 @@ function fcv2LiveEnv_() {
   const config = FCV2_CONDOR_CONFIG_;
   const props = PropertiesService.getScriptProperties();
   const cache = CacheService.getScriptCache();
-  return {
+  const env = {
     config: config,
     token: function () { return props.getProperty(FCV2_TOKEN_PROPERTY_); },
     now: function () { return Date.now(); },
@@ -275,4 +297,11 @@ function fcv2LiveEnv_() {
       hotelLookup: fcv2HotelLookupFactory_(),
     },
   };
+  // Crew env (CrewApiV2.gs), built lazily and at most once per request: only for crew actions and capabilities.
+  let crewEnv;
+  env.crew = function () {
+    if (crewEnv === undefined) crewEnv = typeof fcv2CrewLiveEnv_ === 'function' ? fcv2CrewLiveEnv_(env) : null;
+    return crewEnv;
+  };
+  return env;
 }
