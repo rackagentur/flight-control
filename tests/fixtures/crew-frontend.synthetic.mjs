@@ -177,3 +177,17 @@ export async function simulatedCrewBackend({ now }) {
     query: (i) => ({ sectorId: `s_${deps.hash(String(flights[i].sourceId)).slice(0, 16)}`, date: deps.localDate(flights[i].start) }),
   };
 }
+
+// --- Stage B: neutral synthetic codes (no real rank codes or airline flight prefix in UI fixtures) -----------
+
+const NEUTRAL_RANKS = ['XA', 'XB', 'XC', 'XD', 'XE', 'XF'];
+/** sampleMembers() with neutral rank codes (XA..XF) and the synthetic XQ flight prefix. */
+export function neutralMembers() {
+  return sampleMembers().map((m, i) => ({
+    ...m,
+    rank: m.rank === null ? null : NEUTRAL_RANKS[i],
+    ...(m.last ? { last: { ...m.last, flightNumber: m.last.flightNumber.replace(/^DE/, 'XQ') } } : {}),
+  }));
+}
+/** crewAnswer() with neutral members unless `members` is given. */
+export const neutralCrewAnswer = (over = {}) => crewAnswer({ members: neutralMembers(), ...over });

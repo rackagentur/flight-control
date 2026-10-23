@@ -539,3 +539,48 @@
 .fo-foot .attr { display: inline-block; max-width: 100%; white-space: normal; }
 .attr-link { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .attr-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+/* --- Crew Intelligence (Flight Details section, Settings panel) ------------------------------------------- */
+.crew { gap: var(--space-3); }
+.crew-status { display: grid; gap: 2px; }
+.crew-status-title { font-size: var(--text-callout); font-weight: var(--weight-semibold); color: var(--fg-1); line-height: var(--leading-snug); }
+.crew-status-text { font-size: var(--text-caption); color: var(--fg-2); line-height: var(--leading-snug); }
+.crew-summary { font-size: var(--text-callout); font-weight: var(--weight-semibold); color: var(--fg-1); line-height: var(--leading-snug); }
+.crew-summary-n { color: var(--brand); font-variant-numeric: tabular-nums; }
+.crew-group { display: grid; gap: var(--space-1); }
+.crew-group-label { font-size: var(--text-caption); font-weight: var(--weight-semibold); color: var(--fg-2); }
+.crew-list { display: grid; margin: 0; padding: 0; list-style: none; }
+.crew-member { display: flex; gap: var(--space-3); align-items: flex-start; padding: var(--space-1) 0 var(--space-3); min-width: 0; }
+.crew-member + .crew-member { padding-top: var(--space-3); border-top: 0.5px solid var(--line); }
+.crew-avatar {
+  flex: none;
+  display: grid; place-items: center;
+  width: 40px; height: 40px;
+  border-radius: var(--radius-pill);
+  background: var(--fill-quiet);
+  color: var(--fg-2);
+  font-size: var(--text-caption); font-weight: var(--weight-semibold);
+}
+.crew-member.is-shared .crew-avatar { background: var(--brand-soft); color: var(--brand-strong); box-shadow: 0 0 0 2px var(--surface-1), 0 0 0 4px var(--brand); }
+.crew-body { flex: 1; display: grid; gap: 2px; min-width: 0; }
+.crew-line { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 0 var(--space-2); }
+.crew-name { min-width: 0; overflow-wrap: anywhere; font-size: var(--text-body); font-weight: var(--weight-semibold); color: var(--fg-1); }
+.crew-rank { flex: none; font-size: var(--text-caption); color: var(--fg-2); }
+.crew-fact { font-size: var(--text-callout); color: var(--fg-2); line-height: var(--leading-snug); }
+.crew-count { color: var(--fg-1); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; }
+.crew-last { font-size: var(--text-caption); color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.crew-foot { font-size: var(--text-caption); color: var(--fg-2); line-height: var(--leading-snug); }
+.crew-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.crew-actions .btn { min-height: var(--touch-min); }
+/* The switch stays on the title row at every width (the text wraps instead). */
+.crew-switch-row { flex-wrap: nowrap; }
+.crew-switch-row .setting-copy { flex: 1 1 auto; }
+.crew-sheet { display: grid; gap: var(--space-3); padding: var(--space-3) var(--space-4) var(--space-4); border-top: 0.5px solid var(--line); }
+.crew-points { display: grid; gap: var(--space-2); margin: 0; padding-left: var(--space-5); color: var(--fg-1); }
+.crew-form { display: grid; gap: var(--space-2); }
+.crew-progress { display: grid; gap: var(--space-1); margin: 0; }
+.crew-progress > div { display: flex; justify-content: space-between; gap: var(--space-3); }
+.crew-progress dt { font-size: var(--text-callout); color: var(--fg-2); }
+.crew-progress dd { margin: 0; font-size: var(--text-callout); color: var(--fg-1); font-variant-numeric: tabular-nums; }
+.crew-cleanup { padding: 0 var(--space-4) var(--space-3); color: var(--fg-2); }
+.crew-panel > .source-result { padding: 0 var(--space-4) var(--space-3); }

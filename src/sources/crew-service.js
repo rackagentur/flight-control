@@ -64,7 +64,8 @@ const ENROLL_DEFINITIVE = new Set(['unauthorized', 'enroll-closed', 'bad-request
 /**
  * `code`: a backend crew error code, a transport code, or a local refusal:
  *   'crew-not-enrolled', 'revoke-pending', 'credential-unsupported' (a stored record of another version),
- *   'candidate-limit', 'storage', 'suspended', 'cooldown', 'local-limit', 'access-changed', 'bad-code', and
+ *   'candidate-limit', 'storage', 'suspended', 'cooldown', 'local-limit', 'access-changed', 'bad-code',
+ *   'consent-changed' (an enroll caller's `guard()` withdrew its authorization: consent or identity changed), and
  *   'revoke-pending-elsewhere': a crew deletion is still pending for grants of ANOTHER endpoint, so Crew
  *   Intelligence stays off here. Stage B copy (not implemented here; the first sentence is split after its
  *   first word only because tests/portability.test.js forbids that two-word phrase on one line in src/sources):
@@ -569,10 +570,13 @@ export function createCrewService({
    * deletion. The grant is persisted (inflight) before the request; a working active grant is never touched
    * by a failed attempt, and a grant whose outcome is unknown is kept as potentially live.
    * @param {string} code
+   * @param {{guard?: () => boolean}} [options] optional synchronous authorization of the caller (e.g. consent and
+   *   identity still the ones the user enrolled under), checked before preparing and again immediately before
+   *   dispatch; false -> 'consent-changed', and a prepared attempt is cancelled as never sent.
    * @returns {Promise<{enrolled:true}>}
    * @throws {CrewError}
    */
-  async function enroll(code) {
+  async function enroll(code, { guard = null } = {}) {
     sweep();
     const c = typeof code === 'string' ? code.trim() : '';
     if (!CODE.test(c)) throw new CrewError('bad-code');
@@ -593,6 +597,7 @@ export function createCrewService({
       if (refused) throw new CrewError(refused);
       if (cooling()) throw new CrewError('cooldown');
       if (!budgetLeft()) throw new CrewError('local-limit');
+      if (typeof guard === 'function' && !guard()) throw new CrewError('consent-changed');   // nothing prepared yet
       const reuse = lastCodeAttempt && lastCodeAttempt.marker === marker ? lastCodeAttempt.grant : null;
       const born = generation;
       // Persisted (inflight) under the cross-tab lock BEFORE dispatch; the dispatch uses that result only.
@@ -604,7 +609,7 @@ export function createCrewService({
       const begun = begunResult.value;
       // The lock wait may have been long (another tab): every dispatch limit is re-checked NOW, synchronously, with
       // no await before spend() + post(). Suspension never blocks enrollment (enrollment is how it is lifted).
-      const late = ineligibleAfterPrepare(a, born);
+      const late = ineligibleAfterPrepare(a, born, guard);
       if (late) {
         // Never sent: settled as a refusal (removed only if it never had an unknown attempt; a reused entry keeps
         // the uncertainty beginEnroll folded in). If that write fails, the persisted inflight stays conservative.
@@ -646,8 +651,10 @@ export function createCrewService({
   }
 
   /** Local refusal for a prepared enrollment just before dispatch, or null (synchronous; see enroll). */
-  function ineligibleAfterPrepare(a, born) {
+  function ineligibleAfterPrepare(a, born, guard = null) {
     if (storageFault) return 'storage';
+    // The caller's own authorization (consent, identity), evaluated synchronously right before dispatch.
+    if (typeof guard === 'function' && !guard()) return 'consent-changed';
     const refused = gate(a);
     if (refused) return refused;
     if (born !== generation || currentAccess().accessId !== a.accessId) return 'access-changed';

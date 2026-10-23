@@ -11,6 +11,7 @@ import { ENDPOINT_KEY, TOKEN_KEY, fallbackReason } from '../../controller.js';
 import { SIGNED_OUT_KEY } from '../../roster-storage.js';
 import { request as v2Request } from '../../sources/contract-v2.js';
 import { workerDiagnosticsView, mountWorkerDiagnostics, updateWorkerDiagnostics } from '../worker-diagnostics.js';
+import { crewPanel, mountCrewPanel, updateCrewPanel } from '../crew-section.js';
 
 const ERROR_HELP = {
   network: 'The browser could not read the response. If the URL opens normally in a browser tab, the backend is blocking cross-origin requests (CORS) from this page.',
@@ -162,7 +163,7 @@ export const settings = {
               ${listRow({ iconName: 'calendar', label: 'Airline calendar', detail: 'Read the airline roster calendar directly', trail: 'Planned', disabled: true })}
               ${listRow({ iconName: 'report', label: 'ICS import', detail: 'Import a roster file', trail: 'Planned', disabled: true })}
             </div>
-          </section>
+          </section>${crewPanel(ctx)}
 
           <section class="setting-block" aria-labelledby="set-profile">
             <div class="section-head"><h2 class="t-eyebrow" id="set-profile">Profile</h2></div>
@@ -203,6 +204,7 @@ export const settings = {
    */
   update(root, ctx) {
     updateWorkerDiagnostics(root);
+    updateCrewPanel(root, ctx);
     const line = root.querySelector('[data-contract-state]');
     if (!line) return;
     const text = contractLine(ctx.view(), Boolean(store.get(TOKEN_KEY)));
@@ -211,6 +213,7 @@ export const settings = {
 
   mount(root, ctx) {
     const stopDiagnostics = mountWorkerDiagnostics(root, () => ctx.view());
+    const stopCrew = mountCrewPanel(root, ctx);
     let alive = true, operation = 0;
     const identity = () => JSON.stringify([store.get(ENDPOINT_KEY), store.get(TOKEN_KEY), store.get(SIGNED_OUT_KEY), ctx.controller.accessRevision?.()]);
     const form = root.querySelector('[data-endpoint-form]');
@@ -321,6 +324,7 @@ export const settings = {
     button.addEventListener('click', onClick);
     return () => {
       stopDiagnostics();
+      stopCrew();
       alive = false; operation += 1;
       clearTimeout(timer);
       button.removeEventListener('click', onClick);
