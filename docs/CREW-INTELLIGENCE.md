@@ -635,15 +635,17 @@ What it does, under the script lock (`tryLock`, short wait; otherwise `busy`, no
    the confirmation (the persisted fence is the owner's durable intent). Otherwise Script Property
    `FC_CREW_PURGE_CONFIRM` must equal exactly `PURGE-ALL-CREW-DATA`; absent or different → `refused`, nothing changed.
 2. **Durable fence** — one write of `FC_CREW_STATE`: `G+1` (only when not already fenced), `phase: deleted`,
-   `grantHash: null`, `revoke: null`, `purge: null`, `purging: true`, verified by read-back. A failed or lost write
+   `grantHash: null`, `revoke: null`, `purge: null`, `purging: true` and `purgeCacheKeys` (the registered cache keys
+   from the manifest and the state, merged with any an earlier run kept), verified by read-back. A failed or lost write
    → `incomplete`/`error` with nothing destroyed and the confirmation kept. Only after the verified fence is the
    confirmation deleted (consumed). While fenced, every enrollment is refused (`enroll-closed`, no failure counted,
    code neither burned nor consumed), every grant is refused, and cancellations (§8.7) still work and keep the fence.
    The `cancelled` tombstones and `codeHash` are kept.
-3. Deletes `FC_CREW_ENROLL`, every `fcx.*` User Property (namespace-safe, §8.2 step 2) and the registered cache keys.
+3. Deletes `FC_CREW_ENROLL`, every `fcx.*` User Property (namespace-safe, §8.2 step 2) and the cache keys kept in the
+   fence.
    It never touches `FC_V2_TOKEN`, `FC_CREW_PEPPER`, `FC_CREW_SELF`, `FC_CREW_ENABLED` or any other property.
-4. Verifies: no enrollment code, no `fcx.*` key, deletion complete. Only then one write removes the fence and
-   records the **unbound** receipt `lastRevoke = {revokeId: 'purge-<old G>', G: <old G>, outcome: 'deleted',
+4. Verifies: no enrollment code, no `fcx.*` key, deletion complete, cache removal succeeded. Only then one write
+   removes the fence (with `purgeCacheKeys`) and records the **unbound** receipt `lastRevoke = {revokeId: 'purge-<old G>', G: <old G>, outcome: 'deleted',
    deletedKeys, at, aliases: []}` (no `credHash`, so it never answers a revoke); read back → `deleted`. Any failure or
    exception after step 2 leaves the fence (`incomplete` / `error`, never `deleted`).
 
@@ -664,15 +666,35 @@ revoke.
    `busy` → wait a moment and run again (the property is still set); `refused` → the property value was wrong.
 4. Confirm that `FC_CREW_PURGE_CONFIRM` is gone from Script properties.
 
-Limitation: registered cache keys are read from the manifest at the start of each run. If a run fails after the
-manifest was deleted, a retry no longer knows those keys; they are generation-scoped (unreachable) and expire
-within 6 h (§8.4).
+Cache-key recovery (Phase 1d.2C step 1, simulated only): the cleanup keys are written into the fence **before**
+anything is destroyed, so a run that fails after the manifest was deleted (interruption, or `removeAll` throwing →
+`incomplete`) leaves them in `FC_CREW_STATE.purgeCacheKeys`, and the retry removes them. They are cleared only in
+the final write, after removal succeeded. Cancellations while fenced keep them (Object.assign). Tested in
+`tests/crew-cancel.test.js` (interrupted run, failing removal, success, fenced cancellation). Cache entries hold
+only numeric counters and are generation-scoped; this closes the former P2 debt from Phase 1d.2A.
 
-**Known technical debt (P2, open):** an interrupted purge may remove its cache-key manifest before all cache entries
-were successfully removed. In the current code the only cache writes are numeric counters (crew rate limit,
-enrollment failures); no cache entry authorizes access. Before real-platform integration testing: keep the cleanup
-keys (e.g. in the fenced state) until cache removal is verified, and add a regression test proving that a retry
-completes the cache cleanup. Not implemented in Phase 1d.2A.
+Unreadable manifest (Phase 1d.2C step 1B, simulated only): an absent manifest means "no registered keys"; a manifest
+that cannot be read, is not valid JSON, is not an object, or has no `cacheKeys` list of strings is **unknown**, never
+empty. The run still writes the fence (access stays blocked, confirmation consumed) but destroys nothing and answers
+`incomplete`; a retry reads the manifest again. There is no automatic completion, however much time has passed.
+
+Corrupt durable state (Phase 1d.2C step 1C, simulated only): `FC_CREW_STATE` that cannot be read, is not valid JSON,
+is not an object, or has an invalid authorization, fence or cleanup field (`G`, `phase`, hashes, `purging`,
+`cancelled`, `revoke`, `purge`, `purgeCacheKeys` and their key lists) is never replaced by the initial state and
+never overwritten. Enrollment, `crew`, `crewIndex` and `crewRevoke` (including cancellations) answer
+`crew-unavailable`; `capabilities` offers only `crewRevoke`; the purge answers `error` and destroys nothing. Only a
+genuinely absent state starts from the initial state.
+
+Purge-fence invariant (Phase 1d.2C step 1D): a state with `purging: true` is valid only with `phase: deleted`,
+`grantHash: null` and no `revoke` or `purge` object; those are exactly the values the fence writes, and the only
+other writer of a fenced state (a cancellation) changes nothing but `cancelled`. Stale `pid`, `epoch` and `codeHash`
+are carried over and grant nothing. A fence combined with an active phase, a grant, a revocation or a pending
+generation purge is contradictory and treated as corrupt (as above). A legitimate fence keeps the unchanged
+capabilities contract (all actions while the switch is on; the runtime answers `enroll-closed` / `crew-not-enrolled`).
+
+**Owner-recovery limitation (open):** a permanently corrupt manifest or `FC_CREW_STATE` keeps the purge at
+`incomplete` / `error` indefinitely, and the crew data is then not deletable through this path. Recovering from it
+needs a separately reviewed mechanism; none exists yet (no automatic timeout, by decision in step 1C).
 
 **Frontend afterwards:** the app's grant now answers `crew-not-enrolled` / stale; the app cleans up its local record
 conservatively. That is **not** a frontend-confirmed deletion: the confirmation is the editor log of step 3.
@@ -707,8 +729,9 @@ pepper is never restored: every grant is bound to the current `pid`. Rotation on
 - A valid owner code also **supersedes an interrupted revocation** (including a stuck rotation): the revocation is
   recorded as `superseded` in `lastRevoke` (its id stays idempotent), and its pending deletion becomes the new
   generation's purge. Without a code, nothing changes (`enroll-closed`).
-- Cache-removal failures never block a revocation, rotation or purge: entries are generation-scoped (unreachable)
-  and expire within 6 h; the response reports `cacheCleared: false`.
+- Cache-removal failures never block a revocation, rotation or generation purge: entries are generation-scoped
+  (unreachable) and expire within 6 h; the response reports `cacheCleared: false`. Exception: the owner purge
+  (`crewPurgeAll`, §8.3) keeps its fence and the keys and answers `incomplete` until a retry removes them.
 
 ### 8.7 Enrollment cancellation (Phase 1d.2A — simulated only, not deployed)
 

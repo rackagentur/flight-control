@@ -35,10 +35,45 @@ const FCV2_CREW_INDEX_MAX_MONTHS_ = 6;
 const FCV2_CREW_INDEX_BUDGET_MS_ = 15000;
 const FCV2_CREW_MEMBER_FIELDS_ = ['rank', 'family', 'given', 'match', 'count', 'last', 'recordedMatch', 'asOfRecorded'];
 
+/**
+ * The durable FC_CREW_STATE record. Absent -> the initial state. Unparseable, not an object or with an invalid
+ * security-critical field -> throws {crewStateCorrupt: true}: never replaced by a fresh state and never
+ * overwritten. Every caller fails closed (crew-unavailable, purge 'error'); the raw value stays for a reviewed
+ * recovery. A read failure throws as well.
+ */
 function fcv2CrewState_(env) {
   const raw = env.props.get('FC_CREW_STATE');
-  if (!raw) return fcv2CrewInitialState_();
-  try { return JSON.parse(raw); } catch (err) { return fcv2CrewInitialState_(); }
+  if (raw === null || raw === undefined) return fcv2CrewInitialState_();
+  let st = null;
+  try { st = JSON.parse(raw); } catch (err) { st = null; }
+  if (!fcv2CrewValidState_(st)) throw { crewStateCorrupt: true };
+  return st;
+}
+
+/** Shape check of the fields that decide authorization, fencing and cleanup (not a full schema). */
+function fcv2CrewValidState_(st) {
+  const isObj = function (v) { return !!v && typeof v === 'object' && !Array.isArray(v); };
+  const optStr = function (v) { return v === null || v === undefined || typeof v === 'string'; };
+  const optObj = function (v) { return v === null || v === undefined || isObj(v); };
+  const keyList = function (v) { return Array.isArray(v) && v.every(function (k) { return typeof k === 'string'; }); };
+  if (!isObj(st)) return false;
+  if (typeof st.G !== 'number' || !(st.G >= 0) || Math.floor(st.G) !== st.G) return false;
+  if (['none', 'active', 'revoking', 'deleted'].indexOf(st.phase) < 0) return false;
+  if (!optStr(st.grantHash) || !optStr(st.pid) || !optStr(st.epoch) || !optStr(st.codeHash)) return false;
+  if (st.purging !== undefined && st.purging !== true) return false;
+  if (st.cancelled !== undefined && !keyList(st.cancelled)) return false;
+  if (st.purgeCacheKeys !== undefined && !keyList(st.purgeCacheKeys)) return false;
+  if (!optObj(st.revoke) || !optObj(st.purge) || !optObj(st.lastRevoke)) return false;
+  if (st.phase === 'revoking' && !isObj(st.revoke)) return false;
+  if (isObj(st.revoke) && (typeof st.revoke.revokeId !== 'string' || !optStr(st.revoke.credHash)
+    || (st.revoke.cacheKeys !== undefined && !keyList(st.revoke.cacheKeys)))) return false;
+  if (isObj(st.purge) && st.purge.cacheKeys !== undefined && !keyList(st.purge.cacheKeys)) return false;
+  // Purge-fence invariant: the only writers of a fenced state (the purge fence and cancellations, which change
+  // only `cancelled`) leave phase 'deleted', no grant, no revocation and no pending generation purge. Stale pid,
+  // epoch and codeHash are carried over and grant nothing. Any other fenced combination is contradictory.
+  if (st.purging === true && (st.phase !== 'deleted' || st.grantHash !== null
+    || (st.revoke !== null && st.revoke !== undefined) || (st.purge !== null && st.purge !== undefined))) return false;
+  return true;
 }
 
 function fcv2CrewSettings_(env) {
@@ -334,7 +369,9 @@ function fcv2AddDaysKey_(key, n) {
  * only crewRevoke, which is never gated (§8.1), so an app can still learn crewCancel and finish a deletion.
  */
 function fcv2CrewCapabilities_(env) {
-  if (!fcv2CrewSettings_(env).enabled) return { actions: ['crewRevoke'], limits: { crewCancel: 1 } };
+  let readable = true;
+  try { fcv2CrewState_(env); } catch (err) { readable = false; }   // corrupt state: never offer enroll/crew/index
+  if (!readable || !fcv2CrewSettings_(env).enabled) return { actions: ['crewRevoke'], limits: { crewCancel: 1 } };
   return { actions: FCV2_CREW_ACTIONS_.slice(), limits: { crewCancel: 1 } };
 }
 
@@ -347,10 +384,15 @@ const FCV2_CREW_PURGE_CONFIRM_VALUE_ = 'PURGE-ALL-CREW-DATA';
  *   1. A persisted fence (`FC_CREW_STATE.purging`) means a retry: no confirmation needed (the fence is the
  *      owner's durable intent). Otherwise FC_CREW_PURGE_CONFIRM must equal exactly PURGE-ALL-CREW-DATA.
  *   2. Fence: G+1 (only when not already fenced), phase deleted, no grant, no revocation, no pending purge,
- *      `purging: true`; verified by read-back before anything is destroyed. Then the confirmation is consumed.
- *   3. Delete FC_CREW_ENROLL, every fcx.* key (namespace-safe) and the registered cache keys.
- *   4. Verify (no enrollment code, no fcx.* key, purge complete); only then remove the fence and write the
- *      unbound purge receipt, verified by read-back -> 'deleted'. Any failure after step 2 leaves the fence.
+ *      `purging: true`, plus `purgeCacheKeys` (every registered cache key, merged with those an earlier run kept);
+ *      verified by read-back before anything is destroyed. Then the confirmation is consumed. An unreadable or
+ *      malformed manifest (or registry) is unknown, not empty: fenced, nothing destroyed -> 'incomplete', on
+ *      every run (no automatic completion). A corrupt FC_CREW_STATE (or recovery registry) -> 'error', nothing
+ *      written or destroyed.
+ *   3. Delete FC_CREW_ENROLL, every fcx.* key (namespace-safe) and the cache keys kept in the fence.
+ *   4. Verify (no enrollment code, no fcx.* key, purge complete, cache removal succeeded); only then remove the
+ *      fence and its `purgeCacheKeys` and write the unbound purge receipt, verified by read-back -> 'deleted'.
+ *      Any failure after step 2 leaves the fence and its cache keys for the next run.
  * `cancelled` tombstones and codeHash are kept. Never touches the roster token, pepper, owner id, the crew switch
  * or any other property. Returns ONLY { outcome: 'deleted'|'incomplete'|'refused'|'busy'|'error', deletedKeys,
  * remaining } (no ids, names or hashes).
@@ -365,34 +407,60 @@ function fcv2CrewPurgeAll_(env) {
       if (!retry && env.props.get(FCV2_CREW_PURGE_CONFIRM_KEY_) !== FCV2_CREW_PURGE_CONFIRM_VALUE_) {
         return { outcome: 'refused', deletedKeys: 0, remaining: crewKeys() };
       }
-      let manifestKeys = [];
-      try { manifestKeys = JSON.parse(env.store.get(FCV2_CREW_MANIFEST_KEY_) || '{}').cacheKeys || []; } catch (err) { manifestKeys = []; }
-      const cacheKeys = manifestKeys
+      // The manifest's cache-key registry: absent -> none; unreadable, malformed or an invalid registry -> unknown
+      // (null), never "none": the destructive steps then wait (see below) instead of losing registered keys.
+      let manifestKeys = null;
+      try {
+        const raw = env.store.get(FCV2_CREW_MANIFEST_KEY_);
+        if (raw === null || raw === undefined) {
+          manifestKeys = [];
+        } else {
+          const m = JSON.parse(raw);
+          if (m && typeof m === 'object' && Array.isArray(m.cacheKeys)
+            && m.cacheKeys.every(function (k) { return typeof k === 'string'; })) manifestKeys = m.cacheKeys;
+        }
+      } catch (err) { manifestKeys = null; }
+      // Cleanup keys: the manifest's registry, the state's revocation/purge copies and, on a retry, the keys the
+      // fence kept from an earlier run (the manifest may already be gone). Kept in the fence until removal succeeds.
+      const seen = {};
+      const cacheKeys = (manifestKeys || [])
         .concat(state.revoke && state.revoke.cacheKeys ? state.revoke.cacheKeys : [])
-        .concat(state.purge && state.purge.cacheKeys ? state.purge.cacheKeys : []);
+        .concat(state.purge && state.purge.cacheKeys ? state.purge.cacheKeys : [])
+        .concat(Array.isArray(state.purgeCacheKeys) ? state.purgeCacheKeys : [])
+        .filter(function (k) { if (typeof k !== 'string' || seen[k]) return false; seen[k] = true; return true; });
       const fence = Object.assign({}, state, {
         G: retry ? state.G : state.G + 1, phase: 'deleted', grantHash: null, revoke: null, purge: null, purging: true,
+        purgeCacheKeys: cacheKeys,
       });
       env.props.set('FC_CREW_STATE', JSON.stringify(fence));            // logical invalidation + durable fence
       const fenced = readState();
-      if (!fenced || fenced.purging !== true || fenced.G !== fence.G || fenced.phase !== 'deleted') {
+      if (!fenced || fenced.purging !== true || fenced.G !== fence.G || fenced.phase !== 'deleted'
+        || JSON.stringify(fenced.purgeCacheKeys) !== JSON.stringify(cacheKeys)) {
         return { outcome: 'incomplete', deletedKeys: 0, remaining: crewKeys() };   // nothing destroyed
       }
       if (env.props.get(FCV2_CREW_PURGE_CONFIRM_KEY_) !== null) env.props.del(FCV2_CREW_PURGE_CONFIRM_KEY_);
+      // Unknown registry: access is already fenced, nothing is destroyed; a retry reads the manifest again. No
+      // automatic completion: a permanently corrupt manifest needs a separately reviewed recovery (§8.3).
+      if (manifestKeys === null) {
+        return { outcome: 'incomplete', deletedKeys: 0, remaining: crewKeys() };
+      }
       env.props.del('FC_CREW_ENROLL');
       const purge = fcv2CrewPurge_(env.store);
-      if (cacheKeys.length) env.cache.removeAll(cacheKeys);
+      let cacheCleared = true;
+      if (cacheKeys.length) { try { env.cache.removeAll(cacheKeys); } catch (err) { cacheCleared = false; } }
       const remaining = crewKeys();
-      if (!purge.complete || remaining !== 0 || env.props.get('FC_CREW_ENROLL') !== null) {
-        return { outcome: 'incomplete', deletedKeys: purge.deleted, remaining: remaining };   // the fence stays
+      if (!purge.complete || !cacheCleared || remaining !== 0 || env.props.get('FC_CREW_ENROLL') !== null) {
+        return { outcome: 'incomplete', deletedKeys: purge.deleted, remaining: remaining };   // the fence (and its keys) stay
       }
       const done = Object.assign({}, fence, {
         lastRevoke: { revokeId: 'purge-' + (fence.G - 1), G: fence.G - 1, outcome: 'deleted', deletedKeys: purge.deleted, at: env.now(), aliases: [] },
       });
       delete done.purging;
+      delete done.purgeCacheKeys;
       env.props.set('FC_CREW_STATE', JSON.stringify(done));
       const after = readState();
-      const ok = !!after && after.purging === undefined && after.phase === 'deleted' && after.G === fence.G;
+      const ok = !!after && after.purging === undefined && after.purgeCacheKeys === undefined
+        && after.phase === 'deleted' && after.G === fence.G;
       return { outcome: ok ? 'deleted' : 'incomplete', deletedKeys: purge.deleted, remaining: remaining };
     });
     if (!lock.ok) return { outcome: 'busy', deletedKeys: 0, remaining: crewKeys() };
@@ -455,7 +523,7 @@ function fcv2CrewAvailable_() {
     // CrewCondorV2.gs
     typeof fcv2CrewParseLines_, typeof fcv2CrewNormalizeEvent_, typeof fcv2CrewReaderFrom_,
     // CrewApiV2.gs
-    typeof fcv2CrewState_, typeof fcv2CrewSettings_, typeof fcv2CrewCtx_, typeof fcv2CrewCoreEnv_,
+    typeof fcv2CrewState_, typeof fcv2CrewValidState_, typeof fcv2CrewSettings_, typeof fcv2CrewCtx_, typeof fcv2CrewCoreEnv_,
     typeof fcv2CrewMonthList_, typeof fcv2CrewSealableMonths_, typeof fcv2CrewIsDate_, typeof fcv2CrewHandle_,
     typeof fcv2CrewHandleEnroll_, typeof fcv2CrewHandleRevoke_, typeof fcv2CrewRotate_, typeof fcv2CrewHandleIndex_,
     typeof fcv2CrewHandleCrew_, typeof fcv2CrewMemberOut_, typeof fcv2AddDaysKey_, typeof fcv2CrewCapabilities_,

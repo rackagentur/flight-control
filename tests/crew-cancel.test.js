@@ -558,6 +558,390 @@ test('P1 fence: unrelated properties untouched; after a completed purge a new en
   assert.equal(h.sim.phase(), 'active');
 });
 
+// Phase 1d.2C step 1: the cleanup keys live in the fence until cache removal succeeded.
+const CACHE_KEY = 'fcx.c.synthetic-registered';
+function registerCacheKey(h) {
+  const m = JSON.parse(h.sim.store.get('fcx.m'));
+  h.sim.store.set('fcx.m', JSON.stringify({ ...m, cacheKeys: [CACHE_KEY] }));
+  h.sim.cache.set(CACHE_KEY, '3');
+}
+
+test('P2 purge: interrupted after the manifest was deleted, before cache removal -> the retry removes the registered key', async () => {
+  const h = await fenceWorld();
+  registerCacheKey(h);
+  const keys = h.sim.store.keys;
+  h.sim.store.keys = () => {                                        // the run dies right after the fcx.* deletion
+    if (h.sim.store.get('fcx.m') === null) throw new Error('execution interrupted');
+    return keys();
+  };
+  assert.equal(purge(h).outcome, 'error');
+  h.sim.store.keys = keys;
+  assert.equal(h.sim.store.get('fcx.m'), null, 'the manifest is already gone');
+  assert.equal(h.sim.cache.get(CACHE_KEY), '3', 'the cache entry survived the interruption');
+  const st = h.sim.state();
+  assert.equal(st.purging, true);
+  assert.deepEqual(st.purgeCacheKeys, [CACHE_KEY], 'the cleanup key is durable in the fence');
+  assert.equal(crewIndex(h.sim, 'g-live').ok, false, 'crew stays blocked while fenced');
+  const again = purge(h);                                           // no confirmation property: the fence is the intent
+  assert.equal(again.outcome, 'deleted');
+  assert.equal(h.sim.cache.has(CACHE_KEY), false, 'the retry removed the previously registered key');
+  assert.equal(h.sim.state().purgeCacheKeys, undefined);
+  assert.equal(h.sim.state().purging, undefined);
+});
+
+test('P2 purge: cache.removeAll throws -> incomplete, keys kept durably; a retry completes the cleanup', async () => {
+  const h = await fenceWorld();
+  const G0 = h.sim.state().G;
+  registerCacheKey(h);
+  h.sim.faults.cacheRemove = true;
+  const r = purge(h);
+  assert.equal(r.outcome, 'incomplete');
+  assert.deepEqual(Object.keys(r).sort(), SAFE);
+  assert.equal(r.remaining, 0, 'the fcx.* deletion itself completed');
+  assert.equal(h.sim.cache.get(CACHE_KEY), '3');
+  assert.deepEqual(h.sim.state().purgeCacheKeys, [CACHE_KEY]);
+  assert.equal(h.sim.state().purging, true);
+  assert.equal(purge(h).outcome, 'incomplete', 'still failing: still incomplete, never "deleted"');
+  assert.deepEqual(h.sim.state().purgeCacheKeys, [CACHE_KEY], 'a failed retry keeps the keys');
+  assert.equal(h.sim.state().G, G0 + 1, 'retries never step the generation again');
+  h.sim.faults.cacheRemove = false;
+  assert.equal(purge(h).outcome, 'deleted');
+  assert.equal(h.sim.cache.has(CACHE_KEY), false);
+  assert.equal(h.sim.state().purgeCacheKeys, undefined);
+});
+
+test('P2 purge: success removes registered entries, clears the recovery keys and leaves the completed purge state', async () => {
+  const h = await fenceWorld();
+  const G0 = h.sim.state().G;
+  registerCacheKey(h);
+  h.sim.cache.set('fcv2-failures', '2');                            // unregistered entries are never touched
+  const r = purge(h);
+  assert.deepEqual(r.outcome, 'deleted');
+  assert.equal(h.sim.cache.has(CACHE_KEY), false);
+  assert.equal(h.sim.cache.get('fcv2-failures'), '2');
+  const st = h.sim.state();
+  assert.equal(st.purgeCacheKeys, undefined);
+  assert.equal(st.purging, undefined);
+  assert.equal(st.phase, 'deleted');
+  assert.equal(st.G, G0 + 1);
+  assert.equal(st.lastRevoke.revokeId, `purge-${G0}`);
+  assert.equal(st.lastRevoke.credHash, undefined);
+  assert.deepEqual(h.sim.crewKeys(), []);
+  assert.equal(h.sim.store.get('other.key'), 'kept');
+});
+
+test('P2 purge: while incomplete on the cache, cancellation works and keeps the keys; crew blocked; no false receipt', async () => {
+  const h = await fenceWorld();
+  registerCacheKey(h);
+  h.sim.faults.cacheRemove = true;
+  assert.equal(purge(h).outcome, 'incomplete');
+  assert.equal(revoke(h.sim, 'g-other', 'r-other').state, 'cancelled');
+  assert.deepEqual(h.sim.state().purgeCacheKeys, [CACHE_KEY], 'a cancellation keeps the recovery keys');
+  assert.equal(h.sim.state().purging, true);
+  assert.notEqual(revoke(h.sim, 'g-live', 'r-live').state, 'deleted', 'never a definitive deletion for the purged grant');
+  assert.deepEqual(enrollRaw(h.sim, 'g-late', NEXT), { ok: false, error: 'enroll-closed' });
+  assert.equal(h.sim.handle({ contract: 'fc.roster', version: 2, token: TOKEN, action: 'crew', grant: 'g-live', ...h.sim.query(1) }).ok, false);
+  h.sim.faults.cacheRemove = false;
+  assert.equal(purge(h).outcome, 'deleted');
+  assert.equal(h.sim.cache.has(CACHE_KEY), false);
+});
+
+// Phase 1d.2C step 1B: an unreadable or malformed manifest is "unknown", never "no registered keys".
+const SEVEN_HOURS = 7 * 3600000;
+function failManifestReads(h, times) {
+  const get = h.sim.store.get;
+  let left = times;
+  h.sim.store.get = (k) => {
+    if (k === 'fcx.m' && left > 0) { left -= 1; throw new Error('injected manifest read failure'); }
+    return get(k);
+  };
+  return () => { h.sim.store.get = get; };
+}
+function assertNothingDestroyed(h, keys, name) {
+  assert.equal(JSON.stringify(h.sim.store.keys()), keys, `${name}: no fcx.* key deleted`);
+  assert.equal(h.sim.cache.get('fcx.c.review'), '3', `${name}: the registered entry survives for the retry`);
+  assert.equal(h.sim.state().purging, true, `${name}: access fenced`);
+  assert.equal(h.sim.state().phase, 'deleted', name);
+}
+
+test('P1 Codex repro: the first manifest read throws -> non-success, nothing destroyed; the retry removes the registered key', async () => {
+  const h = await fenceWorld();
+  const m = JSON.parse(h.sim.store.get('fcx.m'));
+  h.sim.store.set('fcx.m', JSON.stringify({ ...m, cacheKeys: ['fcx.c.review'] }));
+  h.sim.cache.set('fcx.c.review', '3');
+  const keys = JSON.stringify(h.sim.store.keys());
+  const restore = failManifestReads(h, 1);
+  const r = purge(h);
+  restore();
+  assert.equal(r.outcome, 'incomplete');
+  assert.deepEqual(Object.keys(r).sort(), SAFE);
+  assertNothingDestroyed(h, keys, 'read throws');
+  assert.notEqual(h.sim.store.get('fcx.m'), null, 'the manifest stays recoverable');
+  assert.deepEqual(enrollRaw(h.sim, 'g-late', NEXT), { ok: false, error: 'enroll-closed' });
+  assert.equal(crewIndex(h.sim, 'g-live').ok, false);
+  const again = purge(h);                                           // not "refused": the fence is the intent
+  assert.equal(again.outcome, 'deleted');
+  assert.equal(h.sim.cache.has('fcx.c.review'), false, 'the retry removed the registered entry');
+  assert.deepEqual(h.sim.crewKeys(), []);
+  const st = h.sim.state();
+  assert.equal(st.purging, undefined);
+  assert.equal(st.purgeCacheKeys, undefined);
+});
+
+test('P1 malformed manifest (bad JSON, invalid registry) -> no false deletion, nothing destroyed, at any elapsed time', async () => {
+  const variants = {
+    'invalid JSON': () => '{"schema":2,"cacheKeys":["fcx.c.review"',
+    'not an object': () => '42',
+    'registry missing': (m) => JSON.stringify({ ...m, cacheKeys: undefined }),
+    'registry not a list': (m) => JSON.stringify({ ...m, cacheKeys: 'fcx.c.review' }),
+    'registry with a non-string': (m) => JSON.stringify({ ...m, cacheKeys: ['fcx.c.review', 7] }),
+  };
+  for (const [name, bad] of Object.entries(variants)) {
+    const h = await fenceWorld();
+    const G0 = h.sim.state().G;
+    h.sim.store.set('fcx.m', bad(JSON.parse(h.sim.store.get('fcx.m'))));
+    h.sim.cache.set('fcx.c.review', '3');
+    const keys = JSON.stringify(h.sim.store.keys());
+    for (let i = 0; i < 2; i++) {                                   // first run and an early retry
+      const r = purge(h);
+      assert.equal(r.outcome, 'incomplete', `${name} #${i}`);
+      assertNothingDestroyed(h, keys, `${name} #${i}`);
+    }
+    assert.equal(h.sim.state().G, G0 + 1, `${name}: one generation step`);
+    assert.equal(h.sim.props.has('FC_CREW_PURGE_CONFIRM'), false, `${name}: the fence carries the intent`);
+    h.clock.t += SEVEN_HOURS;                                       // beyond any cache TTL: still no automatic completion
+    assert.equal(purge(h).outcome, 'incomplete', `${name}: no expiry-based deletion`);
+    assertNothingDestroyed(h, keys, `${name} after 7 h`);
+    assert.equal(h.sim.store.get('other.key'), 'kept', name);
+  }
+});
+
+test('P1 manifest read fails during a retry -> durable recovery keys intact, no false completion; the next retry cleans up', async () => {
+  const h = await fenceWorld();
+  registerCacheKey(h);
+  h.sim.faults.cacheRemove = true;
+  assert.equal(purge(h).outcome, 'incomplete');                     // manifest deleted, cache removal failed
+  h.sim.faults.cacheRemove = false;
+  assert.equal(h.sim.store.get('fcx.m'), null);
+  h.clock.t += 60000;
+  const restore = failManifestReads(h, 1);
+  const r = purge(h);
+  restore();
+  assert.equal(r.outcome, 'incomplete', 'never "deleted" while the registry is unknown');
+  assert.deepEqual(h.sim.state().purgeCacheKeys, [CACHE_KEY], 'the recovery keys survive the failed read');
+  assert.equal(h.sim.cache.get(CACHE_KEY), '3');
+  assert.equal(purge(h).outcome, 'deleted');
+  assert.equal(h.sim.cache.has(CACHE_KEY), false);
+  assert.equal(h.sim.state().purgeCacheKeys, undefined);
+});
+
+test('P1 a genuinely absent manifest is supported: the purge completes in one run', async () => {
+  const h = await fenceWorld();
+  h.sim.store.del('fcx.m');
+  assert.equal(h.sim.store.get('fcx.m'), null);
+  const r = purge(h);
+  assert.equal(r.outcome, 'deleted');
+  assert.deepEqual(h.sim.crewKeys(), []);
+  assert.equal(h.sim.state().purging, undefined);
+});
+
+// Phase 1d.2C step 1C: a corrupt FC_CREW_STATE is never replaced by a fresh state and never overwritten.
+const CORRUPT_STATES = {
+  'truncated JSON': () => '{"G":4,"phase":"deleted","purging":tr',
+  'not an object': () => '[1,2]',
+  'fence not true': (st) => JSON.stringify({ ...st, purging: 'yes' }),
+  'unknown phase': (st) => JSON.stringify({ ...st, phase: 'activ' }),
+  'negative generation': (st) => JSON.stringify({ ...st, G: -1 }),
+  'tombstones not a list': (st) => JSON.stringify({ ...st, cancelled: 'x' }),
+  'grant hash not a string': (st) => JSON.stringify({ ...st, grantHash: 7 }),
+};
+const crewCall = (h, action, grant) => h.sim.handle({ contract: 'fc.roster', version: 2, token: TOKEN, action, grant, ...h.sim.query(1) });
+function assertStateUntouched(h, raw, name) {
+  assert.equal(h.sim.props.get('FC_CREW_STATE'), raw, `${name}: the corrupt raw state is never overwritten`);
+}
+
+test('P1-A Codex repro: unreadable-manifest purge fence, then FC_CREW_STATE corrupted -> enrollment refused, fence raw state kept', async () => {
+  for (const [name, corrupt] of Object.entries(CORRUPT_STATES)) {
+    const h = await fenceWorld();
+    const restore = failManifestReads(h, 1);
+    assert.equal(purge(h).outcome, 'incomplete', name);             // fenced, nothing destroyed
+    restore();
+    assert.equal(h.sim.state().purging, true, name);
+    assert.ok(h.sim.props.has('FC_CREW_ENROLL'), `${name}: the outstanding code is still there`);
+    const raw = corrupt(h.sim.state());
+    h.sim.props.set('FC_CREW_STATE', raw);
+    const r = enrollRaw(h.sim, 'g-late', NEXT);
+    assert.deepEqual(r, { ok: false, error: 'crew-unavailable' }, name);
+    assert.deepEqual(crewCall(h, 'crew', 'g-late'), { ok: false, error: 'crew-unavailable' }, `${name}: no new active grant`);
+    assert.ok(h.sim.props.has('FC_CREW_ENROLL'), `${name}: the code is neither burned nor consumed`);
+    assertStateUntouched(h, raw, name);
+    for (const action of ['crew', 'crewIndex']) {
+      assert.deepEqual(crewCall(h, action, 'g-live'), { ok: false, error: 'crew-unavailable' }, `${name}: ${action}`);
+    }
+    const p = purge(h);
+    assert.equal(p.outcome, 'error', `${name}: never "deleted" over an unknown state`);
+    assert.deepEqual(Object.keys(p).sort(), SAFE);
+    assertStateUntouched(h, raw, name);
+    assert.notEqual(h.sim.store.get('fcx.m'), null, `${name}: nothing destroyed`);
+  }
+});
+
+test('P1-A corrupt state during cancellation after an interrupted cache cleanup -> refused, nothing persisted, no false deletion', async () => {
+  for (const [name, corrupt] of Object.entries(CORRUPT_STATES)) {
+    const h = await fenceWorld();
+    registerCacheKey(h);
+    h.sim.faults.cacheRemove = true;
+    assert.equal(purge(h).outcome, 'incomplete', name);
+    h.sim.faults.cacheRemove = false;
+    const raw = corrupt(h.sim.state());
+    h.sim.props.set('FC_CREW_STATE', raw);
+    for (const [grant, id] of [['g-other', 'r-other'], ['g-live', 'r-live'], ['g-old', 'r-old']]) {
+      const r = revoke(h.sim, grant, id);
+      assert.deepEqual(r, { ok: false, error: 'crew-unavailable' }, `${name}: ${grant}`);
+    }
+    assertStateUntouched(h, raw, name);
+    assert.equal(h.sim.cache.get(CACHE_KEY), '3', `${name}: the registered entry is not silently forgotten`);
+  }
+});
+
+test('P1-B invalid durable recovery registry (purgeCacheKeys and copies) -> purge never "deleted", nothing destroyed', async () => {
+  const variants = {
+    'purgeCacheKeys as a string': (st) => ({ ...st, purgeCacheKeys: CACHE_KEY }),
+    'purgeCacheKeys with a non-string': (st) => ({ ...st, purgeCacheKeys: [CACHE_KEY, 5] }),
+    'revoke.cacheKeys as a string': (st) => ({ ...st, revoke: { revokeId: 'r-x', credHash: null, cacheKeys: CACHE_KEY } }),
+    'purge.cacheKeys as an object': (st) => ({ ...st, purge: { pending: true, cacheKeys: { a: CACHE_KEY } } }),
+  };
+  for (const [name, bad] of Object.entries(variants)) {
+    const h = await fenceWorld();
+    registerCacheKey(h);
+    h.sim.faults.cacheRemove = true;
+    assert.equal(purge(h).outcome, 'incomplete', name);             // manifest gone, key only in the fence
+    h.sim.faults.cacheRemove = false;
+    const raw = JSON.stringify(bad(h.sim.state()));
+    h.sim.props.set('FC_CREW_STATE', raw);
+    const keys = JSON.stringify(h.sim.store.keys());
+    const r = purge(h);
+    assert.equal(r.outcome, 'error', name);
+    assert.equal(h.sim.cache.get(CACHE_KEY), '3', `${name}: the registered entry survives for a reviewed recovery`);
+    assertStateUntouched(h, raw, name);
+    assert.equal(JSON.stringify(h.sim.store.keys()), keys, name);
+  }
+});
+
+test('P1-A corrupt state: capabilities advertise only crewRevoke (switch on), so enroll/crew/index are never offered', async () => {
+  const h = await setup();
+  h.sim.issueCode(CODE);
+  enrollRaw(h.sim, 'g-live');
+  const full = h.sim.handle({ action: 'capabilities' }).actions;
+  assert.ok(['crew', 'crewEnroll', 'crewIndex'].every((a) => full.includes(a)), 'valid state: full mode');
+  for (const [name, corrupt] of Object.entries(CORRUPT_STATES)) {
+    h.sim.props.set('FC_CREW_STATE', corrupt(h.sim.state() ?? {}));
+    const caps = h.sim.handle({ action: 'capabilities' });
+    assert.deepEqual(caps.actions.filter((a) => a.startsWith('crew')), ['crewRevoke'], name);
+    assert.deepEqual(caps.limits, { crewCancel: 1 }, name);
+    h.sim.props.set('FC_CREW_STATE', JSON.stringify({ G: 1, phase: 'none', pid: null, epoch: null, grantHash: null, codeHash: null, enrolledAt: null, revoke: null, lastRevoke: null }));
+  }
+});
+
+test('P1-A valid states still work: absent state enrolls; cancellation, revocation and owner purge complete', async () => {
+  const h = await setup();
+  assert.equal(h.sim.props.has('FC_CREW_STATE'), false, 'genuinely absent state');
+  h.sim.issueCode(CODE);
+  assert.equal(enrollRaw(h.sim, 'g-a').enrolled, true);
+  assert.equal(crewIndex(h.sim, 'g-a').ok, true);
+  assert.equal(crewCall(h, 'crew', 'g-a').ok, true);
+  assert.equal(revoke(h.sim, 'g-stranger', 'r-s').state, 'cancelled');
+  assert.equal(revoke(h.sim, 'g-a', 'r-a').state, 'deleted');
+  assert.equal(revoke(h.sim, 'g-a', 'r-a').recorded, true, 'grant-bound receipt');
+  h.sim.issueCode('SECOND-SYNTHETIC-CODE-42');
+  assert.equal(enrollRaw(h.sim, 'g-b', 'SECOND-SYNTHETIC-CODE-42').enrolled, true);
+  crewIndex(h.sim, 'g-b');
+  h.sim.props.set('FC_CREW_PURGE_CONFIRM', 'PURGE-ALL-CREW-DATA');
+  assert.equal(purge(h).outcome, 'deleted');
+  assert.deepEqual(h.sim.crewKeys(), []);
+});
+
+// Phase 1d.2C step 1D: a persisted purge fence never authorizes active crew access.
+const FULL_CREW = ['crew', 'crewEnroll', 'crewIndex', 'crewRevoke'];
+const crewCaps = (h) => h.sim.handle({ action: 'capabilities' }).actions.filter((a) => a.startsWith('crew')).sort();
+
+test('P1 Codex repro: active state with valid credentials plus purging:true -> lookup, indexing, enrollment refused; revocation-only; raw kept', async () => {
+  const contradictions = {
+    'active + fence (Codex)': (st) => ({ ...st, purging: true, purgeCacheKeys: [] }),
+    'active + fence, no registry': (st) => ({ ...st, purging: true }),
+    'deleted + fence + live grant hash': (st) => ({ ...st, phase: 'deleted', purging: true, purgeCacheKeys: [] }),
+    'revoking + fence': (st) => ({ ...st, phase: 'revoking', grantHash: null, revoke: { revokeId: 'r-x', credHash: st.grantHash, cacheKeys: [], requestedAt: 1 }, purging: true, purgeCacheKeys: [] }),
+    'deleted + fence + pending generation purge': (st) => ({ ...st, phase: 'deleted', grantHash: null, purge: { pending: true, cacheKeys: [] }, purging: true, purgeCacheKeys: [] }),
+  };
+  for (const [name, contradict] of Object.entries(contradictions)) {
+    const h = await setup();
+    h.sim.issueCode(CODE);
+    assert.equal(enrollRaw(h.sim, 'g-live').enrolled, true);
+    assert.equal(crewIndex(h.sim, 'g-live').ok, true);
+    assert.equal(crewCall(h, 'crew', 'g-live').ok, true, `${name}: valid before`);
+    assert.deepEqual(crewCaps(h), FULL_CREW);
+    const raw = JSON.stringify(contradict(h.sim.state()));
+    h.sim.props.set('FC_CREW_STATE', raw);
+    const storeBefore = JSON.stringify([...h.sim.store.map]);
+    assert.deepEqual(crewCall(h, 'crew', 'g-live'), { ok: false, error: 'crew-unavailable' }, `${name}: lookup`);
+    assert.deepEqual(crewIndex(h.sim, 'g-live'), { ok: false, error: 'crew-unavailable' }, `${name}: indexing`);
+    h.sim.issueCode('THIRD-SYNTHETIC-CODE-55');
+    assert.deepEqual(enrollRaw(h.sim, 'g-new', 'THIRD-SYNTHETIC-CODE-55'), { ok: false, error: 'crew-unavailable' }, `${name}: enrollment`);
+    assert.ok(h.sim.props.has('FC_CREW_ENROLL'), `${name}: code neither burned nor consumed`);
+    assert.deepEqual(crewCaps(h), ['crewRevoke'], `${name}: revocation-only`);
+    const r = revoke(h.sim, 'g-live', 'r-live');
+    assert.notEqual(r.state, 'deleted', `${name}: no claimed revocation`);
+    assert.equal(r.ok, false, name);
+    assertStateUntouched(h, raw, name);
+    assert.equal(JSON.stringify([...h.sim.store.map]), storeBefore, `${name}: no index mutation`);
+  }
+});
+
+test('P1 fence invariant: every fenced state the production code writes is valid, blocks access and retries to completion', async () => {
+  // Capture every FC_CREW_STATE write with purging:true across the real purge and cancellation transitions.
+  const scenarios = {
+    'clean purge': () => {},
+    'manifest read throws': (h) => failManifestReads(h, 1),
+    'malformed manifest': (h) => { h.sim.store.set('fcx.m', '{bad'); return () => h.sim.store.del('fcx.m'); },
+    'cache removal fails': (h) => { registerCacheKey(h); h.sim.faults.cacheRemove = true; return () => { h.sim.faults.cacheRemove = false; }; },
+    'fcx delete fails': (h) => { h.sim.store.faults.del = () => true; return () => { h.sim.store.faults.del = null; }; },
+    'enroll-code delete fails': (h) => { h.sim.faults.propsDel = (k) => k === 'FC_CREW_ENROLL'; return () => { h.sim.faults.propsDel = null; }; },
+    'final write lost': (h) => { h.sim.faults.stateWrite = (v) => (JSON.parse(v).purging ? null : 'lost'); return () => { h.sim.faults.stateWrite = null; }; },
+  };
+  let fencedWrites = 0;
+  for (const [name, inject] of Object.entries(scenarios)) {
+    const h = await fenceWorld();
+    const written = [];
+    const set = h.sim.props.set;
+    h.sim.props.set = function (k, v) { if (k === 'FC_CREW_STATE' && JSON.parse(v).purging === true) written.push(v); return set.call(this, k, v); };
+    const restore = inject(h);
+    const first = purge(h);
+    if (h.sim.state()?.purging === true) {
+      assert.equal(revoke(h.sim, 'g-stranger', 'r-stranger').state, 'cancelled', `${name}: cancellation while fenced`);
+    }
+    if (restore) restore();
+    const final = h.sim.state()?.purging === true ? purge(h) : first;   // a clean purge completes in one run
+    assert.equal(final.outcome, 'deleted', `${name}: the retry completes once cleanup succeeds`);
+    h.sim.props.set = set;
+    for (const v of written) {
+      fencedWrites += 1;
+      h.sim.props.set('FC_CREW_STATE', v);                          // replay each emitted fenced state
+      // Accepted by the validator: capabilities follow the switch (unchanged contract, crew-routing.test.js);
+      // the runtime refuses enrollment and access below. A rejected (contradictory) state would be revocation-only.
+      assert.deepEqual(crewCaps(h), FULL_CREW, `${name}: legitimate fence is a valid state`);
+      const st = JSON.parse(v);
+      assert.equal(st.phase, 'deleted', name);
+      assert.equal(st.grantHash, null, name);
+      assert.ok(Array.isArray(st.purgeCacheKeys), name);
+      assert.equal(revoke(h.sim, `g-probe-${fencedWrites}`, `r-probe-${fencedWrites}`).state, 'cancelled', `${name}: valid fenced state`);
+      assert.deepEqual(crewCall(h, 'crew', 'g-live'), { ok: false, error: 'crew-not-enrolled' }, `${name}: no access`);
+      h.sim.issueCode('PROBE-SYNTHETIC-CODE-11');
+      assert.deepEqual(enrollRaw(h.sim, 'g-probe', 'PROBE-SYNTHETIC-CODE-11'), { ok: false, error: 'enroll-closed' }, `${name}: enrollment closed`);
+    }
+  }
+  assert.ok(fencedWrites >= Object.keys(scenarios).length, 'every scenario emitted at least one fenced state');
+});
+
 // Cancellation capability bound to the backend the revoke was sent to.
 const ENDPOINT_B = ENDPOINT.replace('A'.repeat(30), 'B'.repeat(30));
 
