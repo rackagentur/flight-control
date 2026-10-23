@@ -14,6 +14,8 @@ import { adaptHistoryV2 } from './sources/fc-appscript-v2.js';
 import { request as v2Request, validateRoster, validateHistory } from './sources/contract-v2.js';
 import { purgeDeparturesCache } from './sources/departures-service.js';
 import { purgeFlightInfoCache } from './sources/flight-info-service.js';
+import { purgeCrewMemory } from './sources/crew-service.js';
+import { dropCrewAccess, reconcileCrewAccess, CREW_CREDENTIAL_KEY } from './sources/crew-credential.js';
 import { sampleSnapshot, sampleProfile } from './sources/sample.js';
 import { withHistory, rememberSectors, validEntry } from './model/history.js';
 import { normalizeProfile } from './config/profile.js';
@@ -58,6 +60,11 @@ export function createController({ profile, onChange, store = defaultStore, api 
   let historyAttemptAt = 0;
   let lastLiveAttempt = 0, generation = 0, v2RetryAt = 0, accessRevision = 0;
   let signedOut = store.get(SIGNED_OUT_KEY) === 'true';
+  // Crew credential cleanup of the latest sign-out (cross-tab locked, so possibly asynchronous):
+  // null (none) | 'pending' | 'done' | 'incomplete'. `crewSignOutSeq` lets a newer sign-out / sign-in supersede it.
+  let crewCleanupState = null;
+  let crewCleanupDone = Promise.resolve(null);
+  let crewSignOutSeq = 0;
   let access = { endpoint: store.get(ENDPOINT_KEY), token: store.get(TOKEN_KEY) };
   const now = clock;
   const activeProfile = () => mode.kind === 'sample' ? sampleProfile(profile) : profile;
@@ -68,7 +75,7 @@ export function createController({ profile, onChange, store = defaultStore, api 
     const state = deriveState(snapshot, roster, p, t);
     return { profile: p, now: t, snapshot, roster, state, horizon: roster ? buildHorizon(roster, state, p, t) : null,
       error, loading, review: mode.kind === 'sample', mode, contract,
-      toneOverride: mode.kind === 'sample' ? mode.tone : null, warnings: roster?.warnings ?? [],
+      toneOverride: mode.kind === 'sample' ? mode.tone : null, warnings: roster?.warnings ?? [], crewCleanup: crewCleanupState,
       offline: !isOnline(), savedRoster: saved, storageError, shellReady,
       offlineReady: mode.kind === 'production' && saved && shellReady,
       lastSyncedAt: saved ? record?.fetchedAt ?? null : null,
@@ -85,6 +92,7 @@ export function createController({ profile, onChange, store = defaultStore, api 
     const ok = purgeRecords(store);
     const departuresCleared = purgeDeparturesCache(store);
     purgeFlightInfoCache();   // in memory only; cannot fail
+    purgeCrewMemory();        // in memory only; cannot fail
     record = snapshot = null; saved = false; loading = false;
     contract = { active: null, fallback: null }; v2RetryAt = 0; historyAttemptAt = 0;
     return ok && departuresCleared;
@@ -228,11 +236,52 @@ export function createController({ profile, onChange, store = defaultStore, api 
     const { name, hotelListUrl, ...kept } = stored;
     return Object.keys(kept).length ? store.setJSON('profile', kept) : store.remove('profile');
   }
+  /**
+   * Crew part of a sign-out. Decided at once when a checked read finds no crew record ('done'); otherwise the
+   * locked drop runs ('pending') and ends 'done' or 'incomplete' (lock unavailable / storage failure: the record
+   * is kept and the existing storageError + clearStorageError() report it). Never a server-side deletion claim.
+   */
+  function startCrewCleanup() {
+    const seq = ++crewSignOutSeq;
+    const checked = typeof store.getChecked === 'function' ? store.getChecked(CREW_CREDENTIAL_KEY) : { ok: false };
+    if (checked.ok && checked.value === null) {
+      crewCleanupState = 'done';
+      crewCleanupDone = Promise.resolve('done');
+      return;
+    }
+    crewCleanupState = 'pending';
+    crewCleanupDone = Promise.resolve()
+      .then(() => dropCrewAccess(store))
+      .then((dropped) => dropped === true, () => false)
+      .then((dropped) => {
+        const result = dropped ? 'done' : 'incomplete';
+        if (seq !== crewSignOutSeq) return result;   // superseded: the newer session is never marked by it
+        crewCleanupState = result;
+        if (!dropped && !storageError) { storageError = true; error = clearStorageError(); }
+        emit();
+        return result;
+      });
+  }
+  function supersedeCrewCleanup() {
+    crewSignOutSeq += 1;
+    crewCleanupState = null;
+    crewCleanupDone = Promise.resolve(null);
+  }
+  /**
+   * Sign-out (and, with `reset`, the full local reset). The boolean is synchronous and covers the LOCAL sign-out
+   * only; the crew credential cleanup is reported by view().crewCleanup and the awaitable crewCleanup().
+   */
   function removeToken({ reset = false, disconnect = false } = {}) {
     invalidate(); signedOut = true;
     // Tombstone prevents a legacy open GET from repopulating data after explicit sign-out.
     let marked = store.set(SIGNED_OUT_KEY, true);
+    // The confirmed crew grant goes with the token. Sign-out keeps a pending crew deletion record (and turns
+    // an unconfirmed, possibly live grant into one) so the deletion can be resumed later; reset removes
+    // everything (clearAllChecked), so a pending server-side deletion can no longer be resumed from this device.
     const removed = [store.remove(TOKEN_KEY), reset ? store.remove('profile') : signOutProfile(), purgeRoster()];
+    // The crew drop is a cross-tab locked mutation reported through crewCleanup. Reset clears the whole namespace
+    // below instead (unchanged, no lock; its boolean is the report).
+    if (reset) supersedeCrewCleanup(); else startCrewCleanup();
     profile = normalizeProfile(reset ? {} : { ...store.getJSON('profile', {}), name: '', hotelListUrl: '' });
     if (disconnect) removed.push(store.remove(ENDPOINT_KEY));
     if (reset) { removed.push(store.remove(ENDPOINT_KEY), store.clearAllChecked()); }
@@ -251,6 +300,8 @@ export function createController({ profile, onChange, store = defaultStore, api 
   }
   return {
     view, now, accessRevision: () => accessRevision, load: loadProduction,
+    /** Promise of the final crew cleanup state of the latest sign-out: null | 'done' | 'incomplete'. */
+    crewCleanup: () => crewCleanupDone,
     setMode(next) {
       invalidate(); mode = next?.kind === 'sample' ? next : { kind: 'production' };
       snapshot = null; error = null;
@@ -274,8 +325,10 @@ export function createController({ profile, onChange, store = defaultStore, api 
     },
     setShellReady(value) { shellReady = value === true; emit(); },
     forgetContractData() {
+      supersedeCrewCleanup();   // a new sign-in / token save: an earlier sign-out's late result is not this session's
       invalidate(); purgeRoster(); storageError = false; store.remove(SIGNED_OUT_KEY); signedOut = false;
       access = { endpoint: store.get(ENDPOINT_KEY), token: store.get(TOKEN_KEY) };
+      void reconcileCrewAccess(store, access);   // locked async mutation; its result was ignored before too
     },
     forgetRosterData() { invalidate(); purgeRoster(); },
     // Invoked for changes in other tabs, including deletion of the roster record.
@@ -284,6 +337,8 @@ export function createController({ profile, onChange, store = defaultStore, api 
       if (signedOut && storageError) { invalidate(); error = clearStorageError(); emit(); return; }
       invalidate(); record = snapshot = null; saved = false; profile = normalizeProfile(store.getJSON('profile', {}));
       access = { endpoint: store.get(ENDPOINT_KEY), token: store.get(TOKEN_KEY) };
+      purgeCrewMemory();   // in memory only; cannot fail
+      void reconcileCrewAccess(store, access);   // locked async mutation; its result was ignored before too
       signedOut = store.get(SIGNED_OUT_KEY) === 'true' || !access.endpoint;
       if (mode.kind === 'production') loadProduction(); else emit();
     },
