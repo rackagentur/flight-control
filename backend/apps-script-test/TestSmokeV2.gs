@@ -447,7 +447,7 @@ function fctScenarioS12_(ctx) {
     ['not-isolated', { FCT_ISOLATED: 'no' }, 'not-isolated'],
     ['production-key', { FC_ADB_RAPIDAPI_KEY: 'x' }, 'production-property'],
     ['token-format', { FC_V2_TOKEN: 'bad-token' }, 'token-format'],
-    ['denied-calendar', { FCT_DENY_SHA256: fctSha256_(feedId) + ',' + fctSha256_('other') }, 'calendar-denied'],
+    ['denied-calendar', { FCT_DENY_SHA256: fctSha256_(fctNormId_(feedId)) + ',' + fctSha256_('other') }, 'calendar-denied'],
     ['same-calendar-twice', { FCT_CAL_SYNCED_ID: feedId }, 'calendar-ids-equal'],
     ['wrong-marker', { FCT_MARKER: new Array(33).join('a') }, 'calendar-marker'],
     ['missing-calendar', { FCT_CAL_FEED_ID: 'fctest-no-such-calendar' }, null],

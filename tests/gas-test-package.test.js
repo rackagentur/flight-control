@@ -744,7 +744,7 @@ test('seeder fails closed: a look-alike with the same title and times is a confl
 
 const DAY = 86400000;
 const total = (fx) => fx.feed.length + fx.synced.length;
-const MARKED = `synthetic\nfc-test-marker:${MARKER}`;
+const MARKED = `fc-test-marker:${MARKER}\nsynthetic`;
 const unmark = (world, id) => { world.calendars.get(id).description = 'synthetic'; };
 const remark = (world, id) => { world.calendars.get(id).description = MARKED; };
 const snapshot = (rec) => JSON.stringify([rec.title, rec.start, rec.end, rec.description, rec.location, [...rec.tags]]);
@@ -1330,6 +1330,44 @@ test('calendar guard: a production id with other case or stray whitespace is sti
   }
   assert.equal(hashId(' Some-ID '), sha('some-id'), 'hash-id normalizes like the guard');
   assert.equal(guardCode(p, 'feed', { FCT_CAL_SYNCED_ID: IDS.feed.toUpperCase() }), 'calendar-ids-equal', 'ids equal after normalization');
+});
+
+test('calendar guard: the marker must be the FIRST line of the calendar description, exactly (fails closed otherwise)', () => {
+  const p = apiProject();
+  const describe = (id, description) => (w) => { const c = w.calendars.get(id); const old = c.description; c.description = description; return () => { c.description = old; }; };
+  const line = `fc-test-marker:${MARKER}`;
+  const none = {};
+  // Accepted: the marker line alone, followed by other lines (LF or CRLF), or with surrounding whitespace on that line.
+  for (const ok of [line, `${line}\nsynthetic`, `${line}\r\nsynthetic`, ` ${line}\t\nnotes`]) {
+    for (const role of ['feed', 'synced']) assert.equal(guardCode(p, role, none, describe(IDS[role], ok)), null, JSON.stringify(ok));
+  }
+  // Refused: the marker on a later line, after other text on line 1, with a suffix, truncated, after a blank first line.
+  const refused = [
+    `synthetic\n${line}`, `notes ${line}`, `${line}extra`, `${line}${hex('more', 8)}`, `${line.slice(0, -1)}`,
+    `\n${line}`, `x\r\n${line}`, '', null, undefined, 42,
+  ];
+  for (const bad of refused) {
+    for (const role of ['feed', 'synced']) assert.equal(guardCode(p, role, none, describe(IDS[role], bad)), 'calendar-marker', JSON.stringify(bad));
+  }
+  // A 32-hex marker property is not satisfied by a longer marker that merely starts with it.
+  const shortMarker = MARKER.slice(0, 32);
+  assert.equal(guardCode(p, 'feed', { FCT_MARKER: shortMarker }, describe(IDS.feed, `fc-test-marker:${shortMarker}${hex('tail', 32)}`)), 'calendar-marker');
+  // The seeder applies the same guard.
+  const w = makeWorld();
+  w.calendars.get(IDS.feed).description = `synthetic\n${line}`;
+  const s = seederProject({ world: w });
+  assert.equal(plain(s.t.fctSeedAll()).reason, 'calendar-marker');
+  assert.equal(w.writes.length, 0, 'nothing written');
+});
+
+test('S12: the denied-calendar case hashes the feed id normalized like the guard (mixed case, surrounding whitespace)', () => {
+  for (const variant of ['Fake-Feed-MiXeD-Case', '  fake-feed-padded\t', ' Fake-Feed-Both ']) {
+    const world = makeWorld();
+    world.add(variant, { name: NAMES.feed, description: `fc-test-marker:${MARKER}` });
+    const p = apiProject({ world, props: apiProps({ FCT_CAL_FEED_ID: variant }) });
+    const r = plain(p.t.fctSmokeRun_(['S12'], p.t.fctSmokeCtx_(null)));
+    assert.deepEqual(r.results.map((x) => [x.id, x.pass, x.failed]), [['S12', true, undefined]], JSON.stringify(variant));
+  }
 });
 
 // --- API project end to end -------------------------------------------------------------------------------------

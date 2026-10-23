@@ -29,6 +29,9 @@ Then, as needed: `docs/DECISIONS.md` (decision log), `docs/ROADMAP.md`, `docs/AR
 ## Commands
 
 - `npm test` — full suite (includes repo hygiene). `npm run build:offline` after frontend file changes (Step 6.6).
+- Node runtime for tests: the crew suites need the Web Locks API (`navigator.locks`). Node 24.22.1 has it (full suite
+  green); Node 22.22.0 lacks it, and ~123 crew tests then fail with `lock-unavailable`. That is an environment
+  failure, not a regression; rerun on Node 24 before judging.
 
 ## Session end
 

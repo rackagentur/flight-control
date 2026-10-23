@@ -40,8 +40,8 @@ export function makeWorld() {
     world.calendars.set(id, { id, name, description, owned, events: [] });
     return world.calendars.get(id);
   };
-  add(IDS.feed, { name: NAMES.feed, description: `synthetic\nfc-test-marker:${MARKER}` });
-  add(IDS.synced, { name: NAMES.synced, description: `synthetic\nfc-test-marker:${MARKER}` });
+  add(IDS.feed, { name: NAMES.feed, description: `fc-test-marker:${MARKER}\nsynthetic` });
+  add(IDS.synced, { name: NAMES.synced, description: `fc-test-marker:${MARKER}\nsynthetic` });
   add(IDS.prodFeed, { name: 'Airline duty plan', description: 'production-like calendar (fake)' });
   add(IDS.prodSynced, { name: 'My synced roster', description: 'production-like calendar (fake)' });
   add(IDS.personal, { name: 'Personal', description: '' });

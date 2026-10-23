@@ -10,8 +10,8 @@
 //     none of the production-only keys).
 //   - fctCalendar_ opens one of the two synthetic calendars only after it proves: the id is configured and not
 //     denied, the calendar exists, is owned by the running account, carries the exact test name and a
-//     description line "fc-test-marker:<marker>". Any failure throws { fctGuard: <code> } and never carries an
-//     id, a name or a description.
+//     description whose first line is "fc-test-marker:<marker>". Any failure throws { fctGuard: <code> } and
+//     never carries an id, a name or a description.
 //   - fctPrepare_ assigns the constants the production sources read by NAME (SOURCE_CALENDAR_ID,
 //     TARGET_CALENDAR_ID, ...) only AFTER the checks passed; until then they point at nothing.
 //   - fctEnv_ hardens the production live environment: no provider key, no network, no hotel Sheet.
@@ -105,8 +105,9 @@ function fctIsolation_(props) {
  * Opens the synthetic calendar of a role ('feed' | 'synced') or throws { fctGuard: <code> }.
  * deps: { calendarApp, props: { get(key) }, hash(text) } (injected so Node tests can fake them).
  * Checks, in order: role; both ids configured and distinct; deny list and marker present; neither id denied;
- * the calendar exists; its exact name; owned by the running account; its description holds
- * "fc-test-marker:<FCT_MARKER>". The thrown value is a bare code: no id, name or description.
+ * the calendar exists; its exact name; owned by the running account; the first line of its description is
+ * exactly "fc-test-marker:<FCT_MARKER>" (surrounding whitespace on that line ignored). The thrown value is a
+ * bare code: no id, name or description.
  */
 function fctCalendar_(role, deps) {
   const fail = function (code) { throw { fctGuard: code }; };
@@ -141,7 +142,9 @@ function fctCalendar_(role, deps) {
   if (readFailed) fail('calendar-error');
   if (name !== (role === 'feed' ? FCT_NAME_FEED_ : FCT_NAME_SYNCED_)) fail('calendar-name');
   if (owned !== true) fail('calendar-not-owned');
-  if (typeof description !== 'string' || description.indexOf(FCT_MARKER_PREFIX_ + marker) < 0) fail('calendar-marker');
+  // The FIRST line of the description, trimmed, must be exactly the marker line (as docs/CREW-GAS-TEST-SETUP.md
+  // section 2 requires); a marker elsewhere, with a suffix or after other text is refused.
+  if (typeof description !== 'string' || description.split(/\r?\n/, 1)[0].trim() !== FCT_MARKER_PREFIX_ + marker) fail('calendar-marker');
   return { id: id, calendar: calendar };
 }
 

@@ -49,7 +49,9 @@ The scripts never create calendars. Create two **new secondary calendars** with 
 | `FC-TEST Synced Roster` | `fc-test-marker:<FCT_MARKER>` |
 
 `<FCT_MARKER>` is one locally generated value (32 to 64 lowercase hex characters, see the template) used in
-both descriptions and as Script Property `FCT_MARKER` in both projects. For each calendar: do not share it, add no
+both descriptions and as Script Property `FCT_MARKER` in both projects. The guard compares the description's
+**first line** (surrounding whitespace ignored) with `fc-test-marker:<FCT_MARKER>` exactly: nothing else on that
+line, and a marker on a later line is refused (`calendar-marker`). Further lines may follow. For each calendar: do not share it, add no
 guests, and set **no notifications** (calendar settings, Event notifications: none). Note each calendar's id
 (Settings for my calendars, the calendar, Integrate calendar, Calendar ID): it goes into Script Properties only.
 
