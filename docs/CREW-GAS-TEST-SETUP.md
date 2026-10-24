@@ -1,8 +1,12 @@
 # Crew Intelligence V2.3: isolated Apps Script test (manual procedure)
 
-Status: **PROPOSED. No step below has been performed.** The package was built and tested locally only (Node, fake
-services). Nothing was created in Google, nothing was deployed, no network was used. Every step here is for the
-owner to run by hand, one step at a time, after review.
+Status (2026-10-24): **the procedure was run once by the owner against the isolated test setup; every scenario
+passed.** See section 13 for the owner-reported results, the S6 sequencing incident and what is still unverified.
+This is a test of isolated live services, **not** a production deployment; production remains NO-GO.
+
+Original status (kept for the record): *PROPOSED. No step below has been performed.* The package was built and
+tested locally only (Node, fake services). Nothing was created in Google, nothing was deployed, no network was used.
+Every step here is for the owner to run by hand, one step at a time, after review.
 
 Purpose: test Crew Intelligence V2.3 (`CrewCoreV2.gs`, `CrewCondorV2.gs`, `CrewApiV2.gs` and the routing in
 `RosterApiV2.gs`) against the **real** Apps Script services (Calendar, Script and User Properties, Cache, Lock,
@@ -153,6 +157,11 @@ Run on **one day** (the feed block lies a few days ahead of the day of seeding).
    complete, S5 crew lookups, S13 time zones. If the run ends inside S4 (time limit), run `fctRunSmokeResume`.
 3. **Seeder** project: run `fctApplyScheduleChange` (moves one flight by 90 minutes and swaps one crew member, in
    place, once).
+
+   **Do not run `fctRunSmoke` or `fctRunSmokeResume` again after this step.** Both include S5, and S5 records the
+   S6 baseline (`FCT_SMOKE_BASE`) each time it runs: a rerun after the change stores the *moved* time as the
+   baseline, and S6 then fails `time-moved` even though the Crew API behaves correctly (this happened in the
+   2026-10-24 run, section 13). Any rerun of S0–S5 belongs **before** this step.
 4. **API** project: run `fctRunSmokeAfterChange` (S6), then `fctRunSmokeFinish` (S7 revocation, S8 cancellation,
    S9 owner purge, S10 malformed state, S11 cache cleanup, S12 guard failure). If a run died inside S10, run
    `fctRestoreState` (or simply `fctRunSmokeFinish` again: it restores first).
@@ -352,6 +361,9 @@ becomes that account's email.
 
 ## 12. Residual risks
 
+Written before the live run. Section 13 records which of these the 2026-10-24 run gave direct evidence for; an item
+not named there is unchanged.
+
 1. Account-wide Calendar scopes (section 11) remain whatever the code does; only a separate account removes them.
 2. The deny list protects only as well as the owner's hashes: a missing production id is caught only by the name and
    marker checks.
@@ -393,3 +405,85 @@ becomes that account's email.
     manifest.
 13. Verification of the pasted bundles is procedural (section 3): a rebuilt, hash-checked fresh directory proves the
     files equal the reviewed build, nothing more.
+
+## 13. Live validation record (2026-10-24)
+
+Results as **reported by the owner**, who ran every step by hand. Agents did not observe the runs and had no access
+to Google; ids, tokens, hashes and account details are deliberately not recorded here. Production was not deployed,
+and no production calendar was modified.
+
+### 13.1 Results
+
+| Step | Result |
+|---|---|
+| Seeding (`fctSeedAll`) | 18 airline-feed events and 57 synced-roster events (75 in total) |
+| `fctRunSmoke`: S0, S1, S2, S3, S4, S5, S13 | **7/7 passed** on the first run |
+| `fctApplyScheduleChange` | applied once: one flight moved by 90 minutes, one crew member replaced |
+| `fctRunSmokeAfterChange`: S6 | **1/1 passed** after the baseline repair below (the first S6 run failed `time-moved`) |
+| `fctRunSmokeFinish`: S7, S8, S9, S10, S11, S12 | **6/6 passed**. S9: refusal without confirmation and the confirmed deletion both tested. S10: malformed state handled. S12: all 7 guard cases passed |
+| Cleanup (`fctRemoveSeeded`) | `{"action":"remove","ok":true,"deleted":75,"kept":0}` |
+
+Not recorded in this update: the run date and the build commit and `MANIFEST.txt` digests the bundles came from
+(section 7 asks for them), and the S4 counts (indexing calls, months indexed). These stay with the owner's private
+notes.
+
+### 13.2 S6 incident: execution-sequencing error, not a Crew API defect
+
+`fctRunSmoke` was run a second time after `fctApplyScheduleChange`. Its S5 re-recorded the S6 baseline using the
+already-moved flight, so the first S6 run failed `time-moved`. The owner then:
+
+1. checked that the flight had moved and that the sector identity was unchanged;
+2. restored the baseline from the original fixture timestamp with a temporary repair function;
+3. re-ran S6, which passed;
+4. removed the repair function from the project.
+
+The comparison itself behaved as designed: it correctly flagged a baseline that no longer reflected the time before
+the change. Section 6 now warns against re-running S0–S5 after the schedule change. If it happens again, the
+cleaner recovery (proposed, not yet exercised) is a fresh cycle: `fctRemoveSeeded`, `fctSeedAll`, `fctRunSmoke`,
+`fctApplyScheduleChange`, `fctRunSmokeAfterChange`, rather than editing test properties by hand.
+
+### 13.3 Teardown state
+
+Done (owner-reported):
+- every seeded event deleted (75 deleted, 0 kept);
+- the temporary S6 repair function removed;
+- `FCT_SEED_CONFIRM` removed from the seeder's Script Properties;
+- the FC-TEST Seeder's OAuth authorization revoked.
+
+**Not reported** (section 8 lists them; their state is unknown here):
+- deleting the two test calendars;
+- deleting both Apps Script projects;
+- revoking the FC-TEST Crew API's authorization;
+- deleting the local secret files and the generated package directory.
+
+### 13.4 Items marked UNVERIFIED before the run, reassessed
+
+Reassessed only where a passing scenario directly depends on the behaviour. This assumes the projects ran the
+committed manifests unchanged; the consent screens themselves were not reported.
+
+| Earlier UNVERIFIED item | Evidence from this run | Status now |
+|---|---|---|
+| Sync tags set by the seeder project are readable from the API project (section 12, item 3) | S0, including `sync-tag-visible-across-projects`, and S5 lookups over the synced calendar passed | **observed working** in this setup |
+| `Calendar.getName`, `getDescription`, `isOwnedByMe` work under `calendar.readonly` | the guard ran in the API project before S0–S13, all of which passed | **observed working** |
+| Properties, Cache, Lock, `ContentService`, `Utilities` need no extra scope under an explicit `oauthScopes` list | enrollment, indexing, revocation, purge, cache cleanup and the seeder's script lock all completed | **observed working**; no authorization error was reported |
+| `Session.getEffectiveUser().getEmail()` returns the owner's address | S1 found the crew block, which the execution-identity gate allows only for the owner | **observed working** in this account |
+| Live `Utilities.formatDate` offsets (DST, half-hour zone) | S13 passed | **observed working** for the fixture dates |
+| Calendar quota for about 75 created events | 75 events created and 75 deleted without a reported error | **no limit reached** at this volume |
+| `getOriginalCalendarId()` availability and value | no seeder run stopped with `event-calendar` | consistent with the design; method behaviour **still unverified** |
+| `getCalendarById` returns `null` or throws for an unknown id | the S12 `missing-calendar` case passed, and the guard handles both | which of the two happens is **still unverified** (not needed) |
+| `createEvent` writes the description atomically | no interrupted creation occurred | **still unverified** |
+| Text `getDescription()` returns after an event is edited in the Calendar UI | not exercised | **still unverified** |
+| Web app access `MYSELF` (section 6) | no deployment was made | **untested** |
+| Timing of a 50-month index | counts not recorded here | **not established** in this record |
+
+### 13.5 Still open after the run
+
+- **Account-wide reach** (section 11, section 12 item 1): the runs used the owner's existing account. A passing run
+  shows that the guard behaved; it does not narrow what the permissions could reach.
+- **Local-only coverage:** an interrupted owner purge with retry (matrix area 10), cross-grant receipts (area 9),
+  and a real missing scope or blocked `getEmail()` (area 14) are still covered only by the Node tests.
+- **Seeder residual limits** (section 12 item 12 (a)–(d)): unchanged.
+- **Scope of the result:** this validates the V2.3 crew sources against real Apps Script services with synthetic
+  data in isolated projects. It says nothing about the production project, its triggers, the v5 sync, real crew
+  data, the release sequence in `backend/apps-script/README.md`, or the measurement targets in
+  `docs/CREW-INTELLIGENCE.md` (peak storage, initial-backfill limits). **Production remains NO-GO.**

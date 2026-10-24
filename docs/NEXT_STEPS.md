@@ -75,3 +75,8 @@ Next owner action: review the local responsive-layout candidate and separately a
 ## 2026-10-16 — durable sign-out correction (local only)
 
 Next: owner reviews the local durable-sign-out correction and separately approves isolated-preview publication. Then verify sign-out/reset, offline relaunch and fresh authentication in Safari and Home Screen using synthetic-only state. Disposable-browser acceptance remains deferred by owner choice. If browser storage blocks both marker writes and endpoint removal, clear website data manually before relying on restart isolation. No commit, push, deployment or production operation is authorized by this checkpoint.
+
+
+## 2026-10-24 — Crew Intelligence Phase 1d.2C: isolated live-service validation
+
+Phase 1d.2C isolated validation is complete (`docs/CREW-GAS-TEST-SETUP.md` §13). Next owner actions, none of them approved for agents yet: (1) review and approve this documentation update for commit; (2) finish or explicitly defer the remaining teardown (delete the two test calendars and both test projects, revoke the FC-TEST Crew API authorization, delete local secret files); (3) decide the next crew gate. Any step toward production (backend publication, the frontend-first release sequence with a rollback version, real crew data, the measurement targets in `docs/CREW-INTELLIGENCE.md`) needs its own plan and explicit approval. Any repeat run follows the corrected order in §6: never rerun `fctRunSmoke` or `fctRunSmokeResume` after `fctApplyScheduleChange`. Production remains NO-GO; no commit, push, deployment or production operation is authorized by this checkpoint.
