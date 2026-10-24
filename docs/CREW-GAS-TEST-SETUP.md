@@ -444,17 +444,24 @@ cleaner recovery (proposed, not yet exercised) is a fresh cycle: `fctRemoveSeede
 
 ### 13.3 Teardown state
 
-Done (owner-reported):
+Completed (owner-reported, 2026-10-24):
 - every seeded event deleted (75 deleted, 0 kept);
 - the temporary S6 repair function removed;
 - `FCT_SEED_CONFIRM` removed from the seeder's Script Properties;
-- the FC-TEST Seeder's OAuth authorization revoked.
+- both test calendars deleted;
+- both temporary Apps Script projects deleted;
+- both test OAuth authorizations revoked;
+- generated `~/fc-gas-test-package` directory removed;
+- local filename scans found no matching temporary credential files;
+- clipboard cleared; owner-provided Terminal output reported `Clipboard cleared`.
 
-**Not reported** (section 8 lists them; their state is unknown here):
-- deleting the two test calendars;
-- deleting both Apps Script projects;
-- revoking the FC-TEST Crew API's authorization;
-- deleting the local secret files and the generated package directory.
+Agents did not independently inspect the deleted Google resources or the local filesystem.
+Filename scans establish only that no matching filenames were found within their search scope;
+they do not prove that all possible credential copies are absent.
+
+The isolated validation and teardown are complete as reported by the owner.
+The remaining validation limits in sections 13.4 and 13.5 are unchanged.
+**Production remains NO-GO.**
 
 ### 13.4 Items marked UNVERIFIED before the run, reassessed
 

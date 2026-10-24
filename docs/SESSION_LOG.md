@@ -128,3 +128,16 @@ Corrected the confirmed unchecked sign-out marker on v2-redesign at d9d3706. Add
 ## 2026-10-24 — Crew Intelligence Phase 1d.2C live validation documented
 
 Before the run (cloud agent, 2026-10-23): read-only preflight of the isolated Apps Script package; two test-only fixes committed and pushed as `962644f` (exact first-line calendar marker; S12 deny-list hash normalized), plus regression tests; diagnosed the 123 Node 22 failures as the missing Web Locks API (Node 24.22.1: 1379/0). The owner ran the live validation by hand, using two isolated projects and two synthetic calendars (the build commit used is not recorded here). Owner-reported: 75 events seeded; S0–S5 and S13 7/7; S6 1/1 after the owner repaired an S5 baseline that an extra `fctRunSmoke` had overwritten after the schedule change (a sequencing error, not a Crew API defect); S7–S12 6/6; 75 events removed, 0 kept; repair function and `FCT_SEED_CONFIRM` removed; Seeder authorization revoked. This session updated the documentation only (`CREW-GAS-TEST-SETUP.md` status, §6 warning and §13; `PROJECT_STATUS.md`, `NEXT_STEPS.md`, this log). No code change, Google access, deployment, commit or push. Production remains NO-GO.
+
+## 2026-10-24 — Phase 1d.2C teardown completion
+
+Owner reports both test calendars and both temporary Apps Script projects deleted,
+both OAuth authorizations revoked, and `~/fc-gas-test-package` removed. Local filename
+scans reportedly found no matching temporary credential files; this is limited to the
+scan scope and does not establish absence of all credential copies. Clipboard cleanup
+was confirmed by owner-provided Terminal output. Earlier cleanup removed 75 synthetic
+events, the temporary S6 repair function and `FCT_SEED_CONFIRM`.
+Local `v2.1-dev` was fast-forwarded to the existing documentation commit `e7d98b6`;
+the owner-provided Git output showed a clean, synchronized working tree before this
+follow-up. This update changes documentation only. No new tests or production
+operations are performed by this update. Production remains NO-GO.

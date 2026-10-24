@@ -79,4 +79,11 @@ Next: owner reviews the local durable-sign-out correction and separately approve
 
 ## 2026-10-24 — Crew Intelligence Phase 1d.2C: isolated live-service validation
 
-Phase 1d.2C isolated validation is complete (`docs/CREW-GAS-TEST-SETUP.md` §13). Next owner actions, none of them approved for agents yet: (1) review and approve this documentation update for commit; (2) finish or explicitly defer the remaining teardown (delete the two test calendars and both test projects, revoke the FC-TEST Crew API authorization, delete local secret files); (3) decide the next crew gate. Any step toward production (backend publication, the frontend-first release sequence with a rollback version, real crew data, the measurement targets in `docs/CREW-INTELLIGENCE.md`) needs its own plan and explicit approval. Any repeat run follows the corrected order in §6: never rerun `fctRunSmoke` or `fctRunSmokeResume` after `fctApplyScheduleChange`. Production remains NO-GO; no commit, push, deployment or production operation is authorized by this checkpoint.
+Phase 1d.2C isolated validation and teardown are complete as reported by the owner
+(`docs/CREW-GAS-TEST-SETUP.md` §13). The validation documentation was committed and
+pushed as `e7d98b6`; this follow-up records the completed teardown, including clipboard
+cleanup. Next checkpoint: review the documentation diff and commit the documentation-only
+changes. Then evaluate and propose the next development milestone against the remaining
+limits in §13.4–13.5 and the crew implementation/release documentation.
+No next milestone is approved by this entry. Production remains NO-GO; deployment,
+production configuration changes and real crew-data operations are outside this checkpoint.
