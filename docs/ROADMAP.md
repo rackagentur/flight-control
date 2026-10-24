@@ -70,3 +70,10 @@ Responsive timing, rotation-label and hotel-formatting corrections: IMPLEMENTED 
 ## 2026-10-16 — durable sign-out correction (local only)
 
 Step 6.6 durable-sign-out correction: IMPLEMENTED locally and regression-verified. Publication approval and sign-out/reset acceptance remain pending; prior physical layout acceptance is owner-reported passed. Production remains NO-GO. No later milestone started.
+
+## 2026-10-24 — Reconciled crew release-readiness checkpoint
+
+Crew implementation and isolated live-service validation have reached the
+release-preparation milestone. Phase 1d.2C teardown is documented as complete.
+Current work is documentation reconciliation and release-scope definition.
+Production release remains NO-GO. No new feature milestone has been approved.

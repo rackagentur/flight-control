@@ -107,3 +107,29 @@ IMPLEMENTED locally: durable sign-out now checks the persisted marker, retries a
 ## 2026-10-24 — Crew Intelligence Phase 1d.2C: isolated live-service validation
 
 Owner-run, owner-reported, on `v2.1-dev` (test package last changed in `962644f`). Two isolated Apps Script projects (FC-TEST Crew API, read-only calendar scope; FC-TEST Seeder, the only write scope) and two synthetic calendars, in the owner's existing Google account. Results: 18 + 57 synthetic events seeded; S0–S5 and S13 7/7; schedule change applied once; S6 1/1 after a baseline repair; S7–S12 6/6 (S9 refusal and deletion, S10 malformed state, S12 7 guard cases); cleanup deleted 75 and kept 0. The first S6 failure (`time-moved`) was an execution-sequencing error (a second `fctRunSmoke` after the schedule change overwrote the S5 baseline), not a verified Crew API defect. Teardown complete (owner-reported): repair function and `FCT_SEED_CONFIRM` removed; both test calendars and both temporary Apps Script projects deleted; both OAuth authorizations revoked; generated `~/fc-gas-test-package` removed; local filename scans found no matching temporary credential files; clipboard cleared with Terminal output provided. Filename scans are limited evidence, not proof that all credential copies are absent. See `docs/CREW-GAS-TEST-SETUP.md` §13.3. Several earlier UNVERIFIED platform assumptions are now observed working; others remain open (`docs/CREW-GAS-TEST-SETUP.md` §13). Automated tests at `962644f`: full suite 1379 pass, 0 fail, 2 skipped on Node 24.22.1 (Node 22 lacks `navigator.locks`; see `CLAUDE.md`). No production deployment, production-calendar change or production Script Property change. **Production remains NO-GO.**
+
+## 2026-10-24 — Reconciled crew release-readiness checkpoint
+
+Current development baseline: `v2.1-dev` at `3c9e6a3` before this
+documentation update; clean working tree, one commit ahead of origin.
+Owner-provided output after fetching origin identifies `origin/main`
+as `a3008d2`. This verifies the Git reference, not the currently served
+frontend or installed Apps Script version.
+
+Confirmed evidence:
+- Crew frontend, runtime, credentials and backend routing exist in source.
+- Claude Cloud committed and pushed validation documentation as `e7d98b6`.
+  Its supplied final report explicitly retained production NO-GO.
+- Owner-run S0–S13 passed after the documented S6 sequencing correction.
+- Teardown is complete as owner-reported and documented in `3c9e6a3`,
+  including clipboard cleanup and the limited filename-scan evidence.
+- Owner-provided focused test output: Node v26.7.0, 353 passed,
+  0 failed, 0 skipped, including repository hygiene. This was not a
+  full-suite or browser run. No repeat is required merely for these docs.
+- Direct tree comparison `origin/main HEAD` reports 127 changed files,
+  27,617 insertions and 192 deletions. This includes crew work and other
+  backend, offline, parser, tooling, test and documentation changes.
+  It is an inventory, not an approved production release scope.
+
+Older statements that no crew frontend exists are historical and stale.
+Passing tests establish only their exercised scope. Production remains NO-GO.

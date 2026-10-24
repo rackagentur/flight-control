@@ -87,3 +87,24 @@ changes. Then evaluate and propose the next development milestone against the re
 limits in §13.4–13.5 and the crew implementation/release documentation.
 No next milestone is approved by this entry. Production remains NO-GO; deployment,
 production configuration changes and real crew-data operations are outside this checkpoint.
+
+## 2026-10-24 — Reconciled crew release-readiness checkpoint
+
+Next checkpoint: define the exact production release scope from the existing
+127-file tree difference. Classify changes as selected, already represented
+in production, deferred, or support-only, with evidence for each conclusion.
+Do not infer deployment state from file presence or old documentation.
+
+Then prepare the coordinated release checklist:
+1. Identify exact frontend/backend candidates and existing acceptance evidence.
+2. Record actual current deployed frontend and Apps Script rollback references.
+3. Reconcile the specification's outstanding Q1, Q4 and Q6 decisions.
+4. Recover existing storage/backfill/timing results where available; otherwise
+   identify requirements needing evidence or an explicit approved revision.
+5. Distinguish required acceptance from optional additional investigation.
+   Untested isolated web-app access alone does not authorize recreating
+   test resources or repeating the completed smoke scenarios.
+6. Retain frontend-first release order and separately approved backend changes.
+
+No production release, push, configuration change, new test environment,
+or additional test cycle is authorized by this checkpoint.
