@@ -1,40 +1,33 @@
 # Flight Control — next steps
 
-Last updated: 2026-10-14. Agents act only on items marked **approved**; everything else waits for the owner.
+Last updated: **2026-10-24**. Current checkpoint: documentation review only.
 
-## 1. Next approved agent action
+## 1. Next owner decision
 
-**None is pending without a further owner instruction.** `v2-redesign` is pushed (`5db9381`); the iPhone preview tooling is prepared but **not deployed**. Approved scope today:
+**Select the combined crew + single-flight-information + attribution scope in
+[RELEASE-REVIEW.md](RELEASE-REVIEW.md), or request a separately reviewed crew-only proposal.**
+Review the complete documentation diff first. Scope selection is not permission to commit,
+push, deploy, change properties/triggers, access the feed or process real crew data.
 
-- Phase 0 direct feed: preparation and read-only **local** investigation only (D-010). Done; the probe is prepared.
-- **No** request to the Condor feed, no production change, no deploy, no push.
+## 2. Release follow-up after scope selection
 
-## 2. Waiting for the owner (in suggested order)
+Use RELEASE-REVIEW's classified checklist and exact inventory. Recover existing crew UI/device
+acceptance and aggregate storage/backfill/timing results before proposing tests. Resolve Q1/Q4/Q6;
+confirm served frontend and backend/editor rollback baselines privately. Then agree any missing
+acceptance work separately. Frontend release precedes a separately authorized backend update.
+Completed isolated S0–S13 validation and teardown stay closed; do not recreate test infrastructure.
 
-| # | Decision / action | Unblocks |
-|---|---|---|
-| 1 | **Permission:** confirm that automated retrieval of the CUBE roster feed is permitted (employer IT / works agreement / CUBE terms) | Probe execution, P-001, P-002 |
-| 2 | Set up the probe project (`~/.config/flight-control/feed-probe/SETUP.md` A–C), run `probeDryRun` only | — |
-| 3 | **Authorize** the probe explicitly (set `FC_PROBE_AUTHORIZED_UNTIL`, tell the agent) | `probeRun`, then optional monitor |
-| 4 | ~~Push `v2-redesign`~~ — done 2026-10-14 (`5db9381`, fast-forward, after history cleanup) | — |
-| 4a | Isolated preview: Vercel `flight-control-preview` **deployed 2026-10-15**; owner sets up the synthetic Apps Script backend (`docs/IPHONE-ACCEPTANCE.md` Setup A), then the agent verifies it | A5 acceptance |
-| 4b | Run the iPhone acceptance run sheet; report results | release of A5 |
-| 5 | Read the Apps Script Executions log for the 05:00 sync (B2-sync) | B3 |
-| 6 | **Hosting decision** for multi-user (P-003: keep D-003 vs separate service, provider, EU region) and legal/privacy review | Track C |
-| 7 | Approve D-008 implementation (Condor pack wording `–` / `U`, subdued completed flights; screenshots first) | A6 |
-| 8 | Confirm meanings of unmapped codes, `DH/<flight>` first | B2 |
-| 9 | After 2026-11-01: check the B3 monthly dashboard | — |
+## 3. Other work remains outside this release
 
-## 3. Unresolved decisions
-
-- **Permission** for automated feed access — unknown; never assume it.
-- **Hosting** for a multi-user service — open; D-003 ("No Supabase") is still active.
-- Duty-end rule (on-block + fixed post-flight time?) — only if the owner wants a derived duty end.
-- Allowances — out of scope, or a PDF-only upload later.
-- Where the URL should live long-term: it currently also exists in a third-party location outside Git (owner knows
-  where). Rotating it at CUBE would also break the existing Google subscription.
+Direct ICS ingestion, multi-user hosting/onboarding, unmapped codes, duty-end/allowances and
+later product milestones are not added by this checkpoint. The B3 monthly dashboard check remains
+after 2026-11-01. Historical owner queues below are not new authorization.
 
 ## 4. Session-end checkpoint procedure (every substantial session)
+
+For this documentation-only checkpoint, the owner explicitly requires no repeat tests and no commit.
+Those constraints override steps 2, 7 and 8 below; use existing test evidence and `git diff --check`.
+Do not add a decision entry unless changing a decision or recording a clearly labelled proposal.
 
 1. `git status --short` and `git log --oneline -5`: note branch, HEAD, uncommitted files.
 2. Run `npm test`; record pass/fail counts and any flaky test.
@@ -46,6 +39,10 @@ Last updated: 2026-10-14. Agents act only on items marked **approved**; everythi
    names or employee numbers in the diff.
 8. Commit **only** the documentation files (explicit paths), never unrelated work in progress. Push only with approval.
 
+
+## Historical next-action snapshots
+
+These entries retain their original context; §§1–3 above are the current next action.
 
 ## 2026-10-15 — final release handover checkpoint
 
@@ -108,3 +105,17 @@ Then prepare the coordinated release checklist:
 
 No production release, push, configuration change, new test environment,
 or additional test cycle is authorized by this checkpoint.
+
+## 2026-10-24 — Backend baseline and proposed release scope
+
+Next checkpoint: select the intended release scope. The documented proposal
+is a combined crew + single-flight-information + attribution update using
+the six backend files listed in backend/apps-script/README.md.
+A crew-only alternative would require preparing and reviewing a different
+shared-router candidate; it must not be represented as the already-reviewed
+combined candidate.
+
+After scope selection, finalize the frontend file set, existing acceptance
+evidence, unresolved release decisions and rollback procedure.
+No additional testing, source change, upload, push or deployment is
+authorized by this documentation checkpoint. Production remains NO-GO.

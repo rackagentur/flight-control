@@ -1,6 +1,12 @@
 # Flight Control — roadmap
 
-Status per item: **DONE** (in production on `main`) · **BRANCH** (committed on `v2-redesign`, not live) ·
+Current checkpoint (2026-10-24): Crew frontend/backend are implemented on `v2.1-dev`;
+isolated validation and teardown are closed. The combined release is **PROPOSED**, not approved.
+See [RELEASE-REVIEW.md](RELEASE-REVIEW.md) for the exact inventory and outstanding gates.
+The tables and dated entries below preserve earlier milestone snapshots; their old branch/live
+labels are not current deployment evidence. No new feature milestone is authorized.
+
+Historical status per item: **DONE** (in production on `main`) · **BRANCH** (committed on `v2-redesign`, not live) ·
 **IN REVIEW** (uncommitted) · **PREPARED** (built, not executed) · **PROPOSED** (not approved) · **LATER**.
 Every step needs the owner's review/approval before commit; any change to `main` is a production deploy.
 

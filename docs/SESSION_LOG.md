@@ -3,6 +3,22 @@
 Newest first. One entry per working session (see the checkpoint procedure in `docs/NEXT_STEPS.md`).
 Facts only; link to decisions/issues by ID. Never paste URLs with tokens, calendar ids, names or employee numbers.
 
+## 2026-10-24 — Release preparation, documentation review only
+
+Verified local `v2.1-dev` at `5a7dd16`, two documentation commits ahead of recorded origin;
+inspected and retained the four existing documentation edits. No fetch. Direct endpoint diff
+against `a3008d2`: 127 files, 27,683 additions, 192 deletions before this update. Classified every
+path; proposed 15-file frontend delta, six backend files, and complete 82-file static tree.
+Flight/attribution frontend and offline foundations already match the production Git reference;
+served production and immutable backend source remain unverified. Reconciled current summaries,
+crew specification status, historical release instructions and Version 29 rollback distinctions.
+Existing synthetic storage/browser/device evidence retained with its limits; missing final-candidate
+acceptance and explicit measurement requirements identified without reopening S0–S13 or teardown.
+No application code/artifact changes, private reference reads, production requests, test reruns,
+commits, pushes or deployment. Owner reviews the complete documentation diff before any commit;
+next decision is combined scope versus a separately reviewed crew-only proposal.
+Documentation diff reviewed; `git diff --check` passed. No new test results are claimed.
+
 ## 2026-10-15 (latest) — Claude Code: Condor display terminology (D-012)
 
 - Read-only audit first: classification of `-` (unassigned) and `U` (off/leave) correct in every layer; display wrong
@@ -153,3 +169,11 @@ Fetched production Git reference: `a3008d2`; direct candidate tree difference:
 127 files. Installed backend version and served frontend were not verified.
 No fresh Google resources, production operations or tests are introduced
 by this documentation checkpoint. No commit or push by this update.
+
+## 2026-10-24 — Backend baseline and proposed release scope
+
+Recorded the owner's Version 29 deployment report and the supplied editor
+file-list evidence, preserving their verification limits. Documented the
+proposed combined six-file backend update and frontend-first release order.
+No production access or modification was performed by this update.
+Scope selection remains pending; production remains NO-GO.

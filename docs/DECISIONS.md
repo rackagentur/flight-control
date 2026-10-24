@@ -55,3 +55,14 @@ Additive correction to responsive presentation only: narrow milestone containers
 ## 2026-10-16 — durable sign-out correction (local only)
 
 Refines D-011 sign-out failure handling without changing normal preference retention or reset semantics: retry the verified marker write after cleanup frees quota. If it still fails, remove and verify the endpoint, report storage failure even when disconnection succeeds, and retain the in-memory signed-out block until explicit reconnection. This supersedes only the implicit assumption that the initial marker write always succeeds. Successful reset clears the namespace without requiring a surviving marker. No backend authentication, worker lifecycle or release-policy change.
+
+
+## 2026-10-24 — Combined release scope proposal (not approved)
+
+Propose the 15-file frontend delta and six-file backend set in `RELEASE-REVIEW.md`.
+If selected, this replaces the earlier gate-only three-file release proposal in
+`FINAL-RELEASE-HANDOVER.md` and the crew-only four-file shorthand in the backend README.
+It does not supersede product decisions, Q1/Q4/Q6 or measurement/acceptance requirements.
+Frontend-first order remains binding, backend authorization separate. The owner-reported
+current web-app rollback reference is Version 29; Version 27 remains historical.
+No release selection, commit, push, deployment or real crew processing is approved here.

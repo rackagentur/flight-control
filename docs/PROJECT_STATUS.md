@@ -1,26 +1,28 @@
 # Flight Control — project status
 
-Last checkpoint: **2026-10-14** (Claude Code session). Re-check anything below before relying on it; prefer the
-commands over the copied values. "Verified" means checked on that date with the stated method; "Unverified" means
-taken from notes or docs and not re-checked.
+Last checkpoint: **2026-10-24 — documentation-only release preparation**.
+Current release review is [RELEASE-REVIEW.md](RELEASE-REVIEW.md); dated sections below
+are historical snapshots, not current deployment claims or instructions.
 
-## 1. Where things stand
+## 1. Current state
 
-| Area | State | How to re-check |
-|---|---|---|
-| Production frontend | GitHub Pages serves branch **`main`** (`/`). Any merge/fast-forward of `main` is a production change. `origin/main` = `0ae7d58` (Radar slice 1 + airport fix) — verified 2026-10-14 | `git log -1 origin/main`, `gh api repos/{owner}/{repo}/pages` |
-| Development branch | **`v2-redesign` pushed** to `origin` at `5db9381` (fast-forward from `0ae7d58`, 10 commits: restyle Steps 1–6.5, continuity docs `7c6488a`, Step 6.6 `c999cef`, iPhone plan `5db9381`) — verified 2026-10-14. Later local commits may exist (preview tooling). `main` untouched | `git log --oneline origin/main..origin/v2-redesign` |
-| Step 6.6 | **Committed and pushed on `v2-redesign`** (`c999cef`; was `bb6c0f5` before the 2026-10-14 history cleanup) with D-011 Sign out / Reset / token change. Not on `main` (not in production). Physical iPhone acceptance **prepared, not started** (`docs/IPHONE-ACCEPTANCE.md`) | `git log --oneline -5` |
-| Tests | `npm test`: **766/766** on 5 consecutive runs; S6 file 30× with 0 failures; `build-offline --check` current; desktop browser harness 15/15 (Chrome via installed Playwright, synthetic) — 2026-10-14. iPhone/Safari **unverified** | `npm test`, `node scripts/build-offline.mjs --check` |
-| Backend (Apps Script) | Contract fc.roster v2 installed privately; docs state **Version 29** (departures action), rollback Version 27, pre-v2 baseline 22. Live deployment **unverified** by agents (private) | `backend/apps-script/README.md`, `docs/BACKEND-HARDENING.md`; ask the owner |
-| Current phase | Two-theme restyle, **Step 6.6 awaiting physical iPhone acceptance** (preview tooling ready, nothing deployed). Step 7 (destination/layover) not started. In parallel: **Phase 0 of the direct ICS feed investigation** (preparation only) and **proposals** for multi-user onboarding (not approved) | `docs/NEXT_STEPS.md` |
-| Direct ICS probe | **PREPARED — NOT EXECUTED.** Private, outside Git: `~/.config/flight-control/feed-probe/`; offline tests 23/23 (2026-10-14); three independent review rounds, last verdict PASS_WITH_NOTES, final two fixes self-tested only. No request to the feed has ever been made by an agent | `cd ~/.config/flight-control/feed-probe && node --test feed-probe.test.mjs` |
-| V3 ICS (Milestones 1–2) | Parser committed `d9d3706` (`core/ics/ics.js`). Live feed validated 2026-10-15 (owner-authorized, 2 one-time reads): parses cleanly; Condor interpreter 52/53 events recognised. Backend comparison **not obtained** (HTTP 403, I-010). Unverified: UID ↔ Google id, stay end times, field-level parity — `docs/ARCHITECTURE.md` §4a | `node --test tests/ics-parser.test.js` |
-| Onboarding / multi-user | **PROPOSED — not approved, not implemented** (`docs/ARCHITECTURE.md` §5) | — |
-| Unresolved owner decisions | **Permission** for automated feed access (unknown); **hosting** for a multi-user service (P-003 vs D-003) | `docs/NEXT_STEPS.md` §3 |
+| Area | State and evidence |
+|---|---|
+| Git | Locally verified `v2.1-dev` at `5a7dd16`, two local documentation commits ahead of recorded origin; no fetch/push in this checkpoint |
+| Production frontend | Owner-supplied fetched Git reference `a3008d2`; served commit and device worker adoption not checked |
+| Backend | Owner reports active Version 29, displayed 2026-10-07 03:01 (timezone unspecified); editor screenshot is not immutable deployed-source proof |
+| Implementation | Crew frontend/backend routing exist. Combined proposal: 15 changed frontend runtime files + six backend files; complete 82-file static tree and all 127 endpoint differences classified in RELEASE-REVIEW |
+| Validation | Owner-run S0–S13 passed after S6 sequencing repair; teardown closed. Full suite recorded at `962644f`: 1379 pass, 0 fail, 2 skipped (Node 24.22.1); later owner-focused output 353/0/0 (Node v26.7.0), including hygiene |
+| Browser/device | Earlier desktop checks and owner-reported physical acceptance retained; final crew candidate/browser/device approval not established. Recover existing results first |
+| Remaining release requirements | Q1 clearance, Q4 execution identity, Q6 sole editor; candidate acceptance; real storage/backfill/timing evidence; baseline and explicit release approvals. See classified checklist |
+| Current authorization | Documentation only; review complete diff before any commit. Production **NO-GO**. No tests repeated, production access, feed access, code changes or deployment |
 
-Other local branches (`airline-registry`, `phase3-departures`, `radar-airport`, `radar-slice`) are merged history or
-worktrees; local `main` is stale (`c085cdf`) — use `origin/main`.
+## Historical baseline (2026-10-14 onward)
+
+The next two sections preserve the older functionality/issue ledger. Branch labels, deployment
+claims and “not implemented” statements there are historical; consult the current table above.
+In particular crew is now implemented, and flight/attribution frontend plus offline foundations
+are already represented in `a3008d2`. No product decision is superseded by source presence.
 
 ## 2. Existing, verified functionality (in code and tests)
 
@@ -110,7 +112,7 @@ Owner-run, owner-reported, on `v2.1-dev` (test package last changed in `962644f`
 
 ## 2026-10-24 — Reconciled crew release-readiness checkpoint
 
-Current development baseline: `v2.1-dev` at `3c9e6a3` before this
+Historical reconciliation baseline: `v2.1-dev` at `3c9e6a3` before that
 documentation update; clean working tree, one commit ahead of origin.
 Owner-provided output after fetching origin identifies `origin/main`
 as `a3008d2`. This verifies the Git reference, not the currently served
@@ -133,3 +135,24 @@ Confirmed evidence:
 
 Older statements that no crew frontend exists are historical and stale.
 Passing tests establish only their exercised scope. Production remains NO-GO.
+
+## 2026-10-24 — Backend baseline and proposed release scope
+
+Owner reports the existing production web-app deployment is Version 29,
+dated 2026-10-07 at 03:01 as displayed; timezone unspecified.
+This is owner-confirmed, not independently inspected deployment metadata.
+
+The supplied editor screenshot shows DeparturesV2.gs present and
+FlightInfoV2.gs, CrewCoreV2.gs, CrewCondorV2.gs and CrewApiV2.gs absent.
+Editor contents are not proof of the immutable Version 29 source snapshot.
+No source, properties, triggers or deployment settings were changed.
+
+Version 29 is the recorded web-app deployment rollback reference.
+Rolling back the versioned web app must not be treated as restoring editor
+source or trigger execution. Preserve the editor baseline separately before
+any future authorized source changes.
+
+The proposed six-file backend update is recorded in
+backend/apps-script/README.md under the matching dated heading.
+Exact production source parity and the final release selection remain open.
+Production remains NO-GO.

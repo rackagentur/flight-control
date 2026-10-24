@@ -1,10 +1,16 @@
 # Crew Intelligence — specification, architecture and UI proposal
 
-Status: **PROPOSED — design only. Implementation is NOT authorized.** Nothing here is in code, the backend or
-production. **Revision 4.1 + Phase 1a correction pass + Phase 1b** (2026-10-22): Revision 3 plus the corrections from Codex's Revision 3 review (Phase 1a
-assessed CONDITIONAL; the corrections below, including the two Revision 4.1 conditions, are **binding Phase 1a
-acceptance criteria**, §13).
-Branch context: development `v2.1-dev` (`2665a2f`), production `origin/main` (`a3008d2`).
+Current status (2026-10-24): **frontend, backend and routing implemented on `v2.1-dev`;
+not deployed to production. Production NO-GO.** Owner-run isolated S0–S13 validation and
+teardown are complete (`CREW-GAS-TEST-SETUP.md` §13). Current source baseline `5a7dd16`;
+production Git comparison reference `a3008d2`, not a served-build verification.
+
+[RELEASE-REVIEW.md](RELEASE-REVIEW.md) reconciles implementation, measurements, acceptance
+and unresolved Q1/Q4/Q6. Earlier phase-status sections below are historical implementation
+snapshots: “not routed”, “not committed”, “frontend not implemented” and “simulated only”
+must not be read as the current overall status. Their requirements remain binding unless
+explicitly superseded; source presence is not release approval or policy clearance.
+Revision 4.1 and the correction-pass acceptance criteria remain the design baseline.
 
 ### Revision 4 changes (summary)
 
@@ -24,7 +30,7 @@ Branch context: development `v2.1-dev` (`2665a2f`), production `origin/main` (`a
 | CP-4 | Phase 1a review: tie ordering differed from `fcv2Duties_` (3 vs 2 duties) | Same comparator as `fcv2BuildRoster_` (start, end, stable); full ties flagged `tied` | §5.1 | parity tests |
 
 All names, ranks, flights, dates and counts are **synthetic**. Employee identifiers are never written out, not even
-as fake numbers; they appear only as `<employee-id>`. Performance and size figures are **estimates, not measured**.
+as fake numbers; they appear only as `<employee-id>`. Early performance/size estimates are distinguished from the later synthetic measurements in §9.4a/§16a; real release measurements remain outstanding as classified in RELEASE-REVIEW.md.
 
 UI direction (approved in principle): the Crew Intelligence mockup artifact (six screens). §11 lists the copy changes
 Revision 3 makes to it.
@@ -467,7 +473,7 @@ until then results are stale, never silently wrong. Duplicate `dutyKey`s across 
 - Stale or incomplete results are never converted into complete ones by reading; only a successful `crewIndex`
   verification changes the state.
 
-### 7.5b Frontend trigger contract (Phase 1c — documented, not implemented)
+### 7.5b Frontend trigger contract (implemented; release acceptance remains separate)
 
 1. After an authorised enrollment (`crewEnroll` ok), request `crewIndex`.
 2. When a private flight detail is opened, request `crew` for that sector.
@@ -932,7 +938,7 @@ Safeguards:
 
 ---
 
-## 12. Performance strategy (all figures to be measured; none verified)
+## 12. Performance strategy (release targets; synthetic evidence in §9.4a/§16a)
 
 | Metric | Target | Measurement |
 |---|---|---|

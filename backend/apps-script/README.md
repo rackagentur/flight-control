@@ -1,6 +1,14 @@
 # fc.roster v2 backend (Apps Script sources)
 
-Status: **installed (private).** All seven v2 files (`CondorAdapterV2.gs`, `CondorCodesV2.gs`, `RosterModelV2.gs`, `AirportsV2.gs`, `RosterApiV2.gs`, `RouterV2.gs`, `DeparturesV2.gs`) are installed unchanged in the existing Apps Script project and served by the existing *untitled* ("Unbenannt") deployment, now **Version 29** (Phase 3: `departures` action, Script Property `FC_ADB_RAPIDAPI_KEY` set; on top of Phase 1b + 2: Condor roster-code table, `-` → `unassigned`, five standby symbols; and the PDX/SYX zones, the BH-1 router and BH-2 token-protected reads); the /exec URL is unchanged. Script Property `FC_V2_TOKEN` is set (the token lives only in a private local file and Script Properties). The five original project files, the triggers and `PLACES_API_KEY` are unchanged. **Rollback target: Version 27** (no `departures`; then 26, 25, 24); Version 22 is the pre-v2 baseline. Deployment log and verification: `docs/BACKEND-HARDENING.md`.
+Current status (2026-10-24): **implemented candidate, production NO-GO**.
+The owner reports active web-app **Version 29** (displayed 2026-10-07 03:01,
+timezone unspecified). This is the proposed release's web-app rollback reference;
+immutable deployed-source parity has not been inspected. The editor screenshot shows
+Departures present and FlightInfo/three Crew files absent; it is not deployed-source evidence.
+The exact combined proposal and outstanding requirements are in
+[RELEASE-REVIEW.md](../../docs/RELEASE-REVIEW.md) and the dated scope section below.
+Older install/Phase 2/Phase 3 procedures are historical, not authorization to execute them.
+Version 27 is the historical departures-release rollback, not the new proposal's baseline.
 
 | File | Role |
 |---|---|
@@ -10,18 +18,19 @@ Status: **installed (private).** All seven v2 files (`CondorAdapterV2.gs`, `Cond
 | `AirportsV2.gs` | Generated airport → IANA zone table (`node scripts/gen-airports-gs.mjs`) |
 | `CondorCodesV2.gs` | Generated Condor roster-code table: raw feed title → canonical concept (`node scripts/gen-condor-codes-gs.mjs`, from `src/airlines/condor/roster-codes.js`). Never edit by hand |
 | `RouterV2.gs` | Backend hardening (BH-1 in Version 25, BH-2 in Version 26): the project's only `doGet`. Refuses every GET with JSON and never serves a page. `getStats` by GET only while Script Property `FC_V5_GET` = `open` (BH-2 migration window); otherwise `auth-required`, and token holders use `doPost` `stats` |
-| `DeparturesV2.gs` | **Not yet deployed (Phase 3).** The `departures` action: validates the request, chunks the range into provider windows, normalizes AeroDataBox responses (pure; unit-tested in Node). All I/O (key, `UrlFetchApp`, cache, sleep) is injected by `RosterApiV2.gs` `fcv2LiveEnv_`. No top-level dependency on any other file; must stay last / is added as a new file |
-| `CrewCoreV2.gs` | **Not deployed — do not install.** Crew Intelligence core (Phase 1a/1b, synthetic tests only: `tests/crew-core.test.js`, `tests/crew-api.test.js`); depends on `RosterModelV2.gs` (`fcv2Duties_`). Live backend actions are not authorized. Spec: `docs/CREW-INTELLIGENCE.md` |
+| `DeparturesV2.gs` | **Departures present in owner editor evidence; proposed attribution replacement not deployed.** The `departures` action: validates the request, chunks the range into provider windows, normalizes AeroDataBox responses (pure; unit-tested in Node). All I/O (key, `UrlFetchApp`, cache, sleep) is injected by `RosterApiV2.gs` `fcv2LiveEnv_`. No top-level dependency on any other file; replacement in this proposal |
+| `FlightInfoV2.gs` | **Not deployed — proposed addition only.** Single-flight provider lookup, routed by `RosterApiV2.gs` under the existing provider key condition |
+| `CrewCoreV2.gs` | **Not deployed — do not install.** Crew Intelligence core (Phase 1a/1b, Node tests plus owner-run isolated synthetic validation: `tests/crew-core.test.js`, `tests/crew-api.test.js`); depends on `RosterModelV2.gs` (`fcv2Duties_`). Live backend actions are not authorized. Spec: `docs/CREW-INTELLIGENCE.md` |
 | `CrewCondorV2.gs` | **Not deployed — do not install.** Condor crew-list parser for Crew Intelligence (Phase 1b, synthetic). Reuses `CondorAdapterV2.gs` read-only; the installed adapter is unchanged |
-| `CrewApiV2.gs` | **Not deployed — do not install.** Crew handlers (`crewEnroll`, `crewIndex`, `crew`, `crewRevoke`), the routing hook, the execution-identity gate and the live env (Phase 1d.2B, local only). The local `RosterApiV2.gs` routes the four actions to it only when all three crew files are present; tested with fake services only |
+| `CrewApiV2.gs` | **Not deployed — do not install.** Crew handlers (`crewEnroll`, `crewIndex`, `crew`, `crewRevoke`), the routing hook, the execution-identity gate and the live env (Phase 1d.2B, local only). The local `RosterApiV2.gs` routes the four actions to it only when all three crew files are present; Node-tested and owner-validated with isolated real services using synthetic data; production remains unverified |
 
 Rules the files follow:
 
 - Every helper name starts with `fcv2` and ends in `_` (no collisions with existing project functions; not callable through `google.script.run`). `doPost` is the only public name and checks the token before anything else.
 - Calendar ids, the hotel Sheet id and the sync tag are used **by constant name** from the existing project file; no ids, URLs, tokens or personal data are in these files.
-- Descriptions: only the hotel block (allow-listed line by line; crew-like lines, name lists and codes end it) and the aircraft line are read. Nothing else from a description is returned.
-- Outbound requests: `UrlFetchApp` is used only by the `departures` action, only toward the flight-data provider (AeroDataBox via RapidAPI). The provider key exists only in Script Property `FC_ADB_RAPIDAPI_KEY` (never in a file, a response or a log); without it `departures` is not offered in `capabilities` and answers `departures-not-configured`.
-- Nothing is written: no calendar, Sheet, trigger or property writes (the hotel Sheet is opened read-only, never via `getHotelSheet()`).
+- Non-crew roster descriptions: only the hotel block (allow-listed line by line; crew-like lines, name lists and codes end it) and the aircraft line are read. Nothing else from a description is returned.
+- Outbound requests: `UrlFetchApp` is used only by the `departures` and `flight` actions, only toward the flight-data provider (AeroDataBox via RapidAPI). The provider key exists only in Script Property `FC_ADB_RAPIDAPI_KEY` (never in a file, a response or a log); without it these provider actions are not offered in `capabilities`.
+- Calendar, Sheet and triggers remain read-only/untouched. Crew handlers do write their scoped state, index and cache; the older “nothing is written” statement applies only to the non-crew baseline. Crew parsing is gated and not authorized for real data in this checkpoint.
 - No top-level side effects (Apps Script runs every file's top-level code on every execution, including the existing triggers).
 
 ## Install (done: Version 23, updated to Version 24; kept as the procedure for a reinstall)
@@ -69,7 +78,7 @@ Rollback is the previous version: Version 26 (Phase 1b + 2 shipped as Version 27
 
 ### Phase 3: `departures` action (deployed as Version 29 on 2026-10-06; rollback Version 27)
 
-Adds provider schedule data (AeroDataBox via RapidAPI) to the existing doPost API. Nothing below has been done yet. **Order: frontend first, then backend** (an older frontend ignores the new action; the new frontend falls back cleanly while the backend lacks it).
+Adds provider schedule data (AeroDataBox via RapidAPI) to the existing doPost API. The steps below preserve the historical Phase 3 procedure; they are not pending release instructions. **Order: frontend first, then backend** (an older frontend ignores the new action; the new frontend falls back cleanly while the backend lacks it).
 
 1. **Add `DeparturesV2.gs` as a new file** (Files → + → Script, named exactly `DeparturesV2`, pasted unchanged) **and replace `RosterApiV2.gs`** with the updated copy, **in the same version**. The new file is appended after the existing ones, which is correct: it has no top-level dependency on any other file, and `RosterApiV2.gs` calls into it only inside function bodies at call time. Do not edit, rename or reorder any other file.
 2. **Script Property** `FC_ADB_RAPIDAPI_KEY` = the RapidAPI key (Project settings → Script properties; never typed into a file, a chat or a commit; clear the clipboard afterwards). Without it the action stays off (`capabilities` omits `departures`). The action is also off (`departures-not-configured`, not listed in `capabilities`) if `RosterApiV2.gs` is replaced without `DeparturesV2.gs` being present, so a partial deploy never breaks the other actions.
@@ -80,16 +89,61 @@ Adds provider schedule data (AeroDataBox via RapidAPI) to the existing doPost AP
 
 ### Crew Intelligence (Phase 1d.2B — local only, NOT deployed; needs explicit approval)
 
-- **Deploy order:** frontend first; then, in **one** new version, the updated `RosterApiV2.gs` plus `CrewCoreV2.gs`, `CrewCondorV2.gs` and `CrewApiV2.gs`. With the crew files but without the properties below, every non-crew answer is byte-identical and crew actions answer `crew-disabled` / `crew-unavailable`.
+- **Deploy order:** frontend first, then separately authorized backend. The current shared-router proposal has **six files**, including `FlightInfoV2.gs` and attributed `DeparturesV2.gs`; see the dated inventory. Crew gates preserve unrelated routing behavior, but the combined proposal deliberately adds flight capabilities and attribution, so a blanket non-crew byte-identity claim is incorrect.
 - **Properties (set by the owner in the editor, never in Git):** `FC_CREW_OWNER` (the owner's Google account email; the script must run as this account), `FC_CREW_PEPPER`, `FC_CREW_SELF`, `FC_CREW_ENABLED` = `on`. Without `FC_CREW_OWNER` nothing crew-related runs. Revocation keeps working with the switch off as long as `FC_CREW_OWNER` matches.
-- **OAuth authorization:** the chosen execution-identity check (`Session.getEffectiveUser().getEmail()`) requires the Google OAuth scope `https://www.googleapis.com/auth/userinfo.email`. Existing authorization for the installed Apps Script project has not been verified; reauthorization may be required before deploying. The separate test Apps Script project must validate authorization before any production rollout. No OAuth scopes or production configuration have been changed in this phase.
-- **Rollback:** the previous version (removes the hook and the crew files). If a crew deletion is pending, run `crewPurgeAll` first (procedure in the Rollback list below and `docs/CREW-INTELLIGENCE.md` §8.3). Kill switch: delete `FC_CREW_ENABLED` (revocation still works) or `FC_CREW_OWNER` (everything crew-related stops, including revocation).
+- **OAuth authorization:** the chosen execution-identity check (`Session.getEffectiveUser().getEmail()`) requires the Google OAuth scope `https://www.googleapis.com/auth/userinfo.email`. Existing authorization for the installed Apps Script project has not been verified; reauthorization may be required before deploying. Owner-run isolated validation observed the identity gate and required services working; that completed setup has been deleted. Production execution identity/authorization still requires owner confirmation; do not recreate the test projects. No OAuth scopes or production configuration have been changed in this phase.
+- **Rollback:** Version 29 is the owner-reported web-app reference; this does not remove editor files or restore trigger code. Resolve pending deletion through the authorized purge/recovery procedure before removing crew handlers. Disabling `FC_CREW_ENABLED` preserves revocation; removing `FC_CREW_OWNER` also stops revocation and is not the default recovery step. No property change is authorized here.
 
 ## Rollback
+
+**For the current proposal use Version 29 and RELEASE-REVIEW.md.** The legacy bullets
+below describe earlier releases, not a checklist to execute now. In particular do not delete
+all six original v2 files or change tokens as the default rollback of this proposal. Editor
+restoration and trigger behavior require the separately preserved baseline and authorization.
 
 - Deployment: Manage deployments → untitled → Edit → the previous version (Version 27; then 26, 25, 24, 23) or Version 22 (pre-v2 baseline) → Deploy (instant; same URL).
 - Kill switch: delete Script Property `FC_V2_TOKEN` (every v2 call is refused; the app falls back to v5).
 - BH-2 GET switch: Script Property `FC_V5_GET` = `open` serves the unauthenticated `getStats` again (instant, no redeploy); deleting it requires the token for every roster read.
 - Code: delete the six v2 files listed above (triggers run the current code, so this is the rollback for them).
 - App: Settings → Roster contract v2 → Remove token (the app then uses v5 only).
-- Crew Intelligence data (not deployed yet; Phase 1d.2A, simulated only): before rolling back to a version without the crew files while a crew deletion is still pending, or when a revocation is stuck at `revoke-incomplete`, run the editor-only purge: Script property `FC_CREW_PURGE_CONFIRM` = `PURGE-ALL-CREW-DATA` → Run `crewPurgeAll` → read the one-line log (`deleted` / `incomplete` / `refused` / `busy` / `error`) → confirm the property is gone. Full procedure: `docs/CREW-INTELLIGENCE.md` §8.3.
+- Crew Intelligence data (not deployed; isolated synthetic purge validation completed): before rolling back to a version without the crew files while a crew deletion is still pending, or when a revocation is stuck at `revoke-incomplete`, run the editor-only purge: Script property `FC_CREW_PURGE_CONFIRM` = `PURGE-ALL-CREW-DATA` → Run `crewPurgeAll` → read the one-line log (`deleted` / `incomplete` / `refused` / `busy` / `error`) → confirm the property is gone. Full procedure: `docs/CREW-INTELLIGENCE.md` §8.3.
+
+## 2026-10-24 — Backend baseline and proposed release scope
+
+Owner reports the existing production web-app deployment is Version 29,
+dated 2026-10-07 at 03:01 as displayed; timezone unspecified.
+This is owner-confirmed, not independently inspected deployment metadata.
+
+The supplied editor screenshot shows DeparturesV2.gs present and
+FlightInfoV2.gs, CrewCoreV2.gs, CrewCondorV2.gs and CrewApiV2.gs absent.
+Editor contents are not proof of the immutable Version 29 source snapshot.
+No source, properties, triggers or deployment settings were changed.
+
+Version 29 is the recorded web-app deployment rollback reference.
+Rolling back the versioned web app must not be treated as restoring editor
+source or trigger execution. Preserve the editor baseline separately before
+any future authorized source changes.
+
+Proposed backend file set, preserving the reviewed branch's shared router:
+
+| Action | File |
+|---|---|
+| Add | CrewCoreV2.gs |
+| Add | CrewCondorV2.gs |
+| Add | CrewApiV2.gs |
+| Add | FlightInfoV2.gs |
+| Replace | RosterApiV2.gs |
+| Replace | DeparturesV2.gs |
+
+This combines Crew Intelligence with single-flight information and provider
+attribution. The shared RosterApiV2.gs contains both features.
+This is a proposal, not approval to broaden the release or upload files.
+All other existing backend files, v5 sync and triggers remain outside the
+proposed edit set. Test/preview scripts and the ICS parser are not production
+Apps Script upload files.
+
+Release order remains frontend first, followed by a separately authorized,
+coordinated backend update. Production remains NO-GO.
+
+Full frontend/static inventory, support-only exclusions, evidence and requirement classification:
+[release review](../../docs/RELEASE-REVIEW.md). Scope approval remains outstanding.

@@ -1,5 +1,10 @@
 # Flight Control — final release handover
 
+Historical handover: use [RELEASE-REVIEW.md](RELEASE-REVIEW.md) for the current 2026-10-24
+six-file backend proposal, endpoint inventory and release checklist. The three-file sequence below
+is the earlier gate-only proposal. Its browser/fixture blockers were resolved in the follow-up;
+it is not the current release instruction set.
+
 Checkpoint: 2026-10-15, Europe/Berlin. No commit, push, deployment, backend change or production setting change was authorized or performed in this handover. All pre-existing working-tree content is preserved. This checkpoint supplements stale status text; it does not supersede product decisions.
 
 ## Verified state
