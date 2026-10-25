@@ -909,6 +909,7 @@ function fcv2CrewCommitMonth_(env, captured, month, entry) {
   const manifestBytes = fcv2CrewUtf8_(FCV2_CREW_MANIFEST_KEY_) + fcv2CrewUtf8_(store.get(FCV2_CREW_MANIFEST_KEY_) || '');
   // One year document is rewritten per commit: reserve a full value for it next to the root reserve.
   const peak = fcv2CrewPeak_(fcv2CrewStoreBytes_(store), manifestBytes, partsBytes + FCV2_CREW_MANIFEST_MAX_);
+  if (env.diagnostics) env.diagnostics.admission(peak, entry.body.length, parts.length);
   const fail = function () {
     const next = clone(base);
     next.mgen++;

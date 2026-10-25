@@ -23,6 +23,7 @@
 // Contract facts relied on: an enrollment code is single-use (consumed on success) and a code string is never
 // issued twice (≥ 128-bit codes from a password generator, docs/CREW-INTELLIGENCE.md §4.1).
 
+import { clearCrewDiagnostics, crewDiagnosticsEnabled, crewDiagnosticGeneration, recordCrewRequest, recordCrewReport, recordCrewSession } from '../crew-diagnostics.js';
 import { postContract, ApiError } from '../api/appscript.js';
 import {
   crewEnrollRequest, crewIndexRequest, crewRequest, crewRevokeRequest,
@@ -37,7 +38,8 @@ export const CREW_TIMEOUT_MS = 25000;
 export const CREW_INDEX_TIMEOUT_MS = 45000;
 export const CREW_CALL_BUDGET = 20;
 export const INDEX_SPACING_MS = 3000;
-export const INDEX_MAX_CALLS = Object.freeze({ detail: 3, enroll: 8, manual: 8 });
+export const INDEX_MAX_CALLS = Object.freeze({ detail: 3, enroll: 2, manual: 2 }); // bootstrap allowance until first work snapshot
+export const INDEX_DEADLINE_MS = 180000;
 export const INDEX_MAX_RUNS = 3;
 export const BUSY_RETRY_MS = 5000;
 export const BUSY_COOLDOWN_MS = 60000;
@@ -156,6 +158,7 @@ export function __resetCrewStateForTests() {
  * The app-wide call budget and cooldowns are deliberately kept (they protect the backend).
  */
 export function purgeCrewMemory() {
+  clearCrewDiagnostics();
   memory.clear();
   inFlight.clear();
   generation += 1;
@@ -199,10 +202,28 @@ function transportCode(error) {
  *   rules (an unconfirmed grant answered stale-request stays unresolved).
  */
 export function createCrewService({
-  credentials, access, post = postContract, now = Date.now, sleep = defaultSleep,
+  credentials, access, post: transportPost = postContract, now = Date.now, monotonic = () => performance.now(), sleep = defaultSleep,
   isVisible = defaultVisible, isOnline = defaultOnline, onChange = null, cancelSupported = () => false,
 }) {
   let hiddenAt = null;
+  const post = async (endpoint, body, options) => {
+    if (!crewDiagnosticsEnabled()) return transportPost(endpoint, body, options);
+    const start = monotonic(), born = crewDiagnosticGeneration();
+    const dispatchedAccess = access()?.accessId;
+    let outcome = 'error', transportMs = null;
+    try {
+      const result = await transportPost(endpoint, body, options);
+      transportMs = result.meta?.ms ?? null;
+      const check = body.action === 'crew' ? validateCrew(result.data, { sectorId: body.sectorId })
+        : body.action === 'crewIndex' ? validateCrewIndex(result.data)
+        : body.action === 'crewEnroll' ? validateCrewEnroll(result.data) : validateCrewRevoke(result.data, { cancel: options?.diagnosticCancel === true });
+      outcome = check ? (check.ok ? 'success' : check.refused ? 'refused' : 'invalid-response') : 'success';
+      if (access()?.accessId !== dispatchedAccess) outcome = 'access-changed';
+      if (outcome !== 'access-changed' && body.action === 'crewIndex' && body.diagnosticsVersion === 1) recordCrewReport(check?.ok ? check.value.diagnostics : null, born);
+      return result;
+    } catch (error) { outcome = transportCode(error); throw error; }
+    finally { recordCrewRequest({ action: body.action, source: 'network', outcome, elapsedMs: Math.max(0, monotonic() - start), transportMs }, born); }
+  };
 
   const emit = (event) => {
     if (typeof onChange !== 'function') return;
@@ -342,7 +363,17 @@ export function createCrewService({
    * @param {{force?:boolean}} [options]
    * @throws {CrewError}
    */
-  async function loadCrew({ sectorId, date } = {}, { force = false } = {}) {
+  async function loadCrew(query = {}, options = {}) {
+    const observation = { dispatched: false, joined: false };
+    const start = monotonic(), diagnosticBorn = crewDiagnosticGeneration();
+    observation.started = start; observation.diagnosticBorn = diagnosticBorn;
+    try { return await loadCrewInner(query, options, observation); }
+    catch (error) {
+      if (!observation.dispatched) recordCrewRequest({ action: 'crew', source: observation.joined ? 'joined' : 'local-refusal', outcome: 'refused', elapsedMs: Math.max(0, monotonic() - start) }, diagnosticBorn);
+      throw error;
+    }
+  }
+  async function loadCrewInner({ sectorId, date } = {}, { force = false } = {}, observation) {
     sweep();
     await assertStorage();
     const a = currentAccess();
@@ -356,21 +387,27 @@ export function createCrewService({
     const key = `${a.accessId}|${sectorId}|${date}`;
     if (!force) {
       const hit = memory.get(key);
-      if (hit) return hit.value;
+      if (hit) { recordCrewRequest({ action: 'crew', source: 'cache', outcome: 'success', elapsedMs: Math.max(0, monotonic() - observation.started) }, observation.diagnosticBorn); return hit.value; }
     }
     const born = generation;
     let running = inFlight.get(key);
+    const joined = Boolean(running);
+    observation.joined = joined;
     if (!running) {
       if (crewSuspended(a)) throw new CrewError('suspended', limits.suspended.code);
       if (cooling()) throw new CrewError('cooldown');
       if (!budgetLeft()) throw new CrewError('local-limit');
       spend();
+      observation.dispatched = true;
       running = fetchCrew(a, grant, { sectorId, date }, key, born);
       inFlight.set(key, running);
       const release = () => { if (inFlight.get(key) === running) inFlight.delete(key); };
       running.then(release, release);
     }
+    const joinedStart = monotonic();
+    const joinedBorn = crewDiagnosticGeneration();
     const value = await running;
+    if (joined) recordCrewRequest({ action: 'crew', source: 'joined', outcome: 'success', elapsedMs: Math.max(0, monotonic() - joinedStart) }, joinedBorn);
     if (born !== generation) throw new CrewError('access-changed');
     return value;
   }
@@ -380,6 +417,7 @@ export function createCrewService({
   /** Why a call may not be made now, or null. Checked before EVERY indexing call. */
   function blocked(run) {
     if (run.cancelled) return run.cancelled;
+    if (run.started !== null && monotonic() - run.started >= INDEX_DEADLINE_MS) return 'deadline';
     if (credentials.status() === 'unreadable') { fault(); return 'storage-unreadable'; }
     const a = currentAccess();
     if (run.born !== generation || a.accessId !== run.accessId) return 'access-changed';
@@ -406,24 +444,27 @@ export function createCrewService({
       memory.clear();   // answers computed before the new index are outdated
       emit({ type: 'indexed', progress: run.progress });
     }
-    return { calls: run.calls, processed: run.processed, progress: run.progress, stopped };
+    const result = { calls: run.calls, processed: run.processed, progress: run.progress, stopped };
+    recordCrewSession({ ...result, initialOutstanding: run.initialOutstanding, allowance: run.allowance, elapsedMs: run.started === null ? 0 : Math.max(0, monotonic() - run.started) }, run.diagnosticGeneration);
+    return result;
   }
 
   async function loop(run) {
-    const max = INDEX_MAX_CALLS[run.trigger];
+
     const verifyBefore = run.trigger === 'manual' ? now() : undefined;
     let busyRetried = false;
     for (;;) {
       const stop = blocked(run);
       if (stop) return finish(run, stop);
-      if (run.calls >= max) return finish(run, 'limit');
+      if (run.calls >= run.allowance) return finish(run, 'limit');
       const a = currentAccess();
+      if (run.started === null) run.started = monotonic();
       run.calls += 1;
       spend();
       let data;
       let transport = null;
       try {
-        ({ data } = await post(a.endpoint, crewIndexRequest(a.token, run.grant, { verifyBefore }), { timeoutMs: CREW_INDEX_TIMEOUT_MS }));
+        ({ data } = await post(a.endpoint, crewIndexRequest(a.token, run.grant, { verifyBefore, sessionVersion: 1, diagnosticsVersion: crewDiagnosticsEnabled() ? 1 : undefined }), { timeoutMs: CREW_INDEX_TIMEOUT_MS }));
       } catch (error) {
         transport = transportCode(error);
       }
@@ -435,15 +476,36 @@ export function createCrewService({
       if (transport) return finish(run, `error:${transport}`);
       const check = validateCrewIndex(data);
       if (check.ok) {
-        const { processed, progress } = check.value;
+        const { processed, progress, session } = check.value;
+        if (run.initialOutstanding === null && session) {
+          run.initialOutstanding = session.initialOutstanding;
+          run.previousRemaining = session.initialOutstanding;
+          if (run.trigger !== 'detail') run.allowance = Math.ceil(session.initialOutstanding / 6) + 2;
+        }
         run.processed += processed;
         run.progress = progress;
         lastProgress = { identity: run.identity, progress: { ...progress, at: now() } };
         emit({ type: 'progress', progress });
         if (run.cancelled) return finish(run, run.cancelled);
         if (processed === 0) return finish(run, 'no-progress');
-        if (progress.pending + progress.stale === 0) return finish(run, 'done');
-        if (run.calls >= max) return finish(run, 'limit');
+        if (progress.pending + progress.stale === 0 && (!session || session.remaining === 0) && !check.value.cleanupPending) return finish(run, progress.uncovered ? 'uncovered' : 'done');
+        if (!session && run.trigger !== 'detail') return finish(run, 'session-unavailable');
+        const remaining = session ? session.remaining : progress.pending + progress.stale;
+        if (run.previousRemaining !== null && remaining >= run.previousRemaining) {
+          // A wholly busy batch is the one permitted exception to immediate no-progress stop.
+          if (check.value.outcomes.busy === processed) {
+            if (busyRetried || run.calls >= run.allowance) {
+              limits.indexCooldownUntil = now() + BUSY_COOLDOWN_MS;
+              return finish(run, 'busy');
+            }
+            busyRetried = true;
+            await sleep(BUSY_RETRY_MS, run.abort.signal);
+            continue;
+          }
+          return finish(run, 'no-progress');
+        }
+        run.previousRemaining = remaining;
+        if (run.calls >= run.allowance) return finish(run, 'limit');
         await sleep(INDEX_SPACING_MS, run.abort.signal);
         continue;
       }
@@ -451,7 +513,7 @@ export function createCrewService({
       const code = check.refused;
       if (code === 'busy') {
         // A second busy, or busy on the last permitted call: stop with an indexing cooldown (no extra call).
-        if (busyRetried || run.calls >= max) {
+        if (busyRetried || run.calls >= run.allowance) {
           limits.indexCooldownUntil = now() + BUSY_COOLDOWN_MS;
           return finish(run, 'busy');
         }
@@ -508,6 +570,7 @@ export function createCrewService({
     limits.runs.push(now());
     const run = {
       trigger, sectorKey, grant, identity, accessId: a.accessId, born: generation,
+      started: null, initialOutstanding: null, previousRemaining: null, allowance: INDEX_MAX_CALLS[trigger], diagnosticGeneration: crewDiagnosticGeneration(),
       calls: 0, processed: 0, progress: null, cancelled: null, discard: false, abort: new AbortController(),
     };
     runner = run;
@@ -702,7 +765,7 @@ export function createCrewService({
       const cancelTrusted = cancelSupported({ ...a }) === true;
       let data;
       try {
-        ({ data } = await post(a.endpoint, crewRevokeRequest(a.token, e.grant, e.revokeId), { timeoutMs: CREW_TIMEOUT_MS }));
+        ({ data } = await post(a.endpoint, crewRevokeRequest(a.token, e.grant, e.revokeId), { timeoutMs: CREW_TIMEOUT_MS, diagnosticCancel: cancelTrusted }));
       } catch (error) {
         stop = stop ?? transportCode(error);
         continue;   // the other entries are still revoked in this pass

@@ -8,6 +8,7 @@
 // are copied, never derived: `history.state` and `history.indexingSuggested` are the backend's own,
 // and nothing here upgrades a state or reads `indexingSuggested: false` as "complete".
 
+import { validateCrewDiagnostics } from '../crew-diagnostics.js';
 import { request } from './contract-v2.js';
 
 /** Every error code a crew action may answer with (dispatcher, handlers and revocation). */
@@ -197,10 +198,12 @@ export function crewEnrollRequest(token, code, grant) {
 }
 
 /** crewIndex: bounded indexing; optional `verifyBefore` (ms) and `retryUncovered` are sent only when given. */
-export function crewIndexRequest(token, grant, { verifyBefore, retryUncovered } = {}) {
+export function crewIndexRequest(token, grant, { verifyBefore, retryUncovered, sessionVersion, diagnosticsVersion } = {}) {
   const extra = { grant };
   if (verifyBefore !== undefined) extra.verifyBefore = verifyBefore;
   if (retryUncovered !== undefined) extra.retryUncovered = retryUncovered;
+  if (sessionVersion === 1) extra.sessionVersion = 1;
+  if (diagnosticsVersion === 1) extra.diagnosticsVersion = 1;
   return request('crewIndex', token, extra);
 }
 
@@ -247,7 +250,14 @@ export function validateCrew(payload, { sectorId } = {}) {
  */
 export function validateCrewIndex(payload) {
   return run(payload, (p) => {
-    keys(p, ['ok', 'action', 'processed', 'outcomes', 'progress', 'gcDeleted', 'cleanupPending']);
+    keys(p, ['ok', 'action', 'processed', 'outcomes', 'progress', 'gcDeleted', 'cleanupPending'], ['session', 'diagnostics']);
+    const extra = {};
+    if (p.session !== undefined) {
+      keys(p.session, ['version','initialOutstanding','remaining']);
+      if (p.session.version !== 1 || !Number.isSafeInteger(p.session.initialOutstanding) || p.session.initialOutstanding < 0 || !Number.isSafeInteger(p.session.remaining) || p.session.remaining < 0) reject('bad-session');
+      extra.session = { ...p.session };
+    }
+    if (p.diagnostics !== undefined) extra.diagnostics = validateCrewDiagnostics(p.diagnostics);
     if (p.action !== 'crewIndex') reject('wrong-action');
     if (!isCount(p.processed) || p.processed > CREW_INDEX_MAX_MONTHS) reject('bad-processed');
     if (!isObject(p.outcomes)) reject('bad-outcomes');
@@ -265,10 +275,11 @@ export function validateCrewIndex(payload) {
     const { total, indexed, pending, stale, uncovered } = p.progress;
     if (![total, indexed, pending, stale, uncovered].every(isCount)) reject('bad-progress');
     if (indexed + pending + stale + uncovered !== total) reject('bad-progress');
+    if (extra.diagnostics?.complete && extra.diagnostics.months.length !== p.processed) reject('bad-diagnostic-count');
     if (!isCount(p.gcDeleted)) reject('bad-gc');
     if (typeof p.cleanupPending !== 'boolean') reject('bad-cleanup');
     return {
-      ok: true, action: p.action, processed: p.processed, outcomes,
+      ok: true, action: p.action, processed: p.processed, outcomes, ...extra,
       progress: { total, indexed, pending, stale, uncovered }, gcDeleted: p.gcDeleted, cleanupPending: p.cleanupPending,
     };
   });

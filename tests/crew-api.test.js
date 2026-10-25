@@ -903,3 +903,73 @@ test('payload semantics preserved: strict decoding of every valid synthetic mont
     assert.deepEqual(plain(core.fcv2CrewDecodeMonth_(body, deps, v.split('|')[2])), lenient(body), k);
   }
 });
+
+test('opt-in diagnostics: normal shape unchanged; aggregate accounting and exact session snapshot', async () => {
+  const { validateCrewIndex } = await import('../src/sources/crew-v2.js');
+  const t = makeEnv({ initialStore: { unrelated: 'kept' } });
+  enroll(t);
+  const plainResult = call(t.env, { action: 'crewIndex', grant: 'grant-A' });
+  assert.equal('diagnostics' in plainResult, false);
+  assert.equal('session' in plainResult, false);
+  const r = call(t.env, { action: 'crewIndex', grant: 'grant-A', diagnosticsVersion: 1, sessionVersion: 1 });
+  assert.equal(r.ok, true);
+  assert.equal(r.diagnostics.complete, true);
+  assert.equal(r.session.initialOutstanding, 44);
+  assert.equal(r.session.remaining, 38);
+  assert.equal(r.diagnostics.months.length, 6);
+  assert.equal(r.diagnostics.storage.peakCategories.otherValueBytes, 4);
+  assert.equal(Object.values(r.diagnostics.storage.peakCategories).reduce((a,b) => a+b,0), r.diagnostics.storage.observedPeakBytes);
+  assert.ok(r.diagnostics.storage.admissionPeakBytes >= r.diagnostics.storage.observedPeakBytes);
+  assert.ok(JSON.stringify(r.diagnostics).length < 8192);
+  assert.equal(validateCrewIndex(r).ok, true);
+  assert.equal(t.store.get('unrelated'), 'kept');
+  assert.ok(!JSON.stringify(r.diagnostics).includes('2026-'));
+});
+
+test('diagnostic accounting ambiguity does not alter commits; evidence becomes incomplete, not zero', () => {
+  const u = makeEnv(); enroll(u);
+  const keys = u.env.store.keys;
+  let first = true;
+  u.env.store.keys = () => { if (first) { first = false; throw new Error('scan'); } return keys(); };
+  const r = call(u.env, { action: 'crewIndex', grant: 'grant-A', diagnosticsVersion: 1 });
+  assert.equal(r.ok, true);
+  assert.equal(r.diagnostics.complete, false);
+  assert.equal(r.diagnostics.storage.observedPeakBytes, null);
+  assert.equal(r.diagnostics.storage.peakCategories, null);
+  assert.ok(r.processed > 0);
+});
+
+test('index and revoke request operation-specific acquisition budgets without changing authorization', () => {
+  const t = makeEnv(); enroll(t);
+  const lock = t.env.lock, waits = [];
+  t.env.lock = (fn, waitMs) => { waits.push(waitMs); return lock(fn); };
+  call(t.env, { action: 'crewIndex', grant: 'grant-A' });
+  assert.ok(waits.length >= 2 && waits.every((n) => n === 2000));
+  waits.length = 0;
+  call(t.env, { action: 'crewRevoke', grant: 'grant-A', revokeId: 'synthetic-revoke' });
+  assert.deepEqual(waits, [5000]);
+});
+
+test('diagnostic wait and held time include accounting overhead but remain separate', () => {
+  const t = makeEnv(); enroll(t);
+  const lock=t.env.lock, get=t.env.store.get, set=t.env.store.set;
+  t.env.lock=(fn,wait)=>{t.clock.now+=7;return lock(fn,wait);};
+  t.env.store.get=k=>{t.clock.now+=1;return get(k);};
+  t.env.store.set=(k,v)=>{t.clock.now+=3;return set(k,v);};
+  const r=call(t.env,{action:'crewIndex',grant:'grant-A',diagnosticsVersion:1});
+  assert.equal(r.ok,true);
+  assert.equal(r.diagnostics.complete,true);
+  assert.equal(r.diagnostics.months[0].lockWaitMs,7);
+  assert.ok(r.diagnostics.months[0].lockHeldMs>3);
+  assert.ok(r.diagnostics.diagnosticMs>0);
+  assert.ok(r.diagnostics.storeOperations.reads>0);
+  assert.ok(r.diagnostics.storeOperations.writes>0);
+});
+
+test('diagnostic snapshot remains bounded and does not weaken the final generation fence', () => {
+  const t=makeEnv();enroll(t);
+  t.hooks.onRead=()=>{const st=JSON.parse(t.propMap.get('FC_CREW_STATE'));st.G++;t.propMap.set('FC_CREW_STATE',JSON.stringify(st));};
+  const r=call(t.env,{action:'crewIndex',grant:'grant-A',diagnosticsVersion:1});
+  assert.deepEqual(r,{ok:false,error:'crew-revoked'});
+  assert.equal('diagnostics' in r,false);
+});

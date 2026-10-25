@@ -96,7 +96,7 @@ function fcv2CrewCoreEnv_(env, now) {
   return {
     getState: function () { return fcv2CrewState_(env); },
     setState: function (st) { env.props.set('FC_CREW_STATE', JSON.stringify(st)); },
-    store: env.store, now: now, deps: env.deps, hash: env.deps.hash,
+    store: env.store, now: now, deps: env.deps, hash: env.deps.hash, diagnostics: env.diagnostics,
     cacheRemove: function (keys) { if (keys && keys.length) env.cache.removeAll(keys); },
     lock: function (fn) {
       const r = env.lock(fn);
@@ -134,7 +134,7 @@ function fcv2CrewHandle_(body, env) {
     if (typeof req.token !== 'string' || !fcv2CrewSafeEqual_(req.token, expected)) return { ok: false, error: 'unauthorized' };
     if (req.contract !== 'fc.roster' || req.version !== 2) return { ok: false, error: 'unsupported-contract' };
     if (FCV2_CREW_ACTIONS_.indexOf(req.action) < 0) return { ok: false, error: 'unknown-action' };
-    if (req.action === 'crewRevoke') return fcv2CrewHandleRevoke_(req, env);   // never gated, never rate-limited
+    if (req.action === 'crewRevoke') return fcv2CrewHandleRevoke_(req, Object.assign({}, env, { lock: function (fn) { return env.lock(fn, 5000); } }));   // never gated, never rate-limited
     const rateKey = FCV2_CREW_RATE_KEY_ + '-' + Math.floor(env.now() / 600000);   // fixed 10-minute windows
     const count = Number(env.cache.get(rateKey) || 0);
     if (count >= FCV2_CREW_RATE_MAX_) return { ok: false, error: 'rate-limited' };
@@ -148,7 +148,7 @@ function fcv2CrewHandle_(body, env) {
     // An interrupted revocation (client or system, e.g. pepper rotation) is completed by the app that holds
     // the grant it recorded; this only deletes data, it never grants access (§8.5).
     if (state.phase === 'revoking' && state.revoke && grantHash && fcv2CrewSafeEqual_(state.revoke.credHash, grantHash)) {
-      const r = fcv2CrewRevoke_(fcv2CrewCoreEnv_(env, env.now()), { revokeId: state.revoke.revokeId, grant: req.grant });
+      const r = fcv2CrewRevoke_(fcv2CrewCoreEnv_(Object.assign({}, env, { lock: function (fn) { return env.lock(fn, 5000); } }), env.now()), { revokeId: state.revoke.revokeId, grant: req.grant });
       return { ok: false, error: r.ok ? 'crew-revoked' : (r.error || 'revoke-incomplete') };
     }
     if (!fcv2CrewAuthorized_(state, grantHash, s.pid)) return { ok: false, error: state.phase === 'active' ? 'unauthorized' : 'crew-not-enrolled' };
@@ -215,19 +215,25 @@ function fcv2CrewRotate_(env) {
       })));
     }
     return true;
-  });
+  }, 5000);
   return lock.ok ? { ok: false, error: 'crew-revoked' } : { ok: false, error: 'busy' };
 }
 
 /** Bounded, resumable indexing and re-verification (§7.2, §7.4, §7.5). */
 function fcv2CrewHandleIndex_(req, env, s, state) {
   const started = env.now();
+  const original = env;
+  env = Object.assign({}, original, { lock: function (fn) { return original.lock(fn, 2000); } });
+  const diagnostic = req.diagnosticsVersion === 1 ? fcv2CrewDiagnostics_(env, state) : null;
+  if (diagnostic) env = diagnostic.env;
   const todayKey = env.deps.localDate(started);
   const config = env.config;
   const reader = fcv2CrewReaderFrom_(env.readRaw, config);
   const sealable = fcv2CrewSealableMonths_(config, todayKey);
   const core = fcv2CrewCoreEnv_(env, started);
   const resumed = env.lock(function () { return fcv2CrewResumePurge_(core); });
+  const initialOutstanding = req.sessionVersion === 1 ? fcv2CrewIndexPlan_(env.store, state, env.deps, sealable,
+    { now: env.now(), verifyBefore: req.verifyBefore, retryUncovered: req.retryUncovered }).months.length : null;
   const outcomes = {};
   let processed = 0;
   const done = {};
@@ -245,8 +251,9 @@ function fcv2CrewHandleIndex_(req, env, s, state) {
     processed++;
     const captured = { G: state.G, epoch: state.epoch, mgen: m.mgen };
     const ctx = fcv2CrewCtx_(env, s, now);
+    if (diagnostic) diagnostic.beginMonth();
     const built = fcv2CrewBuildMonth_(month, reader, ctx);
-    if (!fcv2CrewSealable_(month, built, todayKey)) { outcomes[month] = 'not-sealable'; continue; }
+    if (!fcv2CrewSealable_(month, built, todayKey)) { outcomes[month] = 'not-sealable'; if (diagnostic) diagnostic.endMonth('not-sealable'); continue; }
     const fp = fcv2CrewFingerprint_(built, ctx);
     const prev = m.months[month];
     const lock = env.lock(function () {
@@ -261,6 +268,7 @@ function fcv2CrewHandleIndex_(req, env, s, state) {
       }).outcome;
     });
     outcomes[month] = lock.ok ? lock.value : 'busy';
+    if (diagnostic) diagnostic.endMonth(outcomes[month]);
     if (!lock.ok) break;
   }
   const gc = env.lock(function () { core.now = env.now(); return fcv2CrewGc_(core); });
@@ -280,10 +288,15 @@ function fcv2CrewHandleIndex_(req, env, s, state) {
   });
   const counts = {};
   Object.keys(outcomes).forEach(function (k) { counts[outcomes[k]] = (counts[outcomes[k]] || 0) + 1; });
-  return {
+  const result = {
     ok: true, action: 'crewIndex', processed: processed, outcomes: counts, progress: progress, gcDeleted: gc.ok ? gc.value.deleted : 0,
     cleanupPending: resumed.ok ? !resumed.value.done : true,
   };
+  if (req.sessionVersion === 1) result.session = { version: 1, initialOutstanding: initialOutstanding,
+    remaining: fcv2CrewIndexPlan_(env.store, state, env.deps, sealable,
+      { now: env.now(), verifyBefore: req.verifyBefore, retryUncovered: req.retryUncovered }).months.length };
+  if (diagnostic) result.diagnostics = diagnostic.finish(started);
+  return result;
 }
 
 /** Crew of one owned sector with recorded familiarity before it (§3.3, §4.5, §6). */
@@ -523,7 +536,7 @@ function fcv2CrewAvailable_() {
     // CrewCondorV2.gs
     typeof fcv2CrewParseLines_, typeof fcv2CrewNormalizeEvent_, typeof fcv2CrewReaderFrom_,
     // CrewApiV2.gs
-    typeof fcv2CrewState_, typeof fcv2CrewValidState_, typeof fcv2CrewSettings_, typeof fcv2CrewCtx_, typeof fcv2CrewCoreEnv_,
+    typeof fcv2CrewState_, typeof fcv2CrewValidState_, typeof fcv2CrewSettings_, typeof fcv2CrewCtx_, typeof fcv2CrewCoreEnv_, typeof fcv2CrewDiagnostics_,
     typeof fcv2CrewMonthList_, typeof fcv2CrewSealableMonths_, typeof fcv2CrewIsDate_, typeof fcv2CrewHandle_,
     typeof fcv2CrewHandleEnroll_, typeof fcv2CrewHandleRevoke_, typeof fcv2CrewRotate_, typeof fcv2CrewHandleIndex_,
     typeof fcv2CrewHandleCrew_, typeof fcv2CrewMemberOut_, typeof fcv2AddDaysKey_, typeof fcv2CrewCapabilities_,
@@ -640,13 +653,131 @@ function fcv2CrewLiveEnv_(base) {
       put: function (k, v, ttl) { cache.put(k, v, ttl); },
       removeAll: function (keys) { cache.removeAll(keys); },
     },
-    lock: function (fn) {
+    lock: function (fn, waitMs) {
       const lock = LockService.getScriptLock();
-      if (!lock.tryLock(FCV2_CREW_LOCK_WAIT_MS_)) return { ok: false };
+      if (!lock.tryLock(waitMs === undefined ? FCV2_CREW_LOCK_WAIT_MS_ : waitMs)) return { ok: false };
       try { return { ok: true, value: fn() }; } finally { lock.releaseLock(); }
     },
     readRaw: function (from, to) { return fcv2CrewReadRaw_(base, from, to); },
     effectiveEmail: function () { return Session.getEffectiveUser().getEmail(); },
     deps: fcv2CrewLiveDeps_(base, config.baseTimeZone),
+  };
+}
+
+/** Opt-in, request-local accounting. No values/keys escape; at most 2048 key/size entries.
+ * One scan per acquired lock; mutation verification reads only the changed key. Diagnostic
+ * failures invalidate evidence, never change storage admission, authorization or operation results.
+ */
+function fcv2CrewDiagnostics_(base, state) {
+  let complete = true, sizes = null, classes = {}, current = null, peak = null, peakCategories = null;
+  let admission = null, month = null, monthStarted = 0;
+  const months = [];
+  const maintenance = { lockWaitMs: 0, lockHeldMs: 0 };
+  let parts = { count: 0, medianValueBytes: null, maxValueBytes: null };
+  const operations = { keys: 0, reads: 0, writes: 0, deletes: 0 };
+  const raw = { keys: function () { operations.keys++; return base.store.keys(); },
+    get: function (k) { operations.reads++; return base.store.get(k); },
+    set: function (k, v) { operations.writes++; return base.store.set(k, v); },
+    del: function (k) { operations.deletes++; return base.store.del(k); } };
+  let diagnosticMs = 0;
+  const safe = function (fn) { const t = base.now(); try { fn(); } catch (err) { complete = false; sizes = null; }
+    finally { diagnosticMs += Math.max(0, base.now() - t); } };
+  const blank = function () { return { otherValueBytes: 0, committedValueBytes: 0, retiredValueBytes: 0,
+    orphanValueBytes: 0, stagedValueBytes: 0, manifestValueBytes: 0, keyBytes: 0 }; };
+  const category = function (k) { return classes[k] || (k.indexOf('fcx.') === 0 ? 'orphanValueBytes' : 'otherValueBytes'); };
+  const classify = function () {
+    const r = fcv2CrewManifest_(raw, state, base.deps);
+    if (r.kind !== 'ok' && r.kind !== 'absent') throw new Error('unavailable');
+    classes = {};
+    const m = r.manifest;
+    classes[FCV2_CREW_MANIFEST_KEY_] = 'manifestValueBytes';
+    Object.keys(m.years || {}).forEach(function (y) { classes[fcv2CrewYearKey_(m.G, m.epoch, y, m.years[y][0])] = 'manifestValueBytes'; });
+    (m.retired || []).forEach(function (x) { classes[x[0]] = 'retiredValueBytes'; });
+    Object.keys(m.months).forEach(function (key) {
+      const e = m.months[key];
+      for (let i = 0; i < (e.parts || 0); i++) classes[fcv2CrewPartKey_(m.G, m.epoch, key, e.gen, i)] = 'committedValueBytes';
+    });
+  };
+  const total = function () {
+    current = blank();
+    const values = [];
+    Object.keys(sizes).forEach(function (k) {
+      current.keyBytes += fcv2CrewUtf8_(k);
+      current[category(k)] += sizes[k];
+      if (category(k) === 'committedValueBytes') values.push(sizes[k]);
+    });
+    const n = Object.keys(current).reduce(function (sum, k) { return sum + current[k]; }, 0);
+    if (peak === null || n > peak) { peak = n; peakCategories = Object.assign({}, current); }
+    values.sort(function (a, b) { return a - b; });
+    const mid = Math.floor(values.length / 2);
+    parts = { count: values.length, medianValueBytes: values.length ? (values.length % 2 ? values[mid] : (values[mid - 1] + values[mid]) / 2) : null,
+      maxValueBytes: values.length ? values[values.length - 1] : null };
+  };
+  const scan = function () {
+    const keys = raw.keys();
+    if (keys.length > 2048 || keys.reduce(function (n, k) { return n + k.length; }, 0) > 131072) throw new Error('capacity');
+    sizes = Object.create(null);
+    keys.forEach(function (k) { const v = raw.get(k); if (typeof v !== 'string') throw new Error('unreadable'); sizes[k] = fcv2CrewUtf8_(v); });
+    classify(); total();
+  };
+  const env = Object.assign({}, base);
+  env.store = {
+    keys: function () { return raw.keys(); }, get: function (k) { return raw.get(k); },
+    set: function (k, v) {
+      try { raw.set(k, v); } catch (err) { complete = false; throw err; }
+      safe(function () {
+        if (!sizes) throw new Error('unobserved');
+        if (raw.get(k) !== v) throw new Error('ambiguous');
+        if (!Object.prototype.hasOwnProperty.call(sizes, k) && Object.keys(sizes).length >= 2048) throw new Error('capacity');
+        if (!classes[k] && k.indexOf('fcx.') === 0) classes[k] = 'stagedValueBytes';
+        sizes[k] = fcv2CrewUtf8_(v);
+        if (Object.keys(sizes).reduce(function (n, key) { return n + key.length; }, 0) > 131072) throw new Error('capacity');
+        total();
+        if (k === FCV2_CREW_MANIFEST_KEY_) { classify(); total(); }
+      });
+    },
+    del: function (k) {
+      try { raw.del(k); } catch (err) { complete = false; throw err; }
+      safe(function () { if (!sizes || raw.get(k) != null) throw new Error('ambiguous'); delete sizes[k]; total(); });
+    },
+  };
+  env.lock = function (fn) {
+    const start = base.now();
+    let entered = false;
+    const bucket = month || maintenance;
+    const result = base.lock(function () {
+      entered = true;
+      const acquired = base.now();
+      bucket.lockWaitMs += Math.max(0, acquired - start);
+      safe(scan);
+      try { return fn(); } finally {
+        safe(function () { if (!sizes) throw new Error('unavailable'); classify(); total(); });
+        bucket.lockHeldMs += Math.max(0, base.now() - acquired);
+        sizes = null;
+      }
+    });
+    if (!entered) bucket.lockWaitMs += Math.max(0, base.now() - start);
+    return result;
+  };
+  env.readRaw = function (from, to) { const rows = base.readRaw(from, to); if (month) month.eventsRead += rows.length; return rows; };
+  env.diagnostics = { admission: function (n, body, count) {
+    admission = admission === null ? n : Math.max(admission, n);
+    if (month) { month.encodedBodyBytes = body; month.partCount = count; }
+  } };
+  return {
+    env: env,
+    beginMonth: function () { monthStarted = base.now(); month = { elapsedMs: 0, eventsRead: 0, encodedBodyBytes: null,
+      partCount: null, lockWaitMs: 0, lockHeldMs: 0, outcome: null }; },
+    endMonth: function (outcome) { month.elapsedMs = Math.max(0, base.now() - monthStarted); month.outcome = outcome; months.push(month); month = null; },
+    finish: function (start) {
+      complete = complete && peak !== null && !months.some(function (m) {
+        return m.outcome === 'committed' && (m.encodedBodyBytes === null || m.partCount === null || admission === null);
+      });
+      const out = { version: 1, complete: complete, storeOperations: operations, diagnosticMs: diagnosticMs, serverMs: Math.max(0, base.now() - start),
+        storage: { observedPeakBytes: complete ? peak : null, admissionPeakBytes: admission, peakCategories: complete ? peakCategories : null },
+        committedParts: complete ? parts : { count: null, medianValueBytes: null, maxValueBytes: null }, months: months, maintenance: maintenance };
+      if (JSON.stringify(out).length > 8192) { out.complete = false; out.months = []; out.storage = { observedPeakBytes: null, admissionPeakBytes: null, peakCategories: null }; out.committedParts = { count: null, medianValueBytes: null, maxValueBytes: null }; }
+      return out;
+    },
   };
 }

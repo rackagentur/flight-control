@@ -18,9 +18,14 @@ import {
 } from '../src/sources/crew-service.js';
 import { PROFILE } from './helpers.js';
 import {
-  TOKEN, OTHER_TOKEN, ENDPOINT, T0, SECTOR, SECTOR_2, DATE, memoryStorage, seqRandom, crewAnswer, indexAnswer,
+  TOKEN, OTHER_TOKEN, ENDPOINT, T0, SECTOR, SECTOR_2, DATE, memoryStorage, seqRandom, crewAnswer, indexAnswer as legacyIndexAnswer,
   enrollAnswer, revokeAnswer, refusal, deferred, fakePost, networkError, timeoutError, flush, simulatedCrewBackend,
 } from './fixtures/crew-frontend.synthetic.mjs';
+
+const indexAnswer = (options = {}) => {
+  const r = legacyIndexAnswer(options);
+  return { ...r, session: { version: 1, initialOutstanding: r.progress.pending + r.progress.stale + r.processed, remaining: r.progress.pending + r.progress.stale } };
+};
 
 const STORED = `fc.v2.${CREW_CREDENTIAL_KEY}`;
 const CODE = 'SYNTHETIC-CODE-4711';
@@ -37,7 +42,7 @@ let base = T0;
  * handler(body, n) answers each post. `sleep` resolves at once (advancing the clock) unless `abortable`,
  * where it waits for h.wake() or the abort signal.
  */
-function harness({ handler = () => assert.fail('unexpected request'), enrolled = true, abortable = false, storage = memoryStorage(), store = null, access = null, locks } = {}) {
+function harness({ handler = () => assert.fail('unexpected request'), enrolled = true, abortable = false, storage = memoryStorage(), store = null, access = null, locks, monotonic } = {}) {
   purgeCrewMemory();
   const s = store ?? createStore(storage);
   base += DAY;
@@ -59,7 +64,7 @@ function harness({ handler = () => assert.fail('unexpected request'), enrolled =
     : async (ms) => { sleeps.push(ms); clock.t += ms; };
   h.make = () => createCrewService({
     credentials, access: () => state.access, post: fake.post, now: () => clock.t, sleep,
-    isVisible: () => state.visible, isOnline: () => state.online, onChange: (e) => events.push(e),
+    monotonic: monotonic ?? (() => clock.t), isVisible: () => state.visible, isOnline: () => state.online, onChange: (e) => events.push(e),
   });
   h.svc = h.make();
   if (enrolled) {
@@ -295,7 +300,7 @@ test('indexing starts with exactly one call and stops when it made no progress',
   const h = harness({ handler: byAction({ crewIndex: indexAnswer({ processed: 0 }) }) });
   const r = await h.svc.requestIndexing('enroll');
   assert.deepEqual([r.calls, r.processed, r.stopped], [1, 0, 'no-progress']);
-  assert.deepEqual(h.fake.bodies[0].body, { contract: 'fc.roster', version: 2, action: 'crewIndex', token: TOKEN, grant: h.grant() });
+  assert.deepEqual(h.fake.bodies[0].body, { contract: 'fc.roster', version: 2, action: 'crewIndex', token: TOKEN, grant: h.grant(), sessionVersion: 1 });
   assert.equal(h.fake.bodies[0].timeoutMs, CREW_INDEX_TIMEOUT_MS);
   assert.deepEqual(h.events.map((e) => e.type), ['progress']);
 });
@@ -304,7 +309,7 @@ test('indexing continues only while progress is made and work remains, spaced; s
   const answers = [indexAnswer({ processed: 6, pending: 4, stale: 0, indexed: 5, uncovered: 1 }), indexAnswer({ processed: 4, pending: 0, stale: 1, indexed: 8, uncovered: 1 }), indexAnswer({ processed: 1, pending: 0, stale: 0, indexed: 9, uncovered: 1 })];
   const h = harness({ handler: byAction({ crewIndex: (body, n) => answers[n - 1] }) });
   const r = await h.svc.requestIndexing('enroll');
-  assert.deepEqual([r.calls, r.processed, r.stopped], [3, 11, 'done']);
+  assert.deepEqual([r.calls, r.processed, r.stopped], [3, 11, 'uncovered']);
   assert.deepEqual(r.progress, { total: 10, indexed: 9, pending: 0, stale: 0, uncovered: 1 });
   assert.deepEqual(h.sleeps, [INDEX_SPACING_MS, INDEX_SPACING_MS]);
   assert.deepEqual(h.svc.indexingStatus().lastProgress, { ...r.progress, at: h.clock.t });
@@ -314,11 +319,11 @@ test('indexing continues only while progress is made and work remains, spaced; s
 test('indexing stops at the per-trigger call limit; uncovered months alone are not work', async () => {
   const h = harness({ handler: byAction({ crewIndex: indexAnswer({ processed: 1, pending: 5, stale: 0 }) }) });
   const r = await h.svc.requestIndexing('detail', { sectorKey: SECTOR });
-  assert.deepEqual([r.calls, r.stopped], [INDEX_MAX_CALLS.detail, 'limit']);
+  assert.deepEqual([r.calls, r.stopped], [2, 'no-progress']);
   const h2 = harness({ handler: byAction({ crewIndex: indexAnswer({ processed: 1, pending: 5, stale: 0 }) }) });
   assert.deepEqual([(await h2.svc.requestIndexing('manual')).calls], [INDEX_MAX_CALLS.manual]);
   const h3 = harness({ handler: byAction({ crewIndex: indexAnswer({ processed: 2, indexed: 8, pending: 0, stale: 0, uncovered: 2 }) }) });
-  assert.equal((await h3.svc.requestIndexing('manual')).stopped, 'done');
+  assert.equal((await h3.svc.requestIndexing('manual')).stopped, 'uncovered');
 });
 
 test('indexing progress invalidates crew memory (answers are outdated) and emits indexed', async () => {
@@ -1076,7 +1081,7 @@ test('isolation: a run of a previous grant is detached; its late answer never re
 
 test('busy on the final permitted call: indexing cooldown, stop busy, no extra call; allowed again after the cooldown', async () => {
   let n = 0;
-  const h = harness({ handler: byAction({ crewIndex: () => { n += 1; return n === INDEX_MAX_CALLS.detail ? refusal('busy') : indexAnswer({ processed: 1, pending: 4 }); } }) });
+  const h = harness({ handler: byAction({ crewIndex: () => { n += 1; return n === INDEX_MAX_CALLS.detail ? refusal('busy') : indexAnswer({ processed: 1, pending: Math.max(1, 6 - n) }); } }) });
   const r = await h.svc.requestIndexing('detail', { sectorKey: SECTOR });
   assert.deepEqual([r.calls, r.stopped], [INDEX_MAX_CALLS.detail, 'busy']);
   assert.deepEqual(h.sleeps, [INDEX_SPACING_MS, INDEX_SPACING_MS], 'no busy retry beyond the limit');
@@ -1627,3 +1632,103 @@ test('batch 8: when the cancellation settle cannot be written, the storage fault
   h.storage.faults.set = false;
   assert.equal(h.posts('crewEnroll'), 1);
 });
+
+test('history-scaled session completes fifty months in nine calls; captured allowance never grows', async () => {
+  let remaining = 50;
+  const h = harness({ handler: byAction({ crewIndex: () => {
+    const initial = remaining, processed = Math.min(6,remaining); remaining -= processed;
+    return { ...indexAnswer({processed,indexed:50-remaining,pending:remaining,stale:0,uncovered:0}), session:{version:1,initialOutstanding:initial,remaining} };
+  } }) });
+  const r=await h.svc.requestIndexing('enroll');
+  assert.deepEqual([r.calls,r.stopped,remaining],[9,'done',0]);
+  const growing = harness({ handler:byAction({crewIndex:(b,n)=>({...indexAnswer({processed:1,pending:5,stale:0}),session:{version:1,initialOutstanding:n===1?6:600,remaining:n===1?5:500}})}) });
+  assert.deepEqual([(await growing.svc.requestIndexing('enroll')).stopped,growing.posts('crewIndex')],['no-progress',2]);
+});
+test('session deadline includes spacing and diagnostic request latency; no dispatch after deadline',async()=>{
+  const h=harness({handler:byAction({crewIndex:()=>{h.clock.t+=180000;return indexAnswer({processed:1,pending:5,stale:0});}})});
+  const r=await h.svc.requestIndexing('enroll');
+  assert.deepEqual([r.calls,r.stopped],[1,'deadline']);
+});
+test('legacy backend validates but cannot authorize history-scaled continuation',async()=>{
+  const h=harness({handler:byAction({crewIndex:legacyIndexAnswer({processed:1,pending:5})})});
+  assert.deepEqual([(await h.svc.requestIndexing('enroll')).stopped,h.posts('crewIndex')],['session-unavailable',1]);
+});
+
+test('wholly busy successful index envelope gets only one budgeted retry', async()=>{
+  const h=harness({handler:byAction({crewIndex:()=>({...indexAnswer({processed:1,pending:6,stale:0}),outcomes:{busy:1},session:{version:1,initialOutstanding:6,remaining:6}})})});
+  const r=await h.svc.requestIndexing('enroll');
+  assert.deepEqual([r.calls,r.stopped],[2,'busy']);
+  assert.deepEqual(h.sleeps,[BUSY_RETRY_MS]);
+});
+
+test('private network timing excludes cache/joined calls; failures remain distinct and access purge clears all',async()=>{
+  const {startCrewDiagnostics,crewDiagnosticSnapshot}=await import('../src/crew-diagnostics.js');
+  const pending=deferred();
+  const h=harness({handler:byAction({crew:async()=>{await pending.promise;h.clock.t+=12;return crewAnswer();}})});
+  startCrewDiagnostics();
+  const first=h.svc.loadCrew(Q),second=h.svc.loadCrew(Q);
+  await flush();pending.resolve();await Promise.all([first,second]);
+  await h.svc.loadCrew(Q);
+  const r=crewDiagnosticSnapshot().requests;
+  assert.equal(r.filter(x=>x.source==='network').length,1);
+  assert.equal(r.find(x=>x.source==='network').elapsedMs,12);
+  assert.equal(r.filter(x=>x.source==='joined').length,1);
+  assert.equal(r.filter(x=>x.source==='cache').length,1);
+  purgeCrewMemory();assert.equal(crewDiagnosticSnapshot().requests.length,0);
+  const failed=harness({handler:byAction({crew:()=>{throw timeoutError();}})});
+  startCrewDiagnostics();await code(failed.svc.loadCrew(Q));
+  assert.equal(crewDiagnosticSnapshot().requests[0].outcome,'timeout');
+  assert.equal(crewDiagnosticSnapshot().crewNetworkSamples.count,0);
+});
+
+test('expanding history never bypasses the twenty-request budget even with diagnostics enabled',async()=>{
+  const {startCrewDiagnostics,crewDiagnosticSnapshot}=await import('../src/crew-diagnostics.js');
+  let remaining=200;
+  const h=harness({handler:byAction({crewIndex:()=>{const initial=remaining;remaining-=6;return {...indexAnswer({processed:6,indexed:200-remaining,pending:remaining,stale:0,uncovered:0}),session:{version:1,initialOutstanding:initial,remaining}};}})});
+  startCrewDiagnostics();
+  const r=await h.svc.requestIndexing('enroll');
+  assert.deepEqual([r.calls,r.stopped],[20,'budget']);
+  const session=crewDiagnosticSnapshot().sessions[0];
+  assert.equal(session.initialOutstanding,200);
+  assert.equal(session.allowance,36);
+  assert.equal(crewDiagnosticSnapshot().reports.every(x=>x.complete===false),true,'missing backend diagnostics are not zero-valued evidence');
+});
+
+
+test('P2 cache-hit duration uses the advancing clock and cannot affect network percentiles', async () => {
+  const { startCrewDiagnostics, crewDiagnosticSnapshot } = await import('../src/crew-diagnostics.js');
+  let ticks = 0;
+  const h = harness({ monotonic: () => (ticks += 7), handler: byAction({ crew: crewAnswer() }) });
+  startCrewDiagnostics();
+  for (let i = 0; i < 10; i++) await h.svc.loadCrew(Q, { force: true });
+  const before = crewDiagnosticSnapshot().crewNetworkSamples;
+  assert.equal(before.count, 10);
+  await h.svc.loadCrew(Q);
+  const snapshot = crewDiagnosticSnapshot();
+  const hit = snapshot.requests.find(x => x.source === 'cache');
+  assert.equal(hit.elapsedMs, 7, 'a hard-coded zero must fail this assertion');
+  assert.equal(hit.transportMs, null, 'cache hit has no transport measurement');
+  assert.equal(h.posts('crew'), 10, 'cache hit sends no request');
+  assert.deepEqual(snapshot.crewNetworkSamples, before, 'cache duration is excluded from p50/p95');
+});
+
+for (const ending of ['sign-out', 'reset', 'identity-change', 'revocation']) {
+  test(`P1 diagnostic records and intent are cleared by ${ending}`, async () => {
+    const { startCrewDiagnostics, crewDiagnosticSnapshot, recordCrewRequest } = await import('../src/crew-diagnostics.js');
+    const h = harness({ handler: byAction({ crewRevoke: revokeAnswer() }) });
+    h.store.set(ENDPOINT_KEY, ENDPOINT); h.store.set(TOKEN_KEY, TOKEN);
+    const noRequest = async () => assert.fail('controller must remain offline');
+    const controller = createController({ profile: PROFILE, onChange: () => {}, store: h.store,
+      api: { fetchStats: noRequest, postContract: noRequest }, clock: () => T0, isOnline: () => false });
+    startCrewDiagnostics();
+    recordCrewRequest({ action: 'crew', source: 'cache', outcome: 'success', elapsedMs: 7 });
+    if (ending === 'sign-out') controller.removeToken();
+    else if (ending === 'reset') controller.resetLocalData();
+    else if (ending === 'identity-change') { h.store.set(TOKEN_KEY, OTHER_TOKEN); controller.accessChanged(); }
+    else assert.equal((await h.svc.revoke()).status, 'deleted');
+    await flush();
+    const result = crewDiagnosticSnapshot();
+    assert.equal(result.enabled, false);
+    assert.deepEqual([result.requests, result.reports, result.sessions], [[], [], []]);
+  });
+}

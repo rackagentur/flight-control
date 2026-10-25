@@ -12,6 +12,7 @@
 // number for a stale state, never a check date, counts only from complete/incomplete answers (incomplete
 // labelled). Names appear only in the member rows: never in titles, URLs, live regions or storage.
 
+import { startCrewDiagnostics, clearCrewDiagnostics, crewDiagnosticSnapshot, crewDiagnosticsEnabled, crewDiagnosticGeneration } from '../crew-diagnostics.js';
 import { html } from '../lib/html.js';
 import { airlineOf } from '../airlines/index.js';
 import { crewEligibility } from '../crew-runtime.js';
@@ -312,6 +313,7 @@ function panelModel(ctx) {
   const record = crew.credentials.read();
   const status = crew.service.indexingStatus();
   return {
+    diagnostics: crewDiagnosticSnapshot(),
     enabled: crew.enabled(),
     // A capability answer belongs to the access it was asked for (an answer for A never shows under B).
     capability: panel.capability && panel.capability.accessId === id ? panel.capability.status : null,
@@ -401,6 +403,14 @@ export function crewPanelView(m, copy) {
         <div class="source-actions"><button type="button" class="btn btn-quiet" data-crew-retry-delete ${busy ? 'disabled' : ''}>${copy.retryDelete}</button></div>
       </div>` : ''}
     ${m.cleanup && m.cleanup !== 'done' ? html`<p class="t-caption crew-cleanup">${copy.signOutCleanup[m.cleanup]}</p>` : ''}
+    <details class="crew-sheet"><summary>Private performance diagnostics</summary>
+      <p class="t-caption">Memory only: up to 100 requests and 20 index reports. No crew content. Starting sends nothing.</p>
+      <button type="button" class="btn btn-quiet" data-crew-diagnostics-start ${m.running || busy ? 'disabled' : ''}>Start new session</button>
+      <button type="button" class="btn btn-quiet" data-crew-diagnostics-end>End and clear</button>
+      <button type="button" class="btn btn-quiet" data-crew-diagnostics-show>Show sanitized summary</button>
+      ${m.diagnostics?.enabled ? html`<p class="t-caption">Recording aggregates</p>` : ''}
+      <pre data-crew-diagnostics-output hidden></pre>
+    </details>
     <div class="source-result" data-crew-result role="status" aria-live="polite">${m.message?.text ? html`<p class="source-verdict ${m.message.tone === 'error' ? 'is-error' : 'is-ok'}">${m.message.text}</p>` : ''}</div>`;
 }
 
@@ -446,7 +456,18 @@ function checkCapability(ctx) {
  */
 export async function startCrewEnrollment(ctx, code) {
   const crew = ctx.crew;
-  if (!crew.enabled()) crew.setEnabled(true);
+  if (!crew.enabled()) {
+    // Preserve only explicit recording intent across this synchronous initial opt-in.
+    // setEnabled still purges every old record. No deferred re-arm may cross an access
+    // change, another consent transition, or an intervening diagnostic clear.
+    const recording = crewDiagnosticsEnabled();
+    const before = { accessId: ctx.accessId?.() ?? '', epoch: crew.consentEpoch(), diagnostics: crewDiagnosticGeneration() };
+    crew.setEnabled(true);
+    if (recording && crew.enabled() && (ctx.accessId?.() ?? '') === before.accessId
+      && crew.consentEpoch() === before.epoch + 1 && crewDiagnosticGeneration() === before.diagnostics + 1) {
+      startCrewDiagnostics();
+    }
+  }
   const start = { accessId: ctx.accessId?.() ?? '', epoch: crew.consentEpoch() };
   const still = () => crew.enabled() && (ctx.accessId?.() ?? '') === start.accessId && crew.consentEpoch() === start.epoch;
   const supported = await checkCapability(ctx);
@@ -502,6 +523,12 @@ export function mountCrewPanel(root, ctx) {
       }
       panel.phase = 'idle'; draw();
       return;
+    }
+    if (t.closest('[data-crew-diagnostics-start]')) { if (ctx.crew.service.indexingStatus().running) return; startCrewDiagnostics(); draw(); return; }
+    if (t.closest('[data-crew-diagnostics-end]')) { clearCrewDiagnostics(); draw(); return; }
+    if (t.closest('[data-crew-diagnostics-show]')) {
+      const output = box.querySelector('[data-crew-diagnostics-output]');
+      output.textContent = JSON.stringify(crewDiagnosticSnapshot(), null, 2); output.hidden = false; return;
     }
     if (t.closest('[data-crew-check]')) {
       panel.message = null;

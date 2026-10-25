@@ -284,3 +284,115 @@ test('P2: a late network failure of an older request never overwrites a newer su
   await flush();
   assert.equal(crewSectionState(h.ctx, entry, view()).kind, 'crew', 'the newer success stays');
 });
+
+test('private diagnostic controls do not enroll or request data and expose only aggregate output', async () => {
+  const { crewDiagnosticSnapshot } = await import('../src/crew-diagnostics.js');
+  const h = world();
+  const dom = panelDom();
+  const output = { textContent: '', hidden: true };
+  dom.box.querySelector = sel => sel === '[data-crew-diagnostics-output]' ? output : null;
+  const stop = mountCrewPanel(dom.root, h.ctx);
+  await dom.click('[data-crew-diagnostics-start]');
+  assert.equal(crewDiagnosticSnapshot().enabled, true);
+  await dom.click('[data-crew-diagnostics-show]');
+  assert.equal(output.hidden, false);
+  assert.equal(JSON.parse(output.textContent).requests.length, 0);
+  assert.deepEqual(h.bodies, []);
+  await dom.click('[data-crew-diagnostics-end]');
+  assert.equal(crewDiagnosticSnapshot().enabled, false);
+  assert.deepEqual(h.bodies, []);
+  stop();
+});
+
+
+test('P1 first opt-in re-arms explicit diagnostics before automatic initial backfill', async () => {
+  const { crewDiagnosticSnapshot, recordCrewRequest } = await import('../src/crew-diagnostics.js');
+  const diagnostic = {
+    version: 1, complete: true, serverMs: 12, diagnosticMs: 2,
+    storeOperations: { keys: 1, reads: 2, writes: 1, deletes: 0 },
+    storage: { observedPeakBytes: 10, admissionPeakBytes: 16010, peakCategories: {
+      otherValueBytes: 0, committedValueBytes: 8, retiredValueBytes: 0, orphanValueBytes: 0,
+      stagedValueBytes: 0, manifestValueBytes: 1, keyBytes: 1,
+    } },
+    committedParts: { count: 1, medianValueBytes: 8, maxValueBytes: 8 },
+    months: [{ elapsedMs: 10, eventsRead: 1, encodedBodyBytes: 4, partCount: 1, lockWaitMs: 1, lockHeldMs: 2, outcome: 'committed' }],
+    maintenance: { lockWaitMs: 0, lockHeldMs: 1 },
+  };
+  const h = world({
+    crewEnroll: () => { assert.equal(crewDiagnosticSnapshot().enabled, true, 'armed before dispatch'); return enrollAnswer(); },
+    crewIndex: body => {
+      assert.equal(body.diagnosticsVersion, 1);
+      return { ...indexAnswer({ processed: 1, indexed: 1, pending: 0, stale: 0, uncovered: 0 }),
+        session: { version: 1, initialOutstanding: 1, remaining: 0 }, diagnostics: diagnostic };
+    },
+  });
+  const dom = panelDom();
+  const stop = mountCrewPanel(dom.root, h.ctx);
+  assert.equal(h.rt.enabled(), false);
+  await dom.click('[data-crew-diagnostics-start]');
+  recordCrewRequest({ action: 'crew', source: 'cache', outcome: 'success', elapsedMs: 7 });
+  await dom.submit('SYNTHETIC-CODE-1234');
+  for (let i = 0; i < 30 && (h.posts('crewIndex') === 0 || h.rt.service.indexingStatus().running); i++) await flush();
+  assert.equal(h.posts('crewEnroll'), 1);
+  assert.equal(h.posts('crewIndex'), 1);
+  const result = crewDiagnosticSnapshot();
+  assert.equal(result.requests.some(x => x.source === 'cache'), false, 'old records are cleared at consent transition');
+  assert.deepEqual(result.requests.map(x => [x.action, x.outcome]), [['crewEnroll', 'success'], ['crewIndex', 'success']]);
+  assert.deepEqual(result.reports, [diagnostic]);
+  assert.equal(result.sessions.length, 1);
+  assert.equal(result.sessions[0].initialOutstanding, 1);
+  assert.equal(result.sessions[0].stopped, 'done');
+  stop();
+});
+
+
+test('P1 opt-in without diagnostic intent does not start recording', async () => {
+  const { crewDiagnosticSnapshot } = await import('../src/crew-diagnostics.js');
+  const h = world();
+  const dom = panelDom();
+  const stop = mountCrewPanel(dom.root, h.ctx);
+  await dom.submit('SYNTHETIC-CODE-1234');
+  await flush();
+  assert.equal(crewDiagnosticSnapshot().enabled, false);
+  assert.equal(h.bodies.find(b => b.action === 'crewIndex')?.diagnosticsVersion, undefined);
+  stop();
+});
+
+for (const ending of ['identity', 'consent', 'storage-reset', 'owner-end']) {
+  test(`P1 no deferred diagnostic re-arm after ${ending} during capability wait`, async () => {
+    const { crewDiagnosticSnapshot } = await import('../src/crew-diagnostics.js');
+    const caps = deferred();
+    const h = world({ capabilities: () => caps.promise });
+    const dom = panelDom();
+    const stop = mountCrewPanel(dom.root, h.ctx);
+    await dom.click('[data-crew-diagnostics-start]');
+    const submitted = dom.submit('SYNTHETIC-CODE-1234');
+    await flush();
+    assert.equal(crewDiagnosticSnapshot().enabled, true);
+    if (ending === 'identity') {
+      // Controller access changes purge service memory before notifying this runtime.
+      purgeCrewMemory(); h.access.accessId += '-next'; h.rt.accessChanged();
+    } else if (ending === 'consent') h.rt.setEnabled(false);
+    else if (ending === 'storage-reset') h.rt.storageChanged(null);
+    else await dom.click('[data-crew-diagnostics-end]');
+    caps.resolve(CAPS); await submitted; await flush();
+    const result = crewDiagnosticSnapshot();
+    assert.equal(result.enabled, false);
+    assert.deepEqual([result.requests, result.reports, result.sessions], [[], [], []]);
+    if (ending !== 'owner-end') assert.equal(h.posts('crewEnroll'), 0);
+    stop();
+  });
+}
+
+test('P1 synchronous intervening reset during opt-in cannot revive diagnostic intent', async () => {
+  const { crewDiagnosticSnapshot } = await import('../src/crew-diagnostics.js');
+  const h = world();
+  const dom = panelDom();
+  const stop = mountCrewPanel(dom.root, h.ctx);
+  const unsubscribe = h.rt.subscribe(event => { if (event.reason === 'consent') h.rt.storageChanged(null); });
+  await dom.click('[data-crew-diagnostics-start]');
+  await dom.submit('SYNTHETIC-CODE-1234'); await flush();
+  assert.equal(crewDiagnosticSnapshot().enabled, false);
+  assert.deepEqual(crewDiagnosticSnapshot().requests, []);
+  unsubscribe(); stop();
+});
