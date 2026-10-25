@@ -311,3 +311,14 @@ test('Phase 1d.2A: cancelled revoke answers are strict and trusted only with the
   assert.equal(validateCrewRevoke({ ...base, state: 'revoked' }, { cancel: true }).reason, 'bad-state');
   assert.equal(validateCrewRevoke(revokeAnswer(), { cancel: true }).value.state, 'deleted', 'deleted unchanged');
 });
+
+
+test('manual cutoff contract is bounded, optional and opaque only at the proof path', () => {
+  const base = indexAnswer();
+  assert.equal(validateCrewIndex(base).ok,true);
+  const answer = c => ({...base,session:{version:1,initialOutstanding:10,remaining:9,manualCutoff:c}});
+  assert.equal(validateCrewIndex(answer({at:T0,proof:'1'.repeat(64)})).ok,true);
+  for (const c of [null, {}, {at:-1,proof:'a'.repeat(64)}, {at:T0,proof:'a'.repeat(65)}, {at:T0,proof:'not-a-proof'}, {at:T0,proof:'a'.repeat(64),extra:true}]) {
+    assert.equal(validateCrewIndex(answer(c)).ok,false);
+  }
+});

@@ -482,3 +482,36 @@ file-list evidence, preserving their verification limits. Documented the
 proposed combined six-file backend update and frontend-first release order.
 No production access or modification was performed by this update.
 Scope selection remains pending; production remains NO-GO.
+
+
+## 2026-10-26 — Bounded completion, manual cutoff and enrollment corrections
+
+On v2.1-dev/e76f9b8, preserved all prior committed implementation/documentation and made only
+the approved corrective pass. Zero-work responses can complete only with authoritative remaining,
+pending/stale and cleanup checks satisfied; uncovered remains uncovered. Manual sessions use one
+server-minute cutoff signed for the grant/generation and echoed unchanged, independent of device
+clock; strict response validation and legacy missing-cutoff stop added. Enrollment waits five seconds.
+Documented >10-minute background diagnostic clearing and planning/cleanup/accounting costs.
+No target changes or overhead subtraction. Timestamp-precision regression found during testing
+was corrected; 271 affected tests passed, zero failed/skipped on Node v26.7.0; 13 hygiene/offline
+checks passed, build/diff checks passed. Worker 45f917d2fb0f2f3bc14e; see CREW-DIAGNOSTICS.md
+for source hash and limits. No full-suite rerun. Existing physical evidence, C3 exception,
+unexplained Safari discrepancy and patched-preview distinction remain; device session paused.
+Next: owner reviews this uncommitted correction. No backend requests, production access, commit,
+push or deployment; production NO-GO.
+
+
+## 2026-10-26 — Signed-cutoff expiry correction and final review
+
+Preserved the complete uncommitted corrective pass. Added server entry-time expiry at age
+>=285,000 ms (180 s session +45 s in flight +60 s minute-floor allowance), before indexing work.
+No silent renewal: refusal stops the client and an explicit new manual session is required.
+Signature, grant/generation binding, final authorization, freshness and all acceptance thresholds
+remain unchanged. Deterministic expiry, future-signed timestamp, replay and minute-boundary cases
+pass: 193 affected tests, zero failures/skips on Node v26.7.0; a tightened exact refusal assertion
+also passed in one focused rerun. Thirteen hygiene/offline tests passed; build/offline/diff checks
+passed. Worker unchanged at 45f917d2fb0f2f3bc14e; backend hash recorded in CREW-DIAGNOSTICS.md.
+Final expiry review found no remaining concrete defect. Entry-time expiry does not interrupt
+already admitted work; bounded continuation replay still requires ordinary access. No live claims.
+Next: owner review of the preserved 14-file corrective diff. Device work remains paused; no backend
+requests, production access, commit, push or deployment. Production NO-GO.

@@ -23,13 +23,13 @@ than guessing a history-sized continuation. This is an intentional compatibility
 
 Successful batches must reduce remaining work. A wholly busy batch (or a busy refusal) gets
 only the existing single retry, shared across both forms, counted against every budget. Zero
-processing and other non-progress stop immediately. Errors/cancellation/hidden/offline stop;
+processing stops immediately unless authoritative counts already establish completion with cleanup finished; uncovered history still ends uncovered, not done. Other non-progress stops immediately. Errors/cancellation/hidden/offline stop;
 there is no automatic resume after budgets or visibility recover. A session dispatches nothing
 new at/after 180 seconds; an existing request can finish within its unchanged 45-second timeout.
 Any total over 180 seconds is not a passing backfill. Larger histories need explicit additional
 segments; neither multiple segments nor partial coverage silently pass the single-session target.
 
-Index acquisition waits are <=2,000 ms, routed revoke <=5,000 ms; editor purge remains5,000 ms.
+Index acquisition waits are <=2,000 ms; enrollment and routed revoke <=5,000 ms; editor purge remains 5,000 ms.
 Held time starts after acquisition and includes diagnostic overhead. The <=2,000 ms/month held
 criterion is still measured acceptance, not guaranteed by configuring the acquisition timeout.
 
@@ -63,7 +63,7 @@ property; root publication reclassifies via manifest documents. There is no whol
 after each mutation. In-memory summation and classification costs remain inside held/server time.
 `diagnosticMs` measures guarded accounting sections and overlaps those totals; do not add it again.
 `serverMs` ends in the index handler before final response authorization/serialization; it does
-not include platform startup or network delivery. Live behavior/overhead remain unmeasured.
+not include platform startup or network delivery. The two session-count plans, purge resumption, GC and diagnostic accounting contribute to total request costs. The approximately 15-second cooperative loop check is not a whole-request ceiling; post-loop planning and cleanup are outside that check. Live behavior/overhead remain unmeasured.
 
 Errors, ambiguous writes, unreadable classifications or cap overflow mark diagnostics incomplete;
 missing peak/categories/distribution use null, not zero. Operations retain their original failure
@@ -82,7 +82,7 @@ nothing. Collection is off by default and is never persisted or logged. Retentio
 request records,20 reports (each <=8,192 serialized characters; schema is ASCII), and20 session
 records. Reaching a cap freezes that collection and marks truncated, never silently discards the
 oldest measurement. Reload/access-ending purge/sign-out/reset/explicit end clears collection;
-a new session rejects late observations from the old diagnostic generation.
+returning after more than ten minutes hidden also clears and disables collection. Consent changes and revocation clear it as well. Keep collection foregrounded; a new session rejects late observations from the old diagnostic generation.
 
 Network durations use a monotonic client clock from dispatch through validation; existing
 transport meta.ms is separate. Failures use fixed classifications, not raw exceptions. Cache hits,
@@ -159,3 +159,69 @@ No further concrete defect identified in this bounded correction; live measureme
 acceptance remain open. All pending edits, C3/G6/G8 and the unexplained Safari discrepancy remain.
 The physical session stays paused. No backend requests, production access, commit, push or deployment.
 Production remains **NO-GO**. Next checkpoint: review this focused corrective diff before any release action.
+
+## Bounded corrective pass — 2026-10-26
+
+Manual runs now send manualCheck:true with sessionVersion:1 instead of device-clock verifyBefore.
+The backend chooses the start of its current minute once and returns session.manualCutoff:{at,proof}.
+Stored verification timestamps are minute-rounded; the floored cutoff avoids treating a just-verified
+month as still outstanding. Verification stamps in that same stored minute are not rechecked;
+freshness still uses the existing timestamp precision and current server time. Because storage rounds
+to the nearest minute, a verification in the preceding minute's final 30 seconds can also have that
+same stored timestamp. The boundary regression explicitly preserves this limitation; crossing a
+minute never moves an existing session's cutoff.
+The client echoes this unchanged in subsequent requests and rejects a missing or changed cutoff.
+The 64-character HMAC proof binds the cutoff to the current generation, epoch and grant using
+an operation-specific domain; ordinary authorization and final generation checks still apply.
+This bounded continuation metadata stays in run memory, outside diagnostics, logs and storage.
+It grants no access on its own. An altered, future or previous-generation cutoff is refused.
+A cutoff also expires when server request-entry time minus its signed timestamp is >=285,000 ms:
+180,000 ms session budget +45,000 ms possible in-flight request +60,000 ms conservative allowance
+for flooring to a minute. This is an entry-time lifetime, not an extension of the client's dispatch
+or acceptance budgets. A request admitted before expiry finishes under existing request/operation
+limits and final authorization checks; expiry does not forcibly interrupt it. Rejection occurs before
+purge, index planning, fixture reads or GC, using the existing crew-unavailable refusal. The client
+stops; it neither renews the cutoff nor retries automatically. An explicit new manual run is required.
+Within-lifetime same-generation replay is permitted for continuation, subject to all existing access,
+rate, freshness and generation checks; the cutoff is not a single-use credential.
+Freshness checks still use current server time; unsealable months remain pending.
+
+Normal requests and legacy verifyBefore callers retain their existing wire behavior. A new manual
+run against an older backend stops session-unavailable after its first response if the cutoff is
+absent; that first bounded request may have indexed work, but is not claimed as a complete manual
+re-check. Frontend-first deployment ordering remains required. Acceptance thresholds are unchanged;
+held time includes diagnostic overhead, with no subtraction. New worker and validation follow below.
+
+
+Validation for this corrective pass: Node v26.7.0, 271 affected tests passed, zero failed/skipped
+(crew-api, crew-service, crew-validation, crew-runtime, crew-ui-async, crew-cancel, crew-routing,
+crew-diagnostics). Thirteen hygiene/offline tests passed. No full-suite rerun. The new regression
+initially exposed minute-rounded verification timestamps repeating work against a millisecond
+cutoff; the fixed server-minute cutoff and multi-call regression now pass. Build regeneration,
+check:offline and diff hygiene passed. Final local worker: **45f917d2fb0f2f3bc14e**,
+82 precached assets plus sw.js. Current CrewApiV2.gs SHA-256:
+**c1c5554503826a4a5d4a1ab0cd00e45930fe9c881361a6d7d080b9895595ef17**.
+This newly generated hash supersedes the earlier local API hash for this candidate only;
+it is not historical C3 provenance. Core source is unchanged. Evidence remains local/synthetic;
+actual Apps Script timing/overhead, commissioning and device acceptance of this candidate remain
+unverified. No backend requests, publication, commit or push; production NO-GO.
+
+
+### Signed-cutoff expiry correction — 2026-10-26
+
+Owner-authorized bounded expiry added without changing signature/generation binding, normal
+responses, acceptance thresholds or access checks. The frontend worker is unchanged by this
+backend-only runtime increment: regeneration/check still yields **45f917d2fb0f2f3bc14e**.
+Current CrewApiV2.gs SHA-256: **ce4b031b42502ebdd07a575409a209e61167b0984f9a4ea094748049d2d20bc6**.
+This supersedes the preceding local API hash only, not historical provenance.
+
+Expiry validation: 193 affected tests passed (crew-api, crew-service, crew-validation,
+crew-routing), zero failed/skipped on Node v26.7.0. The refusal assertion was then tightened to
+require error:crew-unavailable and its single focused test passed. Thirteen hygiene/offline tests
+passed; worker regeneration, offline integrity and final diff hygiene passed. No full-suite rerun.
+Deterministic cases cover 284,999 ms accepted, 285,000/285,001 ms refused, signed 15-day replay,
+a valid signature with a future timestamp, zero indexing reads/locks on refusal, explicit new-session
+issuance, and previous-minute rounding plus unchanged cutoff across a minute boundary.
+Final source review found no remaining concrete expiry defect. Within-lifetime continuation replay
+is intentional and cannot replace ordinary authorization; admitted work is not forcibly interrupted.
+No live timing/backend or device acceptance is established. Prior evidence and qualifications stand.

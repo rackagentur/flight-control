@@ -451,7 +451,7 @@ export function createCrewService({
 
   async function loop(run) {
 
-    const verifyBefore = run.trigger === 'manual' ? now() : undefined;
+    let manualCutoff;
     let busyRetried = false;
     for (;;) {
       const stop = blocked(run);
@@ -464,7 +464,7 @@ export function createCrewService({
       let data;
       let transport = null;
       try {
-        ({ data } = await post(a.endpoint, crewIndexRequest(a.token, run.grant, { verifyBefore, sessionVersion: 1, diagnosticsVersion: crewDiagnosticsEnabled() ? 1 : undefined }), { timeoutMs: CREW_INDEX_TIMEOUT_MS }));
+        ({ data } = await post(a.endpoint, crewIndexRequest(a.token, run.grant, { manualCheck: run.trigger === 'manual', manualCutoff, sessionVersion: 1, diagnosticsVersion: crewDiagnosticsEnabled() ? 1 : undefined }), { timeoutMs: CREW_INDEX_TIMEOUT_MS }));
       } catch (error) {
         transport = transportCode(error);
       }
@@ -477,6 +477,12 @@ export function createCrewService({
       const check = validateCrewIndex(data);
       if (check.ok) {
         const { processed, progress, session } = check.value;
+        if (run.trigger === 'manual') {
+          const received = session?.manualCutoff;
+          if (!received) return finish(run, 'session-unavailable');
+          if (manualCutoff && (received.at !== manualCutoff.at || received.proof !== manualCutoff.proof)) return finish(run, 'error:invalid-response');
+          manualCutoff = received;
+        }
         if (run.initialOutstanding === null && session) {
           run.initialOutstanding = session.initialOutstanding;
           run.previousRemaining = session.initialOutstanding;
@@ -487,8 +493,8 @@ export function createCrewService({
         lastProgress = { identity: run.identity, progress: { ...progress, at: now() } };
         emit({ type: 'progress', progress });
         if (run.cancelled) return finish(run, run.cancelled);
-        if (processed === 0) return finish(run, 'no-progress');
         if (progress.pending + progress.stale === 0 && (!session || session.remaining === 0) && !check.value.cleanupPending) return finish(run, progress.uncovered ? 'uncovered' : 'done');
+        if (processed === 0) return finish(run, 'no-progress');
         if (!session && run.trigger !== 'detail') return finish(run, 'session-unavailable');
         const remaining = session ? session.remaining : progress.pending + progress.stale;
         if (run.previousRemaining !== null && remaining >= run.previousRemaining) {

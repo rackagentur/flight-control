@@ -1,8 +1,22 @@
 # Flight Control — next steps
 
+Signed-cutoff expiry follow-up (2026-10-26): server rejects age >=285 seconds before indexing;
+no silent renewal. Explicit new manual session required. Client/acceptance budgets unchanged.
+Worker remains 45f917d2fb0f2f3bc14e; updated backend hash/evidence in CREW-DIAGNOSTICS.md.
+Device work paused; production NO-GO.
+
 Last updated: **2026-10-26**. Current checkpoint: focused diagnostic review corrections verified; approved physical fault/Reset session paused at baseline inspection.
 
-## Current implementation checkpoint — 2026-10-26
+## Latest bounded corrective checkpoint — 2026-10-26
+
+Review the uncommitted correction on e76f9b8: completion before zero-work stopping; signed,
+server-minute manual cutoff carried unchanged across calls; enrollment acquisition capped at
+five seconds; background diagnostic clearing and total-request costs documented. Current local
+worker is 45f917d2fb0f2f3bc14e. Validation is recorded in CREW-DIAGNOSTICS.md.
+Acceptance thresholds and incomplete-history reporting are unchanged. No commissioning is
+performed or authorized by these local checks. Physical fault/Reset remains paused.
+
+## Preceding implementation checkpoint — 2026-10-26
 
 Local aggregate diagnostics, bounded backfill and lock-wait changes are owner-authorized and verified.
 Current worker a6ae289d2a4dace19979. Focused review corrections:147 affected tests and13

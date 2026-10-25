@@ -1,5 +1,17 @@
 # Combined release — selected for preparation, 2026-10-24
 
+Signed-cutoff expiry follow-up (2026-10-26): server rejects age >=285 seconds before indexing;
+no silent renewal. Explicit new manual session required. Client/acceptance budgets unchanged.
+Worker remains 45f917d2fb0f2f3bc14e; updated backend hash/evidence in CREW-DIAGNOSTICS.md.
+Device work paused; production NO-GO.
+
+Latest local correction (2026-10-26, uncommitted on e76f9b8): worker
+45f917d2fb0f2f3bc14e supersedes a6ae289d2a4dace19979 for local preparation only.
+Authoritative completion, stable signed server-minute manual cutoff and five-second enrollment
+acquisition are corrected. See CREW-DIAGNOSTICS.md for focused validation and compatibility limits.
+No acceptance target changes, unsealable-history exclusion or overhead subtraction. Existing C3,
+G6/G8, patched-preview qualifications, unexplained Safari discrepancy and paused device session stand.
+
 **Production NO-GO. Local measurement implementation/tests authorized; no commit, push or deployment authorized.**
 This is the current release-preparation summary. Earlier dated handovers remain historical evidence,
 not current instructions. The owner-approved C3 historical provenance exception below resolves only

@@ -973,3 +973,91 @@ test('diagnostic snapshot remains bounded and does not weaken the final generati
   assert.deepEqual(r,{ok:false,error:'crew-revoked'});
   assert.equal('diagnostics' in r,false);
 });
+
+test('enrollment requests five-second acquisition and busy leaves authorization unchanged', () => {
+  const t = makeEnv();
+  const lock = t.env.lock, waits = [];
+  t.env.lock = (fn, wait) => { waits.push(wait); return {ok:false}; };
+  assert.equal(enroll(t).error, 'busy');
+  assert.equal(t.propMap.has('FC_CREW_STATE'), false);
+  assert.ok(t.propMap.has('FC_CREW_ENROLL'));
+  t.env.lock = (fn, wait) => { waits.push(wait); return lock(fn); };
+  assert.equal(enroll(t).ok,true);
+  assert.deepEqual(waits,[5000,5000]);
+});
+test('manual cutoff is server-issued, stable across batches, and bound to generation', async () => {
+  const { validateCrewIndex } = await import('../src/sources/crew-v2.js');
+  const t = makeEnv(); enroll(t);
+  indexAll(t, 'grant-A');
+  t.clock.now += 120000;
+  const started = t.clock.now;
+  const request = {action:'crewIndex',grant:'grant-A',sessionVersion:1,manualCheck:true};
+  const first = call(t.env,{...request,verifyBefore:started+86400000});
+  assert.equal(first.ok,true);
+  assert.equal(validateCrewIndex(first).ok,true);
+  assert.equal(first.session.manualCutoff.at,Math.floor(started/60000)*60000);
+  assert.ok(first.session.initialOutstanding > 6);
+  assert.equal(first.session.remaining,first.session.initialOutstanding-6,JSON.stringify(first));
+  t.clock.now += 10000;
+  const second = call(t.env,{...request,manualCutoff:first.session.manualCutoff,verifyBefore:0});
+  assert.deepEqual(second.session.manualCutoff,first.session.manualCutoff);
+  assert.equal(second.session.remaining,first.session.remaining-6);
+  const changed = {...first.session.manualCutoff,at:started-1};
+  assert.equal(call(t.env,{...request,manualCutoff:changed}).ok,false);
+  for (const malformed of [null, {}, {at:started,proof:'x'}, {at:-1,proof:'a'.repeat(64)}]) {
+    assert.equal(call(t.env,{...request,manualCutoff:malformed}).ok,false);
+  }
+  enroll(t,'grant-B','SYNTHETIC-SECOND-CODE-0123456789');
+  assert.equal(call(t.env,{...request,grant:'grant-B',manualCutoff:first.session.manualCutoff}).ok,false);
+});
+
+
+test('signed manual cutoff expires at 285 seconds, without work or silent renewal', () => {
+  const t = makeEnv({now:TODAY_NOW+59999}); enroll(t);
+  const request = {action:'crewIndex',grant:'grant-A',sessionVersion:1,manualCheck:true};
+  const issued = call(t.env,request).session.manualCutoff;
+  assert.equal(issued.at,TODAY_NOW);
+  let locks = 0, reads = 0;
+  const lock = t.env.lock, read = t.env.readRaw;
+  t.env.lock = (...args) => { locks++; return lock(...args); };
+  t.env.readRaw = (...args) => { reads++; return read(...args); };
+  t.clock.now = issued.at+284999;
+  const valid = call(t.env,{...request,manualCutoff:issued});
+  assert.equal(valid.ok,true);
+  assert.deepEqual(valid.session.manualCutoff,issued);
+  assert.ok(locks > 0);
+  for (const time of [issued.at+285000,issued.at+285001,issued.at+15*86400000,issued.at-1]) {
+    t.clock.now = time;
+    locks = 0; reads = 0;
+    const result = call(t.env,{...request,manualCutoff:issued});
+    assert.deepEqual(result,{ok:false,error:'crew-unavailable'});
+    assert.equal(locks,0,'reject before purge, indexing or GC locks');
+    assert.equal(reads,0,'reject before fixture/calendar reads');
+    assert.equal('session' in result,false,'no renewed cutoff');
+  }
+  t.clock.now = issued.at+285000;
+  const fresh = call(t.env,request); // Explicit new session, not an automatic retry.
+  assert.equal(fresh.ok,true);
+  assert.notDeepEqual(fresh.session.manualCutoff,issued);
+});
+
+test('manual cutoff minute boundary retains documented rounded-verification behavior', () => {
+  // Verifications in the previous minute's final 30 seconds round into TODAY_NOW.
+  const t = makeEnv({now:TODAY_NOW-30000}); enroll(t);
+  indexAll(t,'grant-A');
+  const request = {action:'crewIndex',grant:'grant-A',sessionVersion:1,manualCheck:true};
+  t.clock.now = TODAY_NOW+59999;
+  const sameMinute = call(t.env,request);
+  assert.equal(sameMinute.session.manualCutoff.at,TODAY_NOW);
+  assert.equal(sameMinute.session.initialOutstanding,0);
+  assert.equal(sameMinute.processed,0);
+  t.clock.now = TODAY_NOW+60000;
+  const continued = call(t.env,{...request,manualCutoff:sameMinute.session.manualCutoff});
+  assert.deepEqual(continued.session.manualCutoff,sameMinute.session.manualCutoff);
+  assert.equal(continued.processed,0,'crossing minute does not move the existing cutoff');
+  const fresh = call(t.env,request);
+  assert.equal(fresh.session.manualCutoff.at,TODAY_NOW+60000);
+  assert.equal(fresh.session.initialOutstanding,50);
+  assert.equal(fresh.processed,6);
+  assert.equal(fresh.session.remaining,44);
+});

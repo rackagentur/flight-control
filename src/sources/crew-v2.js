@@ -198,8 +198,10 @@ export function crewEnrollRequest(token, code, grant) {
 }
 
 /** crewIndex: bounded indexing; optional `verifyBefore` (ms) and `retryUncovered` are sent only when given. */
-export function crewIndexRequest(token, grant, { verifyBefore, retryUncovered, sessionVersion, diagnosticsVersion } = {}) {
+export function crewIndexRequest(token, grant, { verifyBefore, retryUncovered, sessionVersion, diagnosticsVersion, manualCheck, manualCutoff } = {}) {
   const extra = { grant };
+  if (manualCheck === true) extra.manualCheck = true;
+  if (manualCutoff !== undefined) extra.manualCutoff = manualCutoff;
   if (verifyBefore !== undefined) extra.verifyBefore = verifyBefore;
   if (retryUncovered !== undefined) extra.retryUncovered = retryUncovered;
   if (sessionVersion === 1) extra.sessionVersion = 1;
@@ -253,7 +255,12 @@ export function validateCrewIndex(payload) {
     keys(p, ['ok', 'action', 'processed', 'outcomes', 'progress', 'gcDeleted', 'cleanupPending'], ['session', 'diagnostics']);
     const extra = {};
     if (p.session !== undefined) {
-      keys(p.session, ['version','initialOutstanding','remaining']);
+      keys(p.session, ['version','initialOutstanding','remaining'], ['manualCutoff']);
+      if (p.session.manualCutoff !== undefined) {
+        const c = p.session.manualCutoff;
+        keys(c, ['at', 'proof']);
+        if (!Number.isSafeInteger(c.at) || c.at < 0 || typeof c.proof !== 'string' || !/^[0-9a-f]{64}$/.test(c.proof)) reject('bad-cutoff');
+      }
       if (p.session.version !== 1 || !Number.isSafeInteger(p.session.initialOutstanding) || p.session.initialOutstanding < 0 || !Number.isSafeInteger(p.session.remaining) || p.session.remaining < 0) reject('bad-session');
       extra.session = { ...p.session };
     }
@@ -282,7 +289,7 @@ export function validateCrewIndex(payload) {
       ok: true, action: p.action, processed: p.processed, outcomes, ...extra,
       progress: { total, indexed, pending, stale, uncovered }, gcDeleted: p.gcDeleted, cleanupPending: p.cleanupPending,
     };
-  });
+  }, new Set(['/session/manualCutoff/proof']));
 }
 
 /**

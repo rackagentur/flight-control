@@ -1,6 +1,11 @@
 # Flight Control — project status
 
-Last checkpoint: **2026-10-26 — focused diagnostic review corrections verified**.
+Signed-cutoff expiry follow-up (2026-10-26): server rejects age >=285 seconds before indexing;
+no silent renewal. Explicit new manual session required. Client/acceptance budgets unchanged.
+Worker remains 45f917d2fb0f2f3bc14e; updated backend hash/evidence in CREW-DIAGNOSTICS.md.
+Device work paused; production NO-GO.
+
+Last checkpoint: **2026-10-26 — bounded completion/cutoff/enrollment corrections**.
 Current release review is [RELEASE-REVIEW.md](RELEASE-REVIEW.md); dated sections below
 are historical snapshots, not current deployment claims or instructions.
 
@@ -8,7 +13,7 @@ are historical snapshots, not current deployment claims or instructions.
 
 | Area | State and evidence |
 |---|---|
-| Git | Locally verified `v2.1-dev` at `eba8876`, seven pending documentation edits preserved; three commits ahead of recorded origin; no fetch/push in this checkpoint |
+| Git | `v2.1-dev` at `e76f9b8`; prior implementation and accumulated documentation are committed and preserved. This bounded corrective pass is uncommitted; no fetch/push in this checkpoint |
 | Production frontend | Owner-supplied fetched Git reference `a3008d2`; served commit and device worker adoption not checked |
 | Backend | Owner reports active Version 29, displayed 2026-10-07 03:01 (timezone unspecified); editor screenshot is not immutable deployed-source proof |
 | Implementation | Crew frontend/backend routing exist. Combined scope **selected by owner for preparation**: 15 changed frontend runtime files + six backend files; complete 82-file static tree. RELEASE-REVIEW retains the historical 127-file endpoint inventory  Historical82-file static inventory remains the reviewed baseline; this authorized local increment adds one frontend module, giving83 static files including sw.js. No publication |
@@ -19,7 +24,7 @@ are historical snapshots, not current deployment claims or instructions.
 | Q1 permission | Gregory confirms the described private, single-user crew-data processing is permitted. No supporting policy/correspondence inspected; no independent legal verification. Excludes multi-user access, sharing and commercial use; not execution/release approval |
 | Remaining release requirements | candidate acceptance; production OAuth/runtime authentication verification; real storage/backfill/timing evidence; baseline and explicit release approvals. See classified checklist |
 | Timeout decision | Owner approved 45 s per `crewIndex` only; other crew requests remain 25 s. Server budget and all performance/acceptance targets unchanged; configuration is not measured latency |
-| Next checkpoint | Review focused initial-opt-in diagnostic lifecycle and cache-duration corrections. Local worker a6ae289d2a4dace19979;147 affected tests and13 hygiene/offline tests passed on Nodev26.7.0; no full-suite rerun. Historical full-suite evidence remains separately recorded in CREW-DIAGNOSTICS. Physical fault/Reset session remains paused at baseline inspection |
+| Next checkpoint | Review bounded completion/cutoff/enrollment correction and validation in CREW-DIAGNOSTICS.md. Local worker `45f917d2fb0f2f3bc14e`; physical fault/Reset session remains paused. No live measurement or deployment acceptance |
 | Current authorization | Local implementation, targeted tests and repository/build checks completed. No backend requests, production access, deployment, commit or push. Physical evidence remains scoped to patched preview; production **NO-GO** |
 
 ## Historical baseline (2026-10-14 onward)

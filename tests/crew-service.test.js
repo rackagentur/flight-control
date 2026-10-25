@@ -22,9 +22,10 @@ import {
   enrollAnswer, revokeAnswer, refusal, deferred, fakePost, networkError, timeoutError, flush, simulatedCrewBackend,
 } from './fixtures/crew-frontend.synthetic.mjs';
 
+const MANUAL_CUTOFF = { at: T0, proof: 'a'.repeat(64) };
 const indexAnswer = (options = {}) => {
   const r = legacyIndexAnswer(options);
-  return { ...r, session: { version: 1, initialOutstanding: r.progress.pending + r.progress.stale + r.processed, remaining: r.progress.pending + r.progress.stale } };
+  return { ...r, session: { version: 1, manualCutoff: MANUAL_CUTOFF, initialOutstanding: r.progress.pending + r.progress.stale + r.processed, remaining: r.progress.pending + r.progress.stale } };
 };
 
 const STORED = `fc.v2.${CREW_CREDENTIAL_KEY}`;
@@ -335,16 +336,17 @@ test('indexing progress invalidates crew memory (answers are outdated) and emits
   assert.equal(h.events.at(-1).type, 'indexed');
 });
 
-test('manual indexing sends verifyBefore = run start on every call of the run', async () => {
-  const h = harness({ handler: byAction({ crewIndex: indexAnswer({ processed: 1, pending: 3 }) }) });
-  const start = h.clock.t;
-  await h.svc.requestIndexing('manual');
-  const sent = h.fake.bodies.map((b) => b.body.verifyBefore);
-  assert.equal(sent.length, INDEX_MAX_CALLS.manual);
-  assert.ok(sent.every((v) => v === start), JSON.stringify(sent));
-  const h2 = harness({ handler: byAction({ crewIndex: indexAnswer({ processed: 0 }) }) });
-  await h2.svc.requestIndexing('detail');
-  assert.equal('verifyBefore' in h2.fake.bodies[0].body, false);
+test('manual indexing echoes only the server cutoff across calls, irrespective of device clock', async () => {
+  for (const skew of [-86400000, 86400000]) {
+    const h = harness({ handler: byAction({ crewIndex: indexAnswer({ processed: 1, pending: 3 }) }) });
+    h.clock.t += skew;
+    await h.svc.requestIndexing('manual');
+    const sent = h.fake.bodies.map(b => b.body);
+    assert.equal(sent.length, INDEX_MAX_CALLS.manual);
+    assert.ok(sent.every(b => b.manualCheck === true && !('verifyBefore' in b)));
+    assert.equal(sent[0].manualCutoff, undefined);
+    assert.deepEqual(sent[1].manualCutoff, MANUAL_CUTOFF);
+  }
 });
 
 test('one runner app-wide: a second request (any service instance) joins the running promise', async () => {
@@ -1732,3 +1734,54 @@ for (const ending of ['sign-out', 'reset', 'identity-change', 'revocation']) {
     assert.deepEqual([result.requests, result.reports, result.sessions], [[], [], []]);
   });
 }
+
+test('zero-work completion preserves uncovered, cleanup and outstanding-work safeguards', async () => {
+  for (const [options, cleanupPending, remaining, expected] of [
+    [{}, false, 0, 'done'],
+    [{uncovered: 1}, false, 0, 'uncovered'],
+    [{}, true, 0, 'no-progress'],
+    [{pending: 1}, false, 1, 'no-progress'],
+    [{stale: 1}, false, 1, 'no-progress'],
+    [{}, false, 1, 'no-progress'],
+  ]) {
+    const answer = indexAnswer({processed:0,pending:0,stale:0,uncovered:0,...options});
+    answer.cleanupPending = cleanupPending;
+    answer.session.remaining = remaining;
+    const h = harness({handler:byAction({crewIndex:answer})});
+    assert.equal((await h.svc.requestIndexing('manual')).stopped, expected);
+    assert.equal(h.posts('crewIndex'), 1);
+  }
+});
+test('manual session stops on missing or changed server cutoff', async () => {
+  for (const variant of ['missing', 'changed']) {
+    const h = harness({handler:byAction({crewIndex:(body,n)=>{
+      const a = indexAnswer({processed:1,pending:3});
+      if (variant === 'missing') delete a.session.manualCutoff;
+      else if (n === 2) a.session.manualCutoff = {...MANUAL_CUTOFF,at:MANUAL_CUTOFF.at+1};
+      return a;
+    }})});
+    assert.equal((await h.svc.requestIndexing('manual')).stopped, variant === 'missing' ? 'session-unavailable' : 'error:invalid-response');
+    assert.equal(h.posts('crewIndex'),variant === 'missing' ? 1 : 2);
+  }
+});
+
+test('cleanup-only continuation can complete without processing another month', async () => {
+  const h = harness({handler:byAction({crewIndex:(body,n)=>({
+    ...indexAnswer({processed:n === 1 ? 1 : 0,pending:0,stale:0,uncovered:0}),
+    cleanupPending:n === 1,
+  })})});
+  const r = await h.svc.requestIndexing('manual');
+  assert.equal(r.stopped,'done');
+  assert.equal(r.calls,2);
+});
+
+
+test('manual cutoff refusal stops without renewal or another dispatch', async () => {
+  const h = harness({handler:byAction({crewIndex:(body,n)=> n === 1
+    ? indexAnswer({processed:1,pending:3}) : refusal('crew-unavailable')})});
+  const r = await h.svc.requestIndexing('manual');
+  assert.equal(r.calls,2);
+  assert.equal(r.stopped,'error:crew-unavailable');
+  assert.equal(h.posts('crewIndex'),2);
+  assert.deepEqual(h.fake.bodies[1].body.manualCutoff,MANUAL_CUTOFF);
+});

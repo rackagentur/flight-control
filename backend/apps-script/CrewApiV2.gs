@@ -33,6 +33,8 @@ const FCV2_CREW_RATE_KEY_ = 'fcv2-crew-rate';
 const FCV2_CREW_ENROLL_FAILURES_KEY_ = 'fcv2-crew-enroll-failures';
 const FCV2_CREW_INDEX_MAX_MONTHS_ = 6;
 const FCV2_CREW_INDEX_BUDGET_MS_ = 15000;
+// 180 s session + 45 s in-flight allowance + <60 s lost by flooring the signed cutoff.
+const FCV2_CREW_MANUAL_CUTOFF_LIFETIME_MS_ = 285000;
 const FCV2_CREW_MEMBER_FIELDS_ = ['rank', 'family', 'given', 'match', 'count', 'last', 'recordedMatch', 'asOfRecorded'];
 
 /**
@@ -182,7 +184,7 @@ function fcv2CrewHandleEnroll_(req, env, s) {
       fcv2CrewResumePurge_(fcv2CrewCoreEnv_(env, now));
     }
     return r.result;
-  });
+  }, 5000);
   if (!lock.ok) return { ok: false, error: 'busy' };
   const r = lock.value;
   return r.ok ? { ok: true, action: 'crewEnroll', enrolled: true, G: r.G } : { ok: false, error: r.error };
@@ -222,6 +224,22 @@ function fcv2CrewRotate_(env) {
 /** Bounded, resumable indexing and re-verification (§7.2, §7.4, §7.5). */
 function fcv2CrewHandleIndex_(req, env, s, state) {
   const started = env.now();
+  // The server issues the manual cutoff once; the continuation is authenticated to this grant/generation.
+  // It is memory-only at the client and never grants access independently of the ordinary checks.
+  let manualCutoff = null;
+  if (req.manualCheck === true) {
+    if (req.sessionVersion !== 1) return { ok: false, error: 'crew-unavailable' };
+    const supplied = req.manualCutoff;
+    // Stored verifiedAt values have minute precision; floor avoids retrying work verified in this minute.
+    const at = supplied === undefined ? Math.floor(started / 60000) * 60000 : supplied && supplied.at;
+    if (!Number.isSafeInteger(at) || at < 0 || at > started || started - at >= FCV2_CREW_MANUAL_CUTOFF_LIFETIME_MS_) return { ok: false, error: 'crew-unavailable' };
+    const proof = env.deps.hmacHex(s.pepper, JSON.stringify(['manual-cutoff-v1', state.G, state.epoch, state.grantHash, at]));
+    if (supplied !== undefined && (!supplied || Object.keys(supplied).length !== 2 || typeof supplied.proof !== 'string' || !fcv2CrewSafeEqual_(supplied.proof, proof))) {
+      return { ok: false, error: 'crew-unavailable' };
+    }
+    manualCutoff = { at: at, proof: proof };
+  } else if (req.manualCutoff !== undefined) return { ok: false, error: 'crew-unavailable' };
+  const verifyBefore = manualCutoff ? manualCutoff.at : req.verifyBefore;
   const original = env;
   env = Object.assign({}, original, { lock: function (fn) { return original.lock(fn, 2000); } });
   const diagnostic = req.diagnosticsVersion === 1 ? fcv2CrewDiagnostics_(env, state) : null;
@@ -233,7 +251,7 @@ function fcv2CrewHandleIndex_(req, env, s, state) {
   const core = fcv2CrewCoreEnv_(env, started);
   const resumed = env.lock(function () { return fcv2CrewResumePurge_(core); });
   const initialOutstanding = req.sessionVersion === 1 ? fcv2CrewIndexPlan_(env.store, state, env.deps, sealable,
-    { now: env.now(), verifyBefore: req.verifyBefore, retryUncovered: req.retryUncovered }).months.length : null;
+    { now: env.now(), verifyBefore: verifyBefore, retryUncovered: req.retryUncovered }).months.length : null;
   const outcomes = {};
   let processed = 0;
   const done = {};
@@ -244,7 +262,7 @@ function fcv2CrewHandleIndex_(req, env, s, state) {
     const m = read.manifest;
     const now = env.now();
     const plan = fcv2CrewIndexPlan_(env.store, state, env.deps, sealable,
-      { now: now, done: done, verifyBefore: req.verifyBefore, retryUncovered: req.retryUncovered });
+      { now: now, done: done, verifyBefore: verifyBefore, retryUncovered: req.retryUncovered });
     const month = plan.months[0] || null;
     if (!month) break;
     done[month] = true;
@@ -294,7 +312,8 @@ function fcv2CrewHandleIndex_(req, env, s, state) {
   };
   if (req.sessionVersion === 1) result.session = { version: 1, initialOutstanding: initialOutstanding,
     remaining: fcv2CrewIndexPlan_(env.store, state, env.deps, sealable,
-      { now: env.now(), verifyBefore: req.verifyBefore, retryUncovered: req.retryUncovered }).months.length };
+      { now: env.now(), verifyBefore: verifyBefore, retryUncovered: req.retryUncovered }).months.length };
+  if (manualCutoff) result.session.manualCutoff = manualCutoff;
   if (diagnostic) result.diagnostics = diagnostic.finish(started);
   return result;
 }

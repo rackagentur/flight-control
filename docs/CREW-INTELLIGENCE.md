@@ -453,7 +453,7 @@ until then results are stale, never silently wrong. Duplicate `dutyKey`s across 
   `replacing` or `neighbour-changed`, and `replaceFailed` when capacity allows; 2) **damaged shards** (missing or
   corrupt); 3) unindexed months newer than the storage floor, newest first; 4) the floor month when capacity allows
   (§9.5, Q25); 5) months whose `verifiedAt` is older than the freshness threshold — or, for "Re-check history", older
-  than the moment the re-check started (`verifyBefore`) — oldest first.
+  than the fixed server-issued cutoff (start of the session’s server minute, matching stored timestamp precision) — oldest first. The current client uses a signed, generation/grant-bound cutoff carried unchanged across calls; device time is not used. Continuations expire at a server age of 285 seconds (180 +45 +60 for minute precision), before indexing work; expiry requires an explicit new manual session and never extends acceptance budgets. Legacy `verifyBefore` callers retain their old behavior (CREW-DIAGNOSTICS.md).
 - Verification = re-read the month's window, recompute `fp`; equal **and the stored shard valid** → advance
   `verifiedAt` only; different, or shard missing/corrupt → rebuild (§7.2, §7.2a) and flag both neighbours.
 - Visible: flight detail footnote "Checked <date>" (oldest verification in the range) and the stale wording; Settings

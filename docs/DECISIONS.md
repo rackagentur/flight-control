@@ -198,3 +198,24 @@ This authorization permits local implementation and tests only. No production/ba
 credentials, deployment, commit or push; paused physical session stays paused. C3's accepted
 provenance exception, G6/G8, Q1/Q4/Q6 and historical/physical evidence remain within their recorded
 scope; the unexplained Safari discrepancy is not resolved by this work.
+
+
+## 2026-10-26 — Approved focused completion, manual cutoff and enrollment correction
+
+Owner approved authoritative completion before zero-progress stopping, preserving uncovered and
+incomplete-cleanup safeguards; a stable server-authoritative manual cutoff across requests; and
+five-second enrollment acquisition per §4.2. This supersedes device-clock cutoff selection for the
+current client, not historical evidence. No acceptance threshold is changed. Unsealable history
+remains pending and diagnostic overhead remains included in held time. Background clearing and
+whole-request planning/cleanup/diagnostic costs are clarified in CREW-DIAGNOSTICS.md.
+Local code and affected validation only; no release authorization. Device session remains paused.
+
+
+### 2026-10-26 — Signed manual-cutoff lifetime correction
+
+Owner approved bounded server-side expiry for the preceding manual-cutoff implementation.
+Chosen entry-time lifetime is 285 seconds: 180-second session +45-second in-flight allowance
++60 seconds for the floored timestamp. Age >=285 seconds is refused before indexing work,
+without renewal; an explicit new manual session is required. Existing client budgets, signature,
+authorization/generation checks and acceptance thresholds are unchanged. A request admitted before
+expiry retains its existing execution bounds. No production or device execution is authorized.
