@@ -1,6 +1,6 @@
 # Flight Control — project status
 
-Last checkpoint: **2026-10-24 — documentation-only release preparation**.
+Last checkpoint: **2026-10-26 — focused diagnostic review corrections verified**.
 Current release review is [RELEASE-REVIEW.md](RELEASE-REVIEW.md); dated sections below
 are historical snapshots, not current deployment claims or instructions.
 
@@ -8,14 +8,19 @@ are historical snapshots, not current deployment claims or instructions.
 
 | Area | State and evidence |
 |---|---|
-| Git | Locally verified `v2.1-dev` at `5a7dd16`, two local documentation commits ahead of recorded origin; no fetch/push in this checkpoint |
+| Git | Locally verified `v2.1-dev` at `eba8876`, seven pending documentation edits preserved; three commits ahead of recorded origin; no fetch/push in this checkpoint |
 | Production frontend | Owner-supplied fetched Git reference `a3008d2`; served commit and device worker adoption not checked |
 | Backend | Owner reports active Version 29, displayed 2026-10-07 03:01 (timezone unspecified); editor screenshot is not immutable deployed-source proof |
-| Implementation | Crew frontend/backend routing exist. Combined proposal: 15 changed frontend runtime files + six backend files; complete 82-file static tree and all 127 endpoint differences classified in RELEASE-REVIEW |
-| Validation | Owner-run S0–S13 passed after S6 sequencing repair; teardown closed. Full suite recorded at `962644f`: 1379 pass, 0 fail, 2 skipped (Node 24.22.1); later owner-focused output 353/0/0 (Node v26.7.0), including hygiene |
-| Browser/device | Earlier desktop checks and owner-reported physical acceptance retained; final crew candidate/browser/device approval not established. Recover existing results first |
-| Remaining release requirements | Q1 clearance, Q4 execution identity, Q6 sole editor; candidate acceptance; real storage/backfill/timing evidence; baseline and explicit release approvals. See classified checklist |
-| Current authorization | Documentation only; review complete diff before any commit. Production **NO-GO**. No tests repeated, production access, feed access, code changes or deployment |
+| Implementation | Crew frontend/backend routing exist. Combined scope **selected by owner for preparation**: 15 changed frontend runtime files + six backend files; complete 82-file static tree. RELEASE-REVIEW retains the historical 127-file endpoint inventory  Historical82-file static inventory remains the reviewed baseline; this authorized local increment adds one frontend module, giving83 static files including sw.js. No publication |
+| Validation | Owner-run S0–S13 passed after S6 sequencing repair; teardown closed. C3 resolved by owner-approved documentation exception: exact execution date, executed build identity and corresponding manifest digests unavailable from inspected records; no commit-bound run claimed. Full suite recorded at `962644f`: 1379 pass, 0 fail, 2 skipped (Node 24.22.1); later owner-focused output 353/0/0 (Node v26.7.0), including hygiene |
+| Browser/device | Gregory’s supplied screenshots/context close Safari and Home Screen worker adoption of patched preview `0ecef7b232405a096670`; Home Screen moved from `807357dcd3bb9ef3e92e` with waiting update after normal closure/reopen. No repeat. Device model/iOS not established for these observations. Authorized fixture session: Standalone Safari and Home Screen restoration were owner-reported passed. Subsequent same-context Safari sign-out setup detects no token/roster while the other tab remains in review; Safari acceptance is qualified pending diagnosis, not classified as data loss. Home Screen remains passed. Separately authorized bounded Safari setup/sign-out passed visible roster removal, second-tab token/roster absence, offline signed-out reopening and System/Local retention; Physical Safari offline manual-refresh preserved visible roster, 16:46 last-sync/readiness and key presence; reconnect reported synchronized at 16:53 (Europe/Berlin), Available offline. No timeout/count/malformed acceptance inferred; full-device and unobserved cleanup requirements remain open. Historical Stage B visual approval retained |
+| Synthetic preview | Current recorded patched worker `0ecef7b232405a096670` hides the review dock on Settings only, retaining fictional mode/banner. Original `eba8876` / `a8024ca318cbf11bb3cb` remains distinct and unchanged. Prior rollback entries are historical; see current physical evidence in RELEASE-REVIEW |
+| Confirmed settings | Q4: executes as Gregory, owner-confirmed with supplied screenshot “Ausführen als: Ich”. Q6: Gregory confirms sole editor. Screenshot also shows “Zugriffsberechtigte: Jeder” (Anyone), observed only. No deployed-source, OAuth-scope or application-authentication verification implied |
+| Q1 permission | Gregory confirms the described private, single-user crew-data processing is permitted. No supporting policy/correspondence inspected; no independent legal verification. Excludes multi-user access, sharing and commercial use; not execution/release approval |
+| Remaining release requirements | candidate acceptance; production OAuth/runtime authentication verification; real storage/backfill/timing evidence; baseline and explicit release approvals. See classified checklist |
+| Timeout decision | Owner approved 45 s per `crewIndex` only; other crew requests remain 25 s. Server budget and all performance/acceptance targets unchanged; configuration is not measured latency |
+| Next checkpoint | Review focused initial-opt-in diagnostic lifecycle and cache-duration corrections. Local worker a6ae289d2a4dace19979;147 affected tests and13 hygiene/offline tests passed on Nodev26.7.0; no full-suite rerun. Historical full-suite evidence remains separately recorded in CREW-DIAGNOSTICS. Physical fault/Reset session remains paused at baseline inspection |
+| Current authorization | Local implementation, targeted tests and repository/build checks completed. No backend requests, production access, deployment, commit or push. Physical evidence remains scoped to patched preview; production **NO-GO** |
 
 ## Historical baseline (2026-10-14 onward)
 

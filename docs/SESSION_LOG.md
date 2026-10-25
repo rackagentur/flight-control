@@ -1,7 +1,312 @@
+## 2026-10-26 — Focused review corrections P1/P2
+
+The implementation-review findings P1/P2 are corrected locally (these labels are not the
+release performance rows P1/P2). Initial opt-in now re-arms only a previously explicit diagnostic
+intent, synchronously before enrollment dispatch. All old records are still cleared. Re-arming
+requires the same access id, exactly the expected consent transition and exactly the expected
+single diagnostic clear; there is no deferred re-arm after capability resolution. Identity
+changes, sign-out, reset, revocation and other access-ending clears retain their original behavior.
+
+A UI-to-runtime regression failed before the fix and now proves that first enrollment dispatches
+automatic initial indexing with diagnostics enabled, collects its aggregate report/session, and
+does not retain pre-opt-in records. Additional cases cover no diagnostic intent, interrupted
+consent/access/reset/owner-end, synchronous intervening reset and actual controller/service cleanup.
+The deterministic cache-hit test advances the injected monotonic clock by7ms and asserts7ms
+cache duration, no transport measurement, no extra request and unchanged network percentiles.
+A temporary in-memory Node loader substituting hard-coded zero made this assertion fail
+(actual0, expected7), as intended; tracked source was unchanged by the mutation experiment.
+
+Verification: Nodev26.7.0, **147 affected tests passed**, **13 hygiene/offline tests passed**,
+worker regeneration/check and git diff --check passed. No blanket full-suite rerun: the earlier
+1,395-test result and subsequent94-test result remain historical evidence for their recorded
+states, not new full-suite validation of this correction. Current local worker:
+**a6ae289d2a4dace19979** (82 precached assets plus sw.js). No backend source changed in this pass.
+No further concrete defect identified in this bounded correction; live measurements and release
+acceptance remain open. All pending edits, C3/G6/G8 and the unexplained Safari discrepancy remain.
+The physical session stays paused. No backend requests, production access, commit, push or deployment.
+Production remains **NO-GO**. Next checkpoint: review this focused corrective diff before any release action.
+
+## 2026-10-26 — Local aggregate diagnostics and bounded indexing
+
+Owner authorized implementation and targeted checks, replacing the fixed eight-call target with
+<=ceil(N/6)+2 attempts /180 seconds, six months/request unchanged, and explicit decimal-byte
+thresholds. Added opt-in aggregate backend accounting/timings, strict optional client validation,
+private bounded memory collection and a frozen history-sized runner allowance. Busy retry shares
+all budgets; other no-progress stops. Index/revoke acquisition2s/5s remains distinct from held time.
+See CREW-DIAGNOSTICS.md for exact semantics, compatibility and incomplete evidence limits.
+All seven pre-existing documentation edits preserved. C3/G6/G8 and historical evidence remain;
+Safari missing-state cause remains unknown. Paused physical session was not resumed. No backend
+requests, credentials, real data, production access, deployment, commit or push.
+Final verification: targeted suites passed; full suite1,395 pass/0 fail/0 skipped on Nodev26.7.0
+with Web Locks. The final cache-hit timing refinement then passed94 affected tests.
+Offline build/check and diff check passed on final assets. Local worker48fde17ef3516a66bf83,
+82 precached assets plus sw.js. Exact local backend digests and limitations: CREW-DIAGNOSTICS.md.
+No new live or physical acceptance; next checkpoint is owner review of this local change.
+
 # Flight Control — session log
 
 Newest first. One entry per working session (see the checkpoint procedure in `docs/NEXT_STEPS.md`).
 Facts only; link to decisions/issues by ID. Never paste URLs with tokens, calendar ids, names or employee numbers.
+
+## 2026-10-26 — Owner approves G6 substitution and G8 parity amendment
+
+Recorded explicit G6 timeout-preservation substitution using completed physical offline-refresh/
+reconnect evidence and inspected shared preservation path; timer-driven abort remains not physically
+verified, malformed/empty requirements unchanged. Recorded G8 Settings discovery-panel exception;
+unsupported enrollment must not dispatch, must explain lack of support and leave feature off;
+unsupported flight-detail crew remains absent. Amended CREW-INTELLIGENCE §14 and current records.
+C3 exception, earlier Safari discrepancy, combined scope and patched/original distinction preserved.
+Prepared only a bounded malformed/empty and Reset run sheet, including FC66_SCENARIO baseline
+restoration and explicit normal local cleanup scope. No tests, backend changes/requests, application
+changes, commit, push or deployment. All seven pending docs preserved; git diff --check passed.
+Production **NO-GO**. Execution requires separate approval.
+
+## 2026-10-26 — Owner approves C3 historical provenance exception
+
+Gregory approved resolving C3 by documentation exception after the bounded read-only search.
+Exact execution date, executed build identity and corresponding executed-bundle manifest digests
+are not recoverable from inspected records. Retained scratchpad manifests have no execution link;
+package source history and report dates are not proof of the run. S0–S13 and teardown remain
+completed, owner-reported evidence; no commit-bound validation claimed. No rerun/recreation solely
+for these missing records. Added an explicit superseding C3 decision and updated release evidence
+and current summaries. Other acceptance gates, combined preparation scope, earlier unexplained
+Safari discrepancy, Home Screen pass and patched/original build distinction remain unchanged.
+Five already-modified documentation files updated; all seven pending edits preserved. No tests,
+production access, application changes, commit, push or deployment. git diff --check passed.
+Production **NO-GO**. Next checkpoint: bounded planning for remaining explicit physical response-
+fault preservation cases; no execution authorized here.
+
+## 2026-10-25 — Remaining physical response-fault requirements classified
+
+Recorded the completed offline-refresh/reconnect checkpoint as closed within observed scope.
+Read-only review traced timeout/malformed/empty preservation to IPHONE-ACCEPTANCE §2 step 6 and
+its steps 1–10 pass criterion, plus STEP-6.6-OFFLINE physical step 8 (including fault-specific offline
+relaunch). Existing Node/desktop browser evidence retained; no new test executed. Timeout handling
+unit tests do not establish physical saved-v2 timeout preservation; elapsed timeout measurement is
+not an acceptance requirement here. Three rows remain unresolved acceptance gates, not failed tests
+or optional follow-up without explicit owner substitution/deferral. No new device matrix or repeated
+normal-path checks introduced. Patched/original candidate distinction, earlier Safari discrepancy,
+Home Screen pass and all seven pending edits preserved. Four documentation records updated;
+git diff --check passed. No application changes, production access, deployment, commit or push.
+Production **NO-GO**.
+
+## 2026-10-25 — Physical Safari offline-refresh preservation/reconnect completed
+
+Owner approved one bounded five-step session in one existing Safari context using the verified
+synthetic connection privately. Pre-sync booleans showed normal mode, matching origin, accessible
+storage and all three keys present (roster already present; no inference why). Online baseline:
+fictional roster, last sync 16:46 (Europe/Berlin), Available offline. Owner pressed Refresh roster
+once while offline, waited 30 seconds and saw no message; then confirmed same roster, unchanged
+time/readiness and all three keys present. After instructed single reconnect on Calendar, owner
+reported Roster synchronized, last sync 16:53 (Europe/Berlin), Available offline. Date not supplied.
+
+Recorded only physical Safari offline-refresh preservation and reconnect recovery. No measured
+timeout, exact request counts, byte comparison, raw traffic/error evidence or malformed-response
+acceptance claimed. Existing automated/browser evidence retained; no adoption, closure/reopen or
+sign-out reruns. Earlier unexplained Safari discrepancy and Home Screen pass preserved. No resets,
+backend changes, application changes, deployment, production access, commit or push. Updated four
+current records, preserving all seven pending files. git diff --check passed. Remaining physical
+A2 response-fault requirements not waived. Production **NO-GO**.
+
+## 2026-10-25 — Bounded synthetic Safari sign-out/two-tab check completed
+
+Owner separately authorized bounded synthetic setup/sync and resumed sign-out. Before sync both
+tabs reported matching origin, normal mode, accessible storage, endpoint/token present, roster
+absent. After automatic sync both showed the same fictional roster and all three keys present.
+System theme/Local display recorded in both. Sign-out once in Tab 1 produced no message and removed
+its visible roster. Focusing Tab 2 removed its roster; key-presence output confirmed endpoint
+retained, token/roster absent, normal mode and accessible storage. System/Local remained. Owner
+confirmed offline closure/reopen of Tab 2 left roster inaccessible and preferences unchanged.
+
+Pass limited to these observed patched-preview cases; no server-side deletion, full profile/history
+cleanup audit or Home Screen sign-out claimed. Earlier unexplained Safari absence and qualified
+persistence evidence preserved; Home Screen pass and adoption unchanged. Next remaining gate is
+A2 failed-refresh preservation/reconnect under separate authorization, not a repeat of sign-out.
+Updated four evidence/status docs; all seven pending files preserved. git diff --check passed;
+no additional tests, reset, fault-mode changes, application changes, deployment, commit or push.
+Production **NO-GO**.
+
+## 2026-10-25 — Read-only Safari key-presence diagnosis complete
+
+Gregory ran the supplied key-name-only snippet in iPhone Safari Web Inspector. Both tabs returned
+previewOriginMatches=true, storageAccessible=true and endpoint/token/roster key presence=false;
+reviewMode=false for Tab 1 and true for Tab 2. Owner confirmed regular/default Safari profile in
+both. No sensitive values read or exported; diagnostic made no writes or application requests.
+Absent keys are established at observation time; no storage-access exception observed. Cause,
+historical continuity and source-binding consistency remain unestablished. No data-loss or defect
+claim. Sign-out remains blocked before execution; Home Screen pass and closed adoption unchanged.
+Updated current summaries without erasing earlier qualified Safari evidence. Next proposed action:
+explicit bounded synthetic setup/sync authorization to establish sign-out's precondition, not a
+persistence rerun or explanation of the discrepancy. No reset, application changes, deployment,
+commit or push. All seven pending docs preserved; git diff --check passed. Production NO-GO.
+
+## 2026-10-25 — Synthetic sign-out checkpoint stopped before execution
+
+Owner authorized normal synthetic sign-out/two-tab invalidation. After initially confirming both
+tabs displayed a roster, Gregory clarified Tab 2 still showed review samples; Tab 1 exited review
+and displayed disabled Sign out. Supplied screenshot confirms “Access token” and “Not loaded yet”.
+Source inspection: button disabled when no token or saved roster is detected. Owner confirms the
+same Safari profile/context as the earlier restoration observation. No sign-out invoked; preference
+retention, second-tab invalidation and post-sign-out reopening remain untested. No automatic retry.
+
+Preserved earlier restoration report with an explicit unresolved Safari qualification; no data-loss
+or application-defect conclusion. Home Screen restoration and adoption remain closed. Next proposed
+checkpoint is read-only storage-state/source-binding diagnosis without credential/roster values,
+new sync, reset or reconfiguration. Updated four current evidence/status records, preserving all
+seven pending docs. git diff --check only; no application changes, deployment, commit or push.
+Production **NO-GO**.
+
+## 2026-10-25 — Fixture-only source verified and device persistence session recorded
+
+Verified active synthetic deployment maps to immutable Version 2; all four complete Project History
+files hash-match the reviewed publication record. Source uses embedded fixtures and in-memory
+provider-shaped replies, with no live data bindings; empty OAuth scopes and no dependencies.
+Gregory's separate user-run TLS/authenticated capabilities preflight passed. No credential values
+or backend endpoint identifiers recorded; no roster/history retrieved by the source inspection.
+
+Owner-authorized device session: first configured browser showed saved-roster readiness and restored
+fictional roster offline after closure/reopen. Gregory subsequently confirmed the context was standalone
+Safari; standalone Safari persistence is therefore accepted by owner report without a rerun. Initial mistaken reopening in unconfigured Home Screen was clarified,
+not classified as storage failure. Home Screen was then configured privately while offline, synced
+from Calendar and restored its roster after offline app-switcher closure/reopen. Owner reported the
+same “Roster synchronized · Last sync 2026-10-24 21:12 (Europe/Berlin) · Available offline” before and
+after reopening. Timestamp retained verbatim. No device model/iOS inferred, no request trace claimed.
+
+Updated RELEASE-REVIEW, PROJECT_STATUS, NEXT_STEPS and this log, preserving all seven pending docs.
+Only patched-preview standalone Safari/Home Screen restoration outcomes accepted; adoption remains
+closed. Next owner action is scoped authorization for remaining synthetic sign-out/two-tab invalidation. Other acceptance/performance/runtime/baseline/release gates remain.
+No application changes, deployment, production access, fault changes, reset, commit or push.
+Documentation validation: git diff --check only. Production **NO-GO**.
+
+## 2026-10-25 — Owner confirms patched-preview physical worker adoption
+
+Recorded Gregory's supplied screenshots and browser-context confirmations: Safari controls
+0ecef7b232405a096670 with no waiting update and sample banner visible; existing Home Screen moved
+from 807357dcd3bb9ef3e92e with a waiting update to 0ecef7b232405a096670 after normal closure/reopen,
+with no waiting update. These patched-preview adoption checks are closed; no repeat requested.
+No device model/iOS inferred. Both display roster persistence not confirmed; no storage failure,
+offline readiness, complete device acceptance, original-candidate or production approval claimed.
+
+Read-only source inspection confirms review-mode snapshots are generated in memory and excluded
+from offlineReady; scenario sessionStorage is not saved-roster persistence. Recommended one
+conditional fixture-only sync/offline session using the existing Step 6.6 synthetic backend and
+normal persistence path, after explicit target/access authorization and availability preflight.
+No production credentials, reset or infrastructure recreation. Updated release evidence and current
+summaries; retained earlier reports as historical. All seven pending files preserved at v2.1-dev
+eba8876, three commits ahead. No tests, application changes, deployment, production access, commit
+or push. Verification: git diff --check only. Production NO-GO; unrelated gates remain open.
+
+## 2026-10-25 — Synthetic frontend publication and authorized rollback
+
+Preserved all seven pending documentation edits at v2.1-dev eba8876. Used the existing preview
+project and unchanged configuration; verified READY pre-change rollback before publishing.
+82 candidate files plus preview config staged; worker unchanged at a8024ca318cbf11bb3cb.
+Immutable/stable static integrity passed 83/83 responses each. Immutable Chrome candidate worker,
+81 cached assets, fictional light/dark presentation and offline shell passed. An external harness
+title assertion was corrected; application source was untouched. No external request attempts.
+Stable-origin seeded browser retained 807357dcd3bb9ef3e92e after normal client closure/reopen,
+so restored the verified pre-change alias under the owner's rollback authorization. No storage
+clearing, forced activation or emergency worker. Candidate physical acceptance not claimed.
+Outcome and identities recorded outside Git in flight-control-preview-20261025; current release
+summaries updated. No regression/S0–S13 reruns, production/backend/provider requests, application
+credentials, source changes, new cloud projects, commit or push. Production NO-GO. Next step is
+scoped worker-adoption diagnosis; remaining authenticated/performance/release gates stay open.
+
+## 2026-10-24 — Q1 owner confirmation recorded; bounded checklist advanced
+
+Gregory confirms the previously described private, single-user crew-data processing is permitted.
+Recorded as owner-confirmed only: no supporting policy or correspondence was inspected; no
+independent legal verification, external approver or approval date is asserted. Multi-user access,
+sharing and commercial use are not covered. Added a superseding decision and closed current Q1
+items in the release review, specification and summaries while preserving historical entries.
+
+Verified v2.1-dev at eba8876, three commits ahead, with all seven pending documentation files
+preserved. Advanced the next checkpoint to D2's existing bounded session, requiring explicit
+candidate/target/data/operation authorization before execution. Technical acceptance, performance,
+OAuth/runtime and rollback-baseline requirements remain. No reconciliation restart, repeated
+validation or execution; production NO-GO. No tests, production access, application changes,
+commit, push or deployment. Verification: git diff --check only.
+
+## 2026-10-24 — Confirmed Apps Script settings recorded
+
+Verified `v2.1-dev` at `eba8876`, three commits ahead, preserving the six pending documentation
+files. Q4 execution as Gregory is owner-confirmed with supplied screenshot evidence of
+“Ausführen als: Ich”; Q6 sole-editor status is owner-confirmed. Recorded screenshot access
+setting “Zugriffsberechtigte: Jeder” as observed, unchanged, not a new approval. No email or
+deployment identifiers recorded. Updated current summaries and specification rows; added an
+explicit superseding decision while preserving historical entries. Screenshot evidence does
+not verify deployed source, OAuth scopes or application authentication. Q1 and unrelated
+acceptance/performance/release gates remain open. Scope selection, timeout exception, Stage B
+visual approval and completed validation/teardown preserved. Production NO-GO. No code changes,
+tests, production requests, commit, push or deployment. Verification: `git diff --check` only.
+
+## 2026-10-24 — Gregory approves historical Stage B screenshots visually
+
+Recorded Gregory's visual approval of the recovered 198 synthetic PNGs listed in E6's
+`stage-b-shots/index.md` (Flight Details/Settings, light/dark, 320/390/430 px). RELEASE-REVIEW
+records the exact scratchpad path; the local gallery uses those existing images. No build hash
+is recorded in the index, and none is inferred for this approval. Approval covers this historical
+artifact set only, not later visual changes, physical-device/cross-tab behavior, performance,
+deployment, activation or production release. Updated current summaries and next action;
+preserved all prior uncommitted edits. Other requirements, Q1/Q4/Q6 and production NO-GO remain.
+S0–S13 and teardown stay closed. No tests, screenshots regenerated, code changes, commit, push
+or deployment. Documentation verification: `git diff --check` only.
+
+## 2026-10-24 — Stage B acceptance evidence recovered from existing chat
+
+Continued read-only evidence reconciliation at `eba8876`, preserving all six pending docs.
+The “Verify Flight Control access” chat records the initial 198/198 Chromium layout pass and
+six screenshot inspections, then behavioral corrections verified at 24/24 targeted, 294/294
+crew/store and 1244/1244 full suite. Found its exact scratchpad: 198 PNGs and 198 index rows
+marked ok. No new tests or screenshots. Index lacks a build hash; follow-up did not regenerate
+screenshots or exercise actual browser cross-tab delivery. Four presentation/harness files
+are byte-identical between Stage B commit `3b3b56d` and HEAD. Updated E6/matrix and current
+next action: owner visual approval of recovered artifacts, then missing device/live aggregate
+evidence. Early scratchpad measurement draft is superseded, not new live-peak evidence.
+No code changes, credentials/private roster reads, resource creation, production access, commit,
+push or deployment. Production NO-GO; S0–S13 and teardown remain closed. `git diff --check` only.
+
+## 2026-10-24 — Existing acceptance and aggregate evidence reconciled
+
+Verified `v2.1-dev` at `eba8876`, three commits ahead; preserved all six pending documentation
+edits, selected combined scope and approved 45 s crewIndex exception. Read tracked requirements,
+relevant commit bodies and available local acceptance/publication/remediation records plus saved
+synthetic Node aggregate logs. No tests or live requests. RELEASE-REVIEW now holds one evidence
+matrix with candidate/environment limits and smallest follow-ups. Recovered earlier responsive
+publication/adoption, specific historical iPhone observations and synthetic storage totals;
+old sign-out adoption records retain the older controller. None establishes current crew device
+acceptance. Missing crew UI/live aggregate reports are evidence gaps, not failed tests. Q1/Q4/Q6
+remain separate owner gates. Next owner action: identify existing final acceptance/performance
+records with build/environment metadata or confirm their absence. No general retest proposed.
+No private reference/credential files or personal roster/crew payloads inspected; no code changes,
+resource creation, commit, push or deployment. Production NO-GO; validation and teardown closed.
+Documentation verification: `git diff --check` only.
+
+## 2026-10-24 — Owner-approved indexing-timeout exception recorded
+
+Verified `v2.1-dev` at `eba8876`, three commits ahead of recorded origin; preserved all five
+uncommitted scope-selection documentation edits. Recorded the owner's approval of 45 s per
+`crewIndex` only, explicitly superseding its former <30 s client-timeout target. Other crew
+requests stay at 25 s. Updated specification and current summaries; earlier decision snapshots
+remain historical. Server budget, measured-performance targets and acceptance requirements
+are unchanged. Production NO-GO and deployment/activation restrictions remain. Next checkpoint:
+recover and reconcile existing candidate acceptance and aggregate performance/storage evidence.
+Completed S0–S13 validation and teardown remain closed. No code changes, tests, commit, push,
+deployment or production access. Documentation verification: `git diff --check` only.
+
+## 2026-10-24 — Owner scope selection recorded
+
+Verified clean `v2.1-dev` at `eba88764dacee5746b8434df5dc2733afe2cb064`, three commits
+ahead of recorded origin; read repository instructions. Recorded the owner's combined
+crew + single-flight-information + attribution selection **for preparation only** in DECISIONS
+and current RELEASE-REVIEW, PROJECT_STATUS and NEXT_STEPS summaries. The reviewed 15 frontend
+changes, six backend files and 82-file static tree are unchanged; the 127-file inventory is
+explicitly tied to its historical comparison. Earlier proposals remain historical.
+Production NO-GO and all unresolved gates remain; deployment/activation unauthorized.
+Next recommended decision: an explicit indexing-timeout specification exception based on
+existing configuration and cooperative-budget evidence, not a latency claim or approved waiver.
+S0–S13 and teardown remain closed. No application changes, tests, resource creation, production
+access, commit, push or deployment. Verification for this documentation update: `git diff --check`.
 
 ## 2026-10-24 — Release preparation, documentation review only
 

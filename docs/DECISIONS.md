@@ -66,3 +66,135 @@ It does not supersede product decisions, Q1/Q4/Q6 or measurement/acceptance requ
 Frontend-first order remains binding, backend authorization separate. The owner-reported
 current web-app rollback reference is Version 29; Version 27 remains historical.
 No release selection, commit, push, deployment or real crew processing is approved here.
+
+
+## 2026-10-24 — Owner selects combined scope for preparation
+
+Owner selected the combined crew + single-flight-information + attribution scope: the exact
+15 frontend changes, six backend files and complete 82-file static publication tree reviewed
+in `RELEASE-REVIEW.md` and committed in `eba8876`. This supersedes only the awaiting-selection
+status of the earlier “Combined release scope proposal (not approved)” entry above; the older
+gate-only and crew-only proposals remain historical. The inventory is unchanged.
+
+Selection is **for release preparation only**. It authorizes no application changes, tests,
+resource creation, production access, commit, push, deployment or activation. Production
+remains **NO-GO**. Frontend-first order and separate backend authorization remain binding.
+Q1/Q4/Q6, candidate acceptance, storage/backfill/timing evidence, the indexing-timeout
+specification discrepancy, rollback-baseline confirmation and release approvals remain open.
+Completed S0–S13 validation and teardown stay closed. The next recommended decision is the
+explicit indexing-timeout exception described in `RELEASE-REVIEW.md`; it is not approved here.
+
+
+## 2026-10-24 — Approved client-timeout exception for crewIndex only
+
+Owner approves **45 seconds per `crewIndex` request only**. This explicitly supersedes the
+<30-second client-timeout target in `CREW-INTELLIGENCE.md` §12 only for `crewIndex`, and resolves
+the timeout decision left open in the earlier scope-selection entry. `crew`, `crewEnroll` and
+`crewRevoke` retain their configured **25-second** timeout; the ordinary-request target is unchanged.
+
+The client timeout is a configured wait limit, not evidence of measured latency and not an extension
+of the cooperative ≈15-second server execution budget. All server-duration, latency, backfill,
+storage, quota and acceptance targets remain unchanged. The combined scope remains selected for
+preparation only; Q1/Q4/Q6, missing acceptance/performance evidence, rollback-baseline confirmation
+and release approvals remain open. Completed validation and teardown stay closed. Production
+remains **NO-GO**. No code changes, test reruns, commit, push, deployment, activation or production
+access are authorized by this decision.
+
+
+## 2026-10-24 — Owner confirms Q4/Q6 and displayed access settings
+
+Gregory confirms that the production web app executes as him (Q4). The supplied screenshot
+supports the displayed setting “Ausführen als: Ich” (Execute as: Me). Gregory also confirms
+that he is the project's only editor (Q6); this is owner confirmation, not screenshot evidence.
+The screenshot shows “Zugriffsberechtigte: Jeder” (Who has access: Anyone). Record this as an
+observed existing setting, not a change or new access approval.
+
+This supersedes only the unresolved Q4/Q6 status in earlier release-preparation entries and
+specification decision rows. It does not verify deployed source, OAuth scopes, runtime effective-user
+behavior or application authentication. No account email or deployment identifiers are recorded.
+Q1 remains unresolved: public web-app access is not permission to process crew data. Selected
+combined scope, approved crewIndex timeout exception, historical Stage B visual approval and
+closed validation/teardown remain unchanged. Other acceptance/performance/baseline and release
+gates remain open. Production NO-GO; no production access or deployment authorized.
+
+
+## Q1 — Owner confirmation of private, single-user processing (recorded 2026-10-24)
+
+Gregory confirms that the previously described private, single-user crew-data processing is
+permitted. Evidence is Gregory's statement in this conversation only: no supporting policy or
+correspondence was inspected, and no independent legal verification is claimed. No external
+approver or approval date is asserted. This does not cover multi-user access, sharing or
+commercial use.
+
+This supersedes only the unresolved Q1 status in earlier release-preparation entries and current
+specification/checklist wording. Earlier entries remain historical. Candidate/device/cross-tab
+acceptance, performance, OAuth/runtime authentication and rollback-baseline requirements remain
+open. The selected combined scope, indexing-timeout exception, historical Stage B visual approval
+and closed S0–S13/teardown are unchanged. The next checkpoint is D2 in RELEASE-REVIEW: separately
+authorize the existing bounded session with named candidate, targets, data scope and operations.
+Permission confirmation is not authorization to execute that session, access production or release.
+Production remains NO-GO pending technical acceptance and explicit release authorization.
+
+
+## C3 — Historical provenance exception (owner-approved 2026-10-26)
+
+Gregory approves resolving C3 through a documentation exception. Retain Phase 1d.2C S0–S13
+and teardown as completed, owner-reported evidence. The exact execution date, executed commit/
+build identity and corresponding executed-bundle MANIFEST.txt digests are **not recoverable from
+inspected records**. Surviving scratchpad manifests describe multiple packages but do not establish
+which was executed. The report date and package source history are not execution provenance.
+
+This supersedes only the unresolved C3 metadata-recovery requirement from the release-gate review
+and the expectation of recovering those fields in CREW-GAS-TEST-SETUP §7/§13.1. The historical
+record remains unchanged; do not invent dates/hashes or present regenerated hashes as historical.
+C3 is **resolved by accepted exception**, not commit-bound validation. Do not rerun validation or
+recreate infrastructure solely to replace these records. No other acceptance requirement is waived.
+Combined preparation scope, earlier unexplained Safari discrepancy, Home Screen pass and the
+patched-preview/original-candidate distinction remain unchanged. Production **NO-GO**; no tests,
+commit, push, deployment or production access authorized.
+
+
+## G6/G8 — Owner-approved evidence substitution and capability parity (2026-10-26)
+
+**G6 approved:** accept completed physical Safari offline-refresh preservation/reconnect evidence
+and the inspected shared saved-v2 preservation path for network/timeout errors as a narrow
+substitution for physical timeout-preservation testing. Timer-driven abort remains **not physically
+verified**. This supersedes only the separate physical timeout-preservation requirement in
+IPHONE-ACCEPTANCE §2.6, STEP-6.6-OFFLINE physical step 8 and the corresponding release-review A2
+row. It does not change timeout configuration, require an elapsed-time benchmark, or waive
+malformed/empty-response preservation. Immutable FC66 Version 2 has no deliberate timeout mode;
+the different generator's timeout mode is not a capability of that deployment.
+
+**G8 approved:** amend CREW-INTELLIGENCE §14 Phase 1c capability-absent parity to permit the
+Settings discovery/opt-in panel. Unsupported enrollment must stop before enrollment dispatch,
+explain that the backend does not offer the feature and leave the feature off. Flight-detail crew
+content must remain absent without supported capability. This supersedes literal whole-app
+pixel-identity only for that Settings panel; other parity/privacy requirements remain. Approval
+changes the criterion, not a claim of new physical execution or live-grant cleanup acceptance.
+
+C3's approved provenance exception, combined preparation scope, earlier unexplained Safari
+absence, Home Screen pass and patched/original build distinction remain intact. No tests, backend
+setting changes/requests, application changes, deployment, commit or push authorized by these
+records. Production **NO-GO**. Malformed/empty and Reset execution requires separate authorization.
+
+## Measurement/backfill — Owner-approved specification decisions (2026-10-26)
+
+Owner approved opt-in aggregate diagnostics, history-scaled bounded continuation, operation-specific
+lock waits, documentation and targeted tests. Supersedes the fixed <=8-call initial-backfill
+criterion in CREW-INTELLIGENCE §12 and RELEASE-REVIEW P2: N is captured once from the first
+successful work snapshot; complete coverage requires <=ceil(N/6)+2 requests and <=180 seconds,
+within existing budgets. Six months/request remains. One shared busy retry consumes allowance;
+other no-progress stops; no automatic resume or allowance growth. Decimal-byte thresholds are
+explicitly approved:6,000 median /8,000 maximum stored part bytes;450,000 observed peak;
+500,000 admission. No latency, lock-held, quota or other acceptance target is waived.
+
+Approved implementation safeguards and precise contract/retention/incomplete behavior are in
+CREW-DIAGNOSTICS.md. Diagnostics stay request/client memory-only, aggregate-only, bounded and
+subject to unchanged authorization/generation/cleanup/admission. User Properties operation
+counts include diagnostic overhead but are not a complete daily quota calculation. Legacy
+responses remain valid; missing session metadata prevents speculative continuation.
+
+This authorization permits local implementation and tests only. No production/backend requests,
+credentials, deployment, commit or push; paused physical session stays paused. C3's accepted
+provenance exception, G6/G8, Q1/Q4/Q6 and historical/physical evidence remain within their recorded
+scope; the unexplained Safari discrepancy is not resolved by this work.

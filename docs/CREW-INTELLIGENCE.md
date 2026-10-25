@@ -6,7 +6,11 @@ teardown are complete (`CREW-GAS-TEST-SETUP.md` §13). Current source baseline `
 production Git comparison reference `a3008d2`, not a served-build verification.
 
 [RELEASE-REVIEW.md](RELEASE-REVIEW.md) reconciles implementation, measurements, acceptance
-and unresolved Q1/Q4/Q6. Earlier phase-status sections below are historical implementation
+and the bounded release checklist. Q1 is owner-confirmed for the described private, single-user
+processing only; no supporting policy or correspondence was inspected and no independent legal
+verification is claimed. Multi-user access, sharing and commercial use are not covered. Q4 is confirmed by Gregory and the supplied execution-setting screenshot;
+Q6 is owner-confirmed. These confirmations do not verify deployed source, OAuth scopes or
+application authentication; see the 2026-10-24 confirmation in DECISIONS.md. Earlier phase-status sections below are historical implementation
 snapshots: “not routed”, “not committed”, “frontend not implemented” and “simulated only”
 must not be read as the current overall status. Their requirements remain binding unless
 explicitly superseded; source presence is not release approval or policy clearance.
@@ -43,7 +47,8 @@ Revision 3 makes to it.
 4. History from **2022-08-01** (the backend's existing `historyStart`), no rolling window.
 5. **Opt-in, disabled by default.**
 6. The v5 sync, including its colleague notes, stays **unchanged** until a replacement is separately approved.
-7. **Unresolved, not assumed:** airline-policy / works-agreement permission and data-protection clearance (Q1).
+7. **Q1 owner-confirmed:** Gregory confirms the described private, single-user processing is permitted;
+   no supporting policy or correspondence inspected. No multi-user access, sharing or commercial use.
 
 ## 1. Codex blockers: resolution summary
 
@@ -805,7 +810,7 @@ session** to learn `crewCancel`. Without the capability (older backend) the dele
 
 | Option | Verdict |
 |---|---|
-| **User Properties**, `fcx.` namespace (recommended) | Not used by any project code today (verified by search of `backend/` and the private v5 copy), but **not assumed exclusive**: crew code reads, writes and deletes only keys starting with `fcx.` and counts other keys toward the 500 KB budget; separate from production secrets in Script Properties; no new scope. The web app must execute as the owner: the private v5 manifest says `executeAs: USER_DEPLOYING` (**unverified for the live deployment**, Q4) |
+| **User Properties**, `fcx.` namespace (recommended) | Not used by any project code today (verified by search of `backend/` and the private v5 copy), but **not assumed exclusive**: crew code reads, writes and deletes only keys starting with `fcx.` and counts other keys toward the 500 KB budget; separate from production secrets in Script Properties; no new scope. The web app must execute as the owner: the private v5 manifest says `executeAs: USER_DEPLOYING` (Q4 execution setting confirmed 2026-10-24 by owner and screenshot; live runtime gate/OAuth behavior not verified) |
 | Script Properties | Shares namespace and quota with `FC_V2_TOKEN` and other production secrets → rejected for the index (used only for small crew control records, §4.1) |
 | Google Sheet / Drive file | **Not used.** Automatic Sheet fallback removed. Any other store needs a new founder decision (Q5) |
 
@@ -850,7 +855,7 @@ admission: peak ≤ 500,000 bytes, else not staged (§9.5)
 
 Committed history can grow until `C ≈ 500 − (M_res + S + N_max + R_max + K) ≈ 420 KB`, i.e. **between ~2027 and
 ~2031** depending on real sizes. Phase 1a replaces these estimates with measurements of realistic synthetic data;
-Phase 1d reports real bytes (`crewIndex` returns `{U, C, R, O, K, peakLastCommit}`, no content). Reduction options if
+Phase 1d uses opt-in aggregate diagnostics ([current schema](CREW-DIAGNOSTICS.md)), separating measured peak/categories from conservative admission; the earlier `{U, C, R, O, K, peakLastCommit}` shorthand is superseded. Reduction options if
 needed (each needs approval): shared key dictionary; dropping sector bitmasks.
 
 ### 9.4a Measured (Phase 1a, synthetic — 2026-10-22, re-run after the correction pass)
@@ -920,7 +925,8 @@ Safeguards:
 - Only editors of the Apps Script project can read the stores; owner must remain the sole editor (Q6).
 - The crew lists remain in the owner's own roster calendar (feed + synced copy) and in v5 notes; Crew Intelligence
   neither creates nor deletes them. The app says so.
-- Single user only; airline-policy and data-protection clearance unresolved (Q1).
+- Single user only; Q1 permission is owner-confirmed for the described personal scope, without
+  inspection of supporting policy/correspondence or independent legal verification.
 
 ---
 
@@ -946,10 +952,18 @@ Safeguards:
 | Shard size distribution | median ≤ 6 KB, max ≤ 8 KB per part | Phase 1a synthetic; Phase 1d real (`crewIndex` reports bytes) |
 | Peak storage (§9.4) | measured peak ≤ 450 KB with today's history | Phase 1a synthetic; Phase 1d real |
 | Commit section (lock held) | ≤ 2 s per month | Phase 1a fake env with simulated write latency; Phase 1d real |
-| Initial backfill | ≤ 8 `crewIndex` calls, ≤ 3 min wall clock | Phase 1d, owner-run; response `timings` (ms per month, events, bytes — no data) |
+| Initial backfill | Owner-approved 2026-10-26: ≤ `ceil(N / 6) + 2` calls and ≤180 s; N captured once, complete coverage, existing budgets apply | Opt-in session/aggregate diagnostics; [definitions and limits](CREW-DIAGNOSTICS.md). Supersedes fixed eight-call target; six months/request retained |
 | Warm `crew` | p50 ≤ 3 s, p95 ≤ 6 s (read-only: snapshot + live open months; no reconciliation) | App measures (memory only), owner records 10 samples |
-| Per call worst case | ≈ 15 s server work, **cooperative** (can be exceeded by one in-progress Calendar read, §7.5c); < 30 s client timeout | Budgeted loops; slow fake-env test; real timings unmeasured |
+| Per call worst case | ≈ 15 s server work, **cooperative** (can be exceeded by one in-progress Calendar read, §7.5c) | Budgeted loops; slow fake-env test; real timings unmeasured |
+| Configured client timeout (owner-approved 2026-10-24) | 45 s per `crewIndex` request only; `crew`, `crewEnroll` and `crewRevoke` remain 25 s | Source configuration, not measured response latency |
 | Properties quota use | ≤ 5 % of the daily quota on a heavy day | Count reads/writes per call in tests; check documented quota |
+
+Owner-approved exception (2026-10-24; see `DECISIONS.md`): 45 s for `crewIndex` supersedes
+only that action's former <30 s client-timeout target. Other crew requests retain their configured
+25 s timeout and remain within the original <30 s target. This client-side wait limit neither
+establishes measured latency nor extends the cooperative ≈15 s server execution budget (§7.5c).
+Latency, initial-backfill, storage, quota and acceptance targets remain unchanged. No new test
+cycle or code change is implied. Production remains NO-GO; deployment/activation unauthorized.
 
 If targets fail: half-month windows; fewer verification steps per call; never a full scan in one request.
 
@@ -993,7 +1007,7 @@ R4-4 → T4, T15; R4-5 → T9, T16, T17. Revision 4.1: conservative linking → 
 | 0 | This spec (rev. 4) + mockup | Owner + Codex approve; Q1–Q14 answered; D-014 approved |
 | 1a | **Done (synthetic, 2026-10-22; correction pass applied).** Pure core: adapter parser + diagnostics, `fcv2GroupDuties_` extraction, encounter model with suspect groups, shard codec, manifest, fingerprint, digest, admission, state machine incl. generation protocol; fake environment; T2–T6, T9–T17 (pure/fake env); size/CPU benchmark | All binding tests pass; roster output byte-identical; size estimates replaced by measurements |
 | 1b | Backend handlers (enroll, index, crew, revoke, purge) on the fake env; T1, T7, T8, T13 end-to-end | Not deployed; reviewed by Codex |
-| 1c | Frontend behind capability (Settings, enrollment, Crew section, memory-only service, Condor rank pack) | Pixel-identical without capability; screenshots of all states (Light/Dark, 320/390/430 px) |
+| 1c | Frontend behind capability (Settings, enrollment, Crew section, memory-only service, Condor rank pack) | Capability-absent parity except the owner-approved Settings discovery/opt-in panel (G8, 2026-10-26); unsupported enrollment stops before dispatch, explains unsupported backend and leaves feature off; flight-detail crew content absent without supported capability. Screenshots of all states (Light/Dark, 320/390/430 px) |
 | 1d | Release, each step separately approved: frontend → backend version (rollback recorded) → owner sets properties → enrollment → backfill | §12 live measurements recorded; revoke verified; v5 untouched |
 | 2 | Optional Today count chip | Separate approval |
 | 3 | v5 notes retirement | Separate approval |
@@ -1007,16 +1021,16 @@ v5 retirement plan (unchanged from Revision 2): R0 untouched → R1 owner compar
 
 | Risk | Status |
 |---|---|
-| Airline-policy / works-agreement / data-protection clearance | **Unresolved** (Q1); blocks release, not design |
+| Airline-policy / works-agreement / data-protection clearance | **Owner-confirmed** (Q1) for described private, single-user processing only; no supporting policy/correspondence inspected; not independent legal verification or release approval |
 | Store capacity: full history may outgrow 500 KB between ~2027 and ~2031 | Estimated only; exhaustion handled safely but coverage becomes incomplete; needs a later storage decision |
-| Live execution identity (`USER_DEPLOYING`) and effective-user check | Unverified on the live deployment |
+| Live execution identity (`USER_DEPLOYING`) and effective-user check | Q4 execution setting confirmed by owner/screenshot 2026-10-24; runtime effective-user check and OAuth authorization not verified |
 | Exact Properties daily quota; whether Google counts key bytes toward 500 KB | Re-check against current documentation; design counts keys conservatively |
 | `LockService` fairness and wait behaviour under contention | Unmeasured; revoke may answer `busy` and rely on app retry |
 | Whether bulk `getProperties()` is a consistent snapshot | Not assumed; digest validation + retries (§7.6) make it unnecessary |
 | Shared stores across deployments (`/dev` head) | Mitigated by schema refusal + process rule; not technically enforced |
 | Chain-break detection relies on airport discontinuity; a missing sector that leaves airports connected (e.g. missing round trip X→Y→X) is undetectable | Accepted limitation; may still overcount in rare cases → documented as "available records" |
 | Calendar time to read a month window | Unmeasured; budgets may need half-month windows |
-| Owner-only editor assumption for the Apps Script project | Owner to confirm (Q6) |
+| Owner-only editor assumption for the Apps Script project | Q6 owner-confirmed 2026-10-24: Gregory is the only editor |
 | Employee id changes split a person in two; name-only lines never matched | Accepted limitation |
 | Synced-copy gaps before some date look like quiet months | Reported as covered-but-empty; cannot be distinguished from no flying |
 | Stackdriver exception logging could capture crew text if a code path throws raw content | Mitigated by catch-and-code rule + test T11 |
@@ -1173,12 +1187,12 @@ version (the crew files and the hook leave with it) — run `crewPurgeAll` first
 
 | # | Decision | Proposal |
 |---|---|---|
-| Q1 | Airline-policy / works-agreement permission and data-protection clearance for this personal use | Founder to obtain; not assumed |
+| Q1 | Airline-policy / works-agreement permission and data-protection clearance for this personal use | Gregory confirms the described private, single-user processing is permitted. No supporting policy/correspondence inspected; no independent legal verification. Excludes multi-user access, sharing and commercial use; no release authorization |
 | Q2 | Durable incremental index in **User Properties** (`fcx.` namespace), no Sheet/Drive fallback | Yes |
 | Q3 | On storage exhaustion: keep the last valid generation; new months uncovered (incomplete), failed replacements stale | Yes |
-| Q4 | Confirm the live web app executes as the owner (deploying user) | Founder to confirm in Manage deployments |
+| Q4 | Confirm the live web app executes as the owner (deploying user) | Confirmed 2026-10-24 by Gregory and supplied screenshot: “Ausführen als: Ich”. Displayed access is “Jeder” (Anyone), observed only; not source/OAuth/application-authentication verification |
 | Q5 | Future storage beyond 500 KB (only if measurements require it) | Decide later, separately |
-| Q6 | Founder stays the only editor of the Apps Script project | Founder to confirm |
+| Q6 | Founder stays the only editor of the Apps Script project | Owner-confirmed 2026-10-24: Gregory is the only editor |
 | Q7 | Editor-run `crewPurgeAll` as an exception to the `_` naming rule | Yes |
 | Q8 | Enrollment by owner-issued code in Script Properties (≤ 15 min, single use, 5-attempt burn) | Yes |
 | Q9 | Pepper rotation on suspicion only | Yes |
@@ -1198,3 +1212,12 @@ version (the crew files and the hook leave with it) — run `crewPurgeAll` first
 | Q23 | **New (1b):** "Re-check history" re-verifies months verified before the moment it was started (`verifyBefore`) | Yes |
 | Q24 | **New (1b correction):** an owner enrollment code may supersede an interrupted revocation (recovery without manual property editing) | Yes |
 | Q25 | **New (1b correction):** automatic floor retry when ≥ one 8 KB part fits beyond all reserves; explicit `retryUncovered` otherwise | Yes |
+
+## 2026-10-26 — Owner-approved measurement implementation
+
+[CREW-DIAGNOSTICS.md](CREW-DIAGNOSTICS.md) defines the opt-in contract, bounded retention,
+decimal-byte thresholds, frozen work allowance, busy retry and incomplete evidence semantics.
+It supersedes fixed enrollment/manual eight-call wording wherever it appears above; detail
+indexing remains three calls. Index/revoke acquisition waits implement the existing2s/5s limits;
+held-time acceptance remains separate. Six months, cooperative15s,25s ordinary/45s index client
+timeouts and all other acceptance targets remain. Implementation is local, not deployment evidence.

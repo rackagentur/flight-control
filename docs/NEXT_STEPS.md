@@ -1,21 +1,126 @@
 # Flight Control — next steps
 
-Last updated: **2026-10-24**. Current checkpoint: documentation review only.
+Last updated: **2026-10-26**. Current checkpoint: focused diagnostic review corrections verified; approved physical fault/Reset session paused at baseline inspection.
 
-## 1. Next owner decision
+## Current implementation checkpoint — 2026-10-26
 
-**Select the combined crew + single-flight-information + attribution scope in
-[RELEASE-REVIEW.md](RELEASE-REVIEW.md), or request a separately reviewed crew-only proposal.**
-Review the complete documentation diff first. Scope selection is not permission to commit,
-push, deploy, change properties/triggers, access the feed or process real crew data.
+Local aggregate diagnostics, bounded backfill and lock-wait changes are owner-authorized and verified.
+Current worker a6ae289d2a4dace19979. Focused review corrections:147 affected tests and13
+hygiene/offline tests passed on Nodev26.7.0; worker/diff checks passed. No full-suite rerun.
+Initial opt-in diagnostic intent is re-armed with fresh records; access-ending clears remain.
+Cache timing has a deterministic nonzero assertion and a rejecting hard-coded-zero mutation check.
+Earlier1,395-test and94-test results remain historical in CREW-DIAGNOSTICS. No publication.
+See CREW-DIAGNOSTICS.md and the new decision entry. Next: owner reviews the local change and
+recorded targeted/build checks; no automatic publication or real-data commissioning. The already
+approved synthetic fault/Reset session remains paused at baseline inspection; do not run it in
+parallel. The older authorization/status text below records the preceding checkpoint and is
+superseded only by this local implementation authorization. Production remains NO-GO.
 
-## 2. Release follow-up after scope selection
+## 1. Scope selected; timeout exception approved
 
-Use RELEASE-REVIEW's classified checklist and exact inventory. Recover existing crew UI/device
-acceptance and aggregate storage/backfill/timing results before proposing tests. Resolve Q1/Q4/Q6;
-confirm served frontend and backend/editor rollback baselines privately. Then agree any missing
-acceptance work separately. Frontend release precedes a separately authorized backend update.
-Completed isolated S0–S13 validation and teardown stay closed; do not recreate test infrastructure.
+The owner selected the combined crew + single-flight-information + attribution scope for
+preparation: **15 frontend changes, six backend files, complete 82-file static publication tree**
+in [RELEASE-REVIEW.md](RELEASE-REVIEW.md). The inventory is unchanged. Production remains **NO-GO**;
+selection authorizes no commit, push, deployment, activation, production access or new testing.
+
+**Owner approved 45 s per `crewIndex` request only**, superseding its former <30 s client-timeout
+target. Other crew requests retain their configured 25 s timeout. This resolves the timeout
+specification decision, not measured latency: the cooperative server budget and all latency,
+backfill, storage and acceptance targets remain unchanged. No code change or test cycle is needed
+to record the decision; production remains NO-GO and deployment/activation unauthorized.
+
+## 2. Paused physical response-fault checkpoint and retained evidence
+
+**C3 is resolved by owner-approved documentation exception (2026-10-26; DECISIONS, C3).**
+S0–S13 and teardown remain completed, owner-reported evidence. Exact execution date, executed
+build identity and corresponding manifest digests are unavailable from inspected records; no
+commit-bound validation is established. No more recovery search, rerun or infrastructure recreation
+solely to replace those records. Other gates remain unchanged.
+
+The bounded physical malformed/empty-response preservation and Reset plan was subsequently approved,
+but remains paused at baseline inspection while this local implementation is reviewed. Do not
+resume automatically or repeat completed normal-path checks. C3 does not waive these cases.
+
+The authorized fixture-only session is recorded once in RELEASE-REVIEW. Existing synthetic
+Version 2 immutable source matched all four publication hashes and has fixture-only data bindings;
+Gregory's TLS/authenticated capabilities preflight passed. Home Screen normal-path fictional
+roster sync and offline closure/reopen passed by owner report, with unchanged displayed last-sync
+2026-10-24 21:12 (Europe/Berlin) and Available offline. Do not repeat this check or closed adoption.
+
+The first configured browser also restored the fictional roster offline and showed saved-roster
+readiness. Gregory subsequently confirmed it was standalone Safari, resolving the context uncertainty.
+The subsequent authorized sign-out setup exposed conflicting Safari evidence: Tab 2 was still in
+review mode; Tab 1 showed no saved token/roster and disabled Sign out. Gregory confirmed the same
+Safari context/profile. Preserve the earlier restoration report but qualify Safari acceptance until
+this discrepancy is resolved; do not infer data loss or a defect. Home Screen restoration and
+adoption remain closed. That initial attempt stopped before sign-out; the separately authorized resumed result follows.
+
+The earlier read-only owner-run Web Inspector diagnosis confirmed both tabs have accessible localStorage
+but no endpoint, token or roster keys. Tab 1 is normal mode; Tab 2 is review mode. Both match the
+preview origin and owner-confirmed regular/default Safari context. Only key names and booleans
+were inspected. Absence is established at observation time; cause and historical continuity remain
+unknown. No data-loss/defect conclusion or source-binding comparison is supported.
+
+The separately authorized bounded setup/sync and sign-out checkpoint is now complete. Both tabs
+were confirmed normal-mode with endpoint/token/roster keys present and the same fictional roster.
+System/Local preferences were recorded. Sign-out in Tab 1 removed its visible roster; focusing
+Tab 2 removed its roster. Tab 2 key-presence output confirmed token/roster absent, endpoint retained,
+and System/Local survived. Offline closure/reopen of Tab 2 retained inaccessible roster and those
+preferences. No server-side deletion, full account/history cleanup audit or Home Screen sign-out
+is claimed. Do not repeat the passed cases. Earlier Safari absence remains unexplained; the new
+setup/sign-out is not a replacement persistence pass.
+
+The separately approved one-tab physical Safari offline-refresh/reconnect session is complete.
+Baseline fictional roster: last sync 16:46 (Europe/Berlin), Available offline. After one manual
+Refresh roster while offline and a reported 30-second wait, the same roster, timestamp/readiness
+and endpoint/token/roster keys remained. One instructed reconnect produced Roster synchronized,
+16:53 (Europe/Berlin), Available offline. No calendar date, measured timeout, exact request count,
+raw network trace or malformed/empty-response acceptance inferred. No completed lifecycle checks
+repeated; Home Screen pass and the earlier unexplained Safari discrepancy remain unchanged.
+
+**Next checkpoint:** owner approval of the bounded malformed/empty and Reset plan in
+RELEASE-REVIEW. G6 substitution is approved: completed physical offline-refresh/reconnect plus
+shared preservation code path; timer-driven abort remains not physically verified. Malformed/
+empty cases are not waived. G8 permits Settings discovery/opt-in but requires unsupported enrollment
+to stop before dispatch, explain unsupported backend and leave feature off; unsupported flight-detail
+crew content remains absent. No new physical G8 result or live-grant cleanup claimed.
+
+The plan changes only existing synthetic FC66_SCENARIO (malformed, empty, exact baseline restoration),
+uses Home Screen for the two fault-specific preservation/relaunch cases, then normal Reset in
+Home Screen and two Safari tabs for explicit installed/other-tab criteria. Non-default Light/UTC
+baseline makes preference removal observable. No execution yet; configuration changes, restoration
+and local Reset deletion need separate approval. No replacement of missing saved-state preconditions,
+retries, manual storage clearing, production access or completed lifecycle-check reruns.
+
+Remaining A1 presentation, A2 failure-preservation and unobserved cleanup details, A3 update/rollback retention,
+P1–P4 performance and OAuth/runtime/baseline/release-authorization gates stay open. Evidence applies
+only to patched preview `0ecef7b232405a096670`, not original `a8024ca318cbf11bb3cb`, crew performance
+or complete release acceptance. No reset, fault-mode change, regression/adoption rerun or new
+infrastructure. Preserve Q1/Q4/Q6, timeout exception, historical visual approval and closed S0–S13/
+teardown. No further execution, commit, push or deployment authorized. Production **NO-GO**.
+
+### Remaining D2 authorization template (not a new execution approval)
+
+
+Q1 is **owner-confirmed**: Gregory confirms that the previously described private, single-user
+crew-data processing is permitted. No supporting policy or correspondence was inspected; this
+is not independent legal verification. Multi-user access, sharing and commercial use are outside
+this confirmation. It does not authorize production access, execution or release.
+
+Use RELEASE-REVIEW's existing D2 / A1–A3 / P1–P4 checklist; do not restart evidence reconciliation.
+**Required authorization:** Gregory names the candidate/build, existing HTTPS preview and
+measurement target, operator, synthetic/real data boundary and permitted missing-check operations.
+Explicitly include preview publication/update/rollback if A3 is to run, and service reads plus
+any enrollment/backfill if P2–P4 are to run. No available target means that row remains blocked;
+no resource creation or application change is implied. Production-dependent measurements and
+OAuth/runtime checks remain deferred to separately authorized R3/R4 commissioning/verification.
+This documentation checkpoint authorizes none of those operations.
+
+Candidate/device/cross-tab acceptance, performance, OAuth/runtime authentication, source/rollback
+baselines and explicit release approvals remain open. Preserve the selected combined scope,
+45 s crewIndex-only exception, historical 198-image Stage B visual approval, Q4/Q6 confirmations
+and closed S0–S13/teardown. No screenshot regeneration, general retest or repeated approval of
+closed decisions. Production remains **NO-GO**.
 
 ## 3. Other work remains outside this release
 
