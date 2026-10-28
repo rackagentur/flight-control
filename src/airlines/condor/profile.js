@@ -2,6 +2,8 @@
 // codes (roster-codes.js). Wording (terminology) and raw codes stay separate.
 
 import { CONDOR_ROSTER_CODES, CONDOR_FLIGHT_DESIGNATORS } from './roster-codes.js';
+import { presentCrew, formatCrewRoute, CONDOR_CREW_RANKS } from './crew.js';
+import { CONDOR_CREW_COPY } from './crew-copy.js';
 
 /** @type {import('../types.js').AirlineProfile} */
 export const CONDOR = {
@@ -10,6 +12,13 @@ export const CONDOR = {
   iata: 'DE',
   flightDesignators: CONDOR_FLIGHT_DESIGNATORS,
   rosterCodes: CONDOR_ROSTER_CODES,
+  // Crew Intelligence (Stage B): presentation (verified rank map only, currently empty: D7) and copy pack.
+  // Packs without `crew` never show Crew Intelligence.
+  crew: {
+    present: (members) => presentCrew(members, { ranks: CONDOR_CREW_RANKS }),
+    route: formatCrewRoute,
+    copy: CONDOR_CREW_COPY,
+  },
   terminology: {
     offSubtype: {
       off: { short: 'OFF', name: 'Off day' },

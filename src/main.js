@@ -18,6 +18,7 @@ import { loadProfile } from './config/profile.js';
 import { createController, TOKEN_KEY, ENDPOINT_KEY } from './controller.js';
 import { loadDepartures } from './sources/departures-service.js';
 import { loadFlightInfo } from './sources/flight-info-service.js';
+import { createCrewRuntime } from './crew-runtime.js';
 import { mountShell } from './ui/shell.js';
 import { mountReviewDock, reviewMode } from './ui/review.js';
 import { today } from './ui/screens/today.js';
@@ -78,6 +79,12 @@ window.addEventListener('storage', (event) => {
   if (event.key === null || [TOKEN_KEY, ENDPOINT_KEY, SIGNED_OUT_KEY, 'profile'].some((key) => event.key === `fc.v2.${key}`) || (event.key === `fc.v2.${ROSTER_KEY}` && event.newValue === null)) {
     liveWeather.clear();
     controller.accessChanged();
+    crew.accessChanged();
+    if (currentRoute) show(currentRoute, { quiet: true, param: currentParam });
+  }
+  // Crew consent or credential record changed in another tab: crew answers are invalidated (crew only).
+  if (event.key === null || event.key === 'fc.v2.crew.v1' || event.key === 'fc.v2.crew.enabled') {
+    crew.storageChanged(event.key);
     if (currentRoute) show(currentRoute, { quiet: true, param: currentParam });
   }
 });
@@ -166,6 +173,15 @@ const ctx = {
   },
 };
 
+// Crew Intelligence (Stage B1): the ONE app-wide crew runtime/service, keyed to the same opaque access identity.
+// Nothing is requested while crew is disabled; a pending deletion is resumed on start, online and visible.
+const crew = createCrewRuntime({
+  store,
+  access: () => ({ endpoint: store.get(ENDPOINT_KEY), token: store.get(TOKEN_KEY), accessId: ctx.accessId() }),
+});
+ctx.crew = crew;
+crew.start();
+
 // --- Theme controls (sidebar quick switch + Settings) share one behaviour ----------
 function syncThemeControls() {
   const current = getThemePreference();
@@ -245,7 +261,10 @@ setInterval(tickLive, 1000);
 setInterval(tickClocks, 15000);
 // Re-derive state each minute (phases change with time), and refresh stale data.
 setInterval(() => controller.tick(), 60000);
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') controller.tick(); });
+document.addEventListener('visibilitychange', () => {
+  crew.visibilityChanged(document.visibilityState === 'visible');
+  if (document.visibilityState === 'visible') controller.tick();
+});
 
 // --- Routing -------------------------------------------------------------------------
 let cleanup = null;
@@ -291,8 +310,8 @@ pullRefresh = mountPullRefresh({ root: shell.main, enabled: () => LIVE_ROUTES.ha
 startRouter((id, param) => { visitSeq += 1; show(id, { param, soft: id === currentRoute && param !== currentParam }); });
 controller.setMode(reviewMode(review.current()));
 
-window.addEventListener('online', () => controller.connectivityChanged());
-window.addEventListener('offline', () => controller.connectivityChanged());
+window.addEventListener('online', () => { controller.connectivityChanged(); crew.connectivityChanged(true); });
+window.addEventListener('offline', () => { controller.connectivityChanged(); crew.connectivityChanged(false); });
 watchOfflineShell((ready) => controller.setShellReady(ready));
 // Persistence is a best-effort request; readiness still depends on verified writes.
 if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
