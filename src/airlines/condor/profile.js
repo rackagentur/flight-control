@@ -27,6 +27,13 @@ export const CONDOR = {
       leave: { short: 'U', cell: 'U', name: 'Urlaub', lede: 'Holiday' },
       ort: { short: 'ORT', name: 'Protected free day', detail: 'ORT, protected' },
     },
+    // Standby codes with their own wording, by exact approved roster code (roster-codes.js). Any other
+    // standby code keeps the generic SB / Standby. The full roster code stays visible in the day detail.
+    standbyCode: {
+      SBH30: { short: 'SBH', name: 'Standby Hotel' },
+    },
+    // Personal part-time days from Settings, shown as V like the Condor roster PDF; code expansion not verified.
+    partTime: { short: 'V', name: 'Part-time day' },
     protectedLegend: 'ORT · protected free day',
     protectedEyebrow: 'ORT · from roster',
     protectedReason: 'The roster lists today as a protected free day (ORT): assigned by the company and not reassignable.',

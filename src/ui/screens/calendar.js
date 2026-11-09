@@ -19,6 +19,7 @@ import { hrefFor } from '../../router.js';
 import { radarLinkable } from '../../model/radar.js';
 import { sectorCard } from '../flight-parts.js';
 import { getTimeDisplay } from '../../time-display.js';
+import { getPartTime } from '../../part-time.js';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 // 'unassigned' has no entry here on purpose: its wording is the airline's (term.unassigned).
@@ -37,11 +38,18 @@ function noData(day) {
   return day.evidence === 'before-source' || day.evidence === 'outside-window';
 }
 
+/** The airline's own wording for a standby day's exact roster code (e.g. SBH30), else null. */
+function standbyTerm(day, term) {
+  const codes = term.standbyCode;
+  return day.status === 'standby' && codes && typeof day.label === 'string' && Object.hasOwn(codes, day.label) ? codes[day.label] : null;
+}
+
 /** Short text shown in the cell. Text, not colour, carries the meaning. */
 function cellCode(day, term) {
+  if (day.partTime && term.partTime) return term.partTime.short;
   if (day.status === 'off') return term.offSubtype[day.offSubtype]?.short ?? 'OFF';
   if (day.status === 'unassigned') return term.unassigned.cell;
-  if (day.status === 'standby') return 'SB';
+  if (day.status === 'standby') return standbyTerm(day, term)?.short ?? 'SB';
   if (day.status === 'reserve') return 'RE';
   if (day.label) return day.label;
   if (day.evidence === 'duty-unspecified') return 'Duty';
@@ -60,8 +68,10 @@ function cellSub(day, tz) {
 }
 
 function describe(day, term) {
+  // Personal part-time day (V): never roster data, so say so, then what the roster itself says about the day.
+  if (day.partTime && term.partTime) return `${term.partTime.name}, personal schedule, not from the roster: ${EVIDENCE[day.evidence] ?? 'no data'}`;
   const sub = day.status === 'off' ? term.offSubtype[day.offSubtype] : null;
-  const name = sub ? `${sub.name}${sub.detail ? ` (${sub.detail})` : ''}` : day.status === 'unassigned' ? term.unassigned.name : STATUS_NAME[day.status];
+  const name = sub ? `${sub.name}${sub.detail ? ` (${sub.detail})` : ''}` : day.status === 'unassigned' ? term.unassigned.name : standbyTerm(day, term)?.name ?? STATUS_NAME[day.status];
   const conf = day.status === 'unknown' ? '' : day.confidence === 'inferred' ? ', inferred' : ', confirmed';
   const label = day.label && !(day.status === 'off' && day.offSubtype) && day.status !== 'unassigned' ? ` ${day.label}` : '';
   const evidence = day.status === 'unknown' ? `: ${EVIDENCE[day.evidence] ?? 'no data'}` : day.evidence === 'duty-unspecified' ? ', duty also listed' : '';
@@ -77,6 +87,7 @@ function focusDate(month) {
 
 /** The day's token: a capsule, dot or ring that carries meaning by shape and text. */
 function token(day) {
+  if (day.partTime) return 'tok-parttime';
   if (day.status === 'standby') return 'tok-sb';
   if (day.status === 'reserve') return 'tok-re';
   if (day.status === 'off') return day.offSubtype === 'ort' ? 'tok-off tok-ort' : day.offSubtype === 'leave' ? 'tok-off tok-leave' : 'tok-off';
@@ -112,7 +123,7 @@ function dayCell(day, month, tz, term) {
   const classes = [
     'cal-day', `is-${day.status}`, day.evidence ? `ev-${day.evidence}` : '', day.inMonth ? '' : 'is-outside',
     day.isToday ? 'is-today' : '', selected ? 'is-selected' : '', day.confidence === 'inferred' ? 'is-inferred' : '',
-    noData(day) ? 'is-nodata' : '', band ? 'has-band' : '',
+    noData(day) && !day.partTime ? 'is-nodata' : '', day.partTime ? 'is-parttime' : '', band ? 'has-band' : '',
   ].filter(Boolean).join(' ');
   // Journey line: one continuous stroke per rotation, with the aircraft where it departs and a small ring where it ends.
   const bandClasses = band ? [
@@ -127,7 +138,7 @@ function dayCell(day, month, tz, term) {
     <button type="button" class="${classes}" role="gridcell" data-date="${day.date}"
       aria-selected="${selected ? 'true' : 'false'}" ${day.isToday ? html`aria-current="date"` : ''}
       tabindex="${day.date === focusDate(month) ? '0' : '-1'}"
-      aria-label="${day.isToday ? 'Today, ' : ''}${dateLabel}: ${noData(day) ? 'No data' : describe(day, term)}">
+      aria-label="${day.isToday ? 'Today, ' : ''}${dateLabel}: ${noData(day) && !day.partTime ? 'No data' : describe(day, term)}">
       <span class="cal-num t-tabular" aria-hidden="true">${Number(day.date.slice(8))}</span>
       <span class="cal-track" aria-hidden="true">${band ? html`<span class="${bandClasses}"></span>${glyphs}` : html`<span class="cal-mark"></span>`}</span>
       <span class="cal-code ${tok}" aria-hidden="true">${cellCode(day, term)}</span>
@@ -136,7 +147,7 @@ function dayCell(day, month, tz, term) {
 }
 
 /** Legend rows: [css class, label, sample code]. Subtype wording comes from the airline profile. */
-const keyRows = (term) => [
+const keyRows = (term, { partTime = false } = {}) => [
   ['key-flight', 'Flight · one line per rotation'],
   ['key-layover', 'Layover · inferred (dotted)', 'YYZ'],
   ['key-layover-roster', 'Layover · from roster (double line)', 'YYZ'],
@@ -149,15 +160,16 @@ const keyRows = (term) => [
   ['key-duty', 'Duty · type not given', 'Duty'],
   ['key-unknown', 'Unknown', '?'],
   ['key-nodata', 'No data'],
+  ...(partTime && term.partTime ? [['key-parttime', `${term.partTime.name} · your schedule, not roster`, term.partTime.short]] : []),
 ];
 
 /** Compact key behind a disclosure (opened by default on wide screens in mount()). */
-function keyView(term) {
+function keyView(term, opts) {
   return html`
     <details class="cal-key" data-cal-key>
       <summary>Key</summary>
       <ul class="cal-key-list" role="list">
-        ${keyRows(term).map(([cls, label, code]) => html`<li class="cal-key-item ${cls}"><span class="cal-key-sample" aria-hidden="true">${code ?? ''}${cls === 'key-flight' ? html`<span class="cal-key-plane">${aircraftSvgs()}</span>` : ''}</span>${label}</li>`)}
+        ${keyRows(term, opts).map(([cls, label, code]) => html`<li class="cal-key-item ${cls}"><span class="cal-key-sample" aria-hidden="true">${code ?? ''}${cls === 'key-flight' ? html`<span class="cal-key-plane">${aircraftSvgs()}</span>` : ''}</span>${label}</li>`)}
       </ul>
     </details>`;
 }
@@ -186,10 +198,13 @@ function coverageChip(m) {
 
 function summaryView(m, term) {
   const s = m.summary;
+  // Part-time (personal) days are counted on their own line; they are not also "unknown / no data".
+  // summary.noData / unknownOther stay roster-coverage figures.
+  const partTimeInMonth = m.days.filter((d) => d.inMonth && d.partTime && (d.evidence === 'no-flight-listed' || noData(d))).length;
   const parts = [
     [s.flightDays, 'flight days'], [s.layoverDays, 'layover days'], [s.standbyDays, 'standby'], [s.reserveDays, 'reserve'],
     [s.offDays, 'off'], [s.unassignedDays, term.unassigned.summary], [s.unknownDuty, 'duty, type not given'], [s.unknownFree, 'no duty reported'],
-    [s.unknownOther + s.noData, 'unknown / no data'],
+    [s.unknownOther + s.noData - partTimeInMonth, 'unknown / no data'], [s.partTimeDays, 'part-time (personal)'],
   ].filter(([n]) => n > 0);
   return html`
     <section class="cal-summary" aria-label="Month summary">
@@ -273,15 +288,17 @@ function detailView(day, view) {
     return html`<div class="cal-detail-empty"><p class="t-callout t-secondary">Select a day to see its duties.</p></div>`;
   }
   const rotation = day.rotationId ? roster.rotations.find((r) => r.id === day.rotationId) : null;
-  const confidence = noData(day) ? 'No data' : day.status === 'unknown' ? 'Unknown' : day.confidence === 'inferred' ? 'Inferred' : 'Confirmed';
+  const confidence = day.partTime ? 'Personal' : noData(day) ? 'No data' : day.status === 'unknown' ? 'Unknown' : day.confidence === 'inferred' ? 'Inferred' : 'Confirmed';
   const dayNo = (ms) => Date.parse(`${localDateKey(ms, tz)}T12:00:00Z`);
   const rotationDays = rotation ? Math.max(1, Math.round((dayNo(rotation.end) - dayNo(rotation.start)) / 86400000) + 1) : 0;
   const rotationIndex = rotation ? Math.round((Date.parse(`${day.date}T12:00:00Z`) - dayNo(rotation.start)) / 86400000) + 1 : 0;
   const hz = rotation ? buildRotationHorizon(rotation, state, profile, now) : null;
-  const title = noData(day) ? 'No data'
+  const title = day.partTime && term.partTime ? term.partTime.name
+    : noData(day) ? 'No data'
     : day.status === 'unknown' && day.evidence === 'duty-unspecified' ? 'Duty'
     : day.status === 'off' && term.offSubtype[day.offSubtype] ? term.offSubtype[day.offSubtype].name
     : day.status === 'unassigned' ? term.unassigned.name
+    : standbyTerm(day, term) ? standbyTerm(day, term).name
     : `${STATUS_NAME[day.status]}${day.label && (day.status === 'flight' || day.status === 'layover') ? ` · ${day.status === 'flight' ? `to ${city(day.label)}` : city(day.label)}` : ''}`;
   return html`
     <article class="cal-detail-card" aria-labelledby="cal-detail-title">
@@ -289,10 +306,11 @@ function detailView(day, view) {
         <p class="t-eyebrow">${day.isToday ? `Today · ${formatDate(day.start + 12 * 3600000, tz)}` : formatDate(day.start + 12 * 3600000, tz)}</p>
         <h2 class="t-title-2" id="cal-detail-title">${title}</h2>
         <p class="cal-detail-meta">
-          <span class="status-pill" data-confidence="${day.status === 'unknown' ? 'unknown' : day.confidence}">${confidence}</span>
-          ${day.provenance !== 'none' ? html`<span class="t-caption t-secondary">${PROVENANCE[day.provenance]}</span>` : ''}
+          <span class="status-pill" data-confidence="${day.partTime ? 'personal' : day.status === 'unknown' ? 'unknown' : day.confidence}">${confidence}</span>
+          ${day.partTime ? html`<span class="t-caption t-secondary">Your part-time schedule · not from the roster</span>` : day.provenance !== 'none' ? html`<span class="t-caption t-secondary">${PROVENANCE[day.provenance]}</span>` : ''}
         </p>
         ${day.status === 'unknown' || day.evidence ? html`<p class="t-callout t-secondary">${EVIDENCE[day.evidence] ?? 'No data for this day.'}</p>` : ''}
+        ${day.partTime ? html`<p class="t-callout" data-cal-parttime>From your part-time schedule in Settings. The roster lists nothing confirmed for this day; any roster duty replaces this.</p>` : ''}
       </header>
 
       ${day.duties.map((duty) => html`
@@ -364,7 +382,10 @@ export const calendar = {
         </div>`;
     }
     const term = airlineOf(view.profile).terminology;
-    const m = buildMonth(view.snapshot, view.roster, view.profile, view.now, ui.month);
+    // The part-time schedule is personal and local; ctx.partTime is only a seam for tests.
+    // A pack without a part-time term has no part-time schedule at all: no overlay, no key row.
+    const partTime = term.partTime ? ctx.partTime?.() ?? getPartTime() : null;
+    const m = buildMonth(view.snapshot, view.roster, view.profile, view.now, ui.month, { partTime });
     const selectedDay = m.days.find((d) => d.date === ui.selected) ?? null;
     return html`
       <div class="page">
@@ -386,7 +407,7 @@ export const calendar = {
               </div>
               ${m.weeks.map((week) => html`<div class="cal-row" role="row">${week.map((day) => dayCell(day, m, tz, term))}</div>`)}
             </div>
-            ${keyView(term)}
+            ${keyView(term, { partTime: Boolean(partTime?.enabled) })}
           </section>
           <aside class="cal-side" aria-label="Day detail">
             <div class="cal-detail" data-cal-detail>${detailView(selectedDay, view)}</div>

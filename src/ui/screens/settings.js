@@ -12,6 +12,10 @@ import { SIGNED_OUT_KEY } from '../../roster-storage.js';
 import { request as v2Request } from '../../sources/contract-v2.js';
 import { workerDiagnosticsView, mountWorkerDiagnostics, updateWorkerDiagnostics } from '../worker-diagnostics.js';
 import { crewPanel, mountCrewPanel, updateCrewPanel } from '../crew-section.js';
+import { getPartTime, setPartTime, setPartTimeOverride, removePartTimeOverride } from '../../part-time.js';
+import { PART_TIME_YEAR } from '../../model/part-time.js';
+import { airlineOf } from '../../airlines/index.js';
+import { daysInMonth, monthLabel } from '../../model/calendar.js';
 
 const ERROR_HELP = {
   network: 'The browser could not read the response. If the URL opens normally in a browser tab, the backend is blocking cross-origin requests (CORS) from this page.',
@@ -88,6 +92,35 @@ export function contractLine(view, hasToken) {
   return `${contractStatus(view)}${hasToken ? ' · token saved' : ''}`;
 }
 
+/**
+ * Parses "4, 5 6" into sorted unique integers within lo..hi. `none` (or empty, when allowEmpty) = [].
+ * Exported for tests. @returns {{ok:true, values:number[]}|{ok:false, reason:string}}
+ */
+export function parseNumberList(text, { lo, hi, allowEmpty = false, what = 'values', orNone = true } = {}) {
+  const parts = String(text ?? '').split(/[\s,;]+/).filter(Boolean);
+  if (!parts.length || (parts.length === 1 && parts[0].toLowerCase() === 'none')) {
+    return allowEmpty || parts.length ? { ok: true, values: [] } : { ok: false, reason: `Enter ${what}${orNone ? ', or "none"' : ''}.` };
+  }
+  const values = [];
+  for (const part of parts) {
+    if (!/^\d{1,2}$/.test(part) || Number(part) < lo || Number(part) > hi) return { ok: false, reason: `"${part}" is not a valid entry; use numbers from ${lo} to ${hi}, separated by commas.` };
+    values.push(Number(part));
+  }
+  return { ok: true, values: [...new Set(values)].sort((a, b) => a - b) };
+}
+
+/** Parse options for the "Replace month" days field (exported so a test can check the empty-input message). */
+export const OVERRIDE_DAYS_PARSE = { lo: 1, hi: 31, what: 'the days for this month' };
+const PART_TIME_MONTHS = Array.from({ length: 12 }, (_, i) => `${PART_TIME_YEAR}-${String(i + 1).padStart(2, '0')}`);
+const listText = (values) => (values.length ? values.join(', ') : 'none');
+
+function partTimeOverridesView(config) {
+  const keys = Object.keys(config.overrides).sort();
+  return keys.length
+    ? h`<ul class="source-checks" role="list">${keys.map((key) => h`<li>${monthLabel(key)}: ${listText(config.overrides[key])}</li>`)}</ul>`
+    : h`<p class="t-caption">No month overrides</p>`;
+}
+
 export const settings = {
   title: 'Settings',
 
@@ -95,6 +128,9 @@ export const settings = {
     const profile = ctx.view().profile;
     const connected = Boolean(store.get(ENDPOINT_KEY));
     const hasToken = Boolean(store.get(TOKEN_KEY));
+    const partTime = getPartTime();
+    // The part-time schedule exists only for packs that define the term (airline wording lives in src/airlines/).
+    const ptTerm = airlineOf(profile).terminology.partTime;
     return html`
       <div class="page">
         ${pageHeader({ title: 'Settings' })}
@@ -118,6 +154,42 @@ export const settings = {
               </div>
             </div>
           </section>
+
+          ${ptTerm ? html`
+          <section class="setting-block" aria-labelledby="set-parttime">
+            <div class="section-head"><h2 class="t-eyebrow" id="set-parttime">Part-time schedule</h2></div>
+            <div class="list">
+              <div class="setting-row">
+                <div class="setting-copy">
+                  <span class="t-caption">Your personal part-time days in ${PART_TIME_YEAR}, shown as ${ptTerm.short} (${ptTerm.name}) in the calendar. Kept only on this device, never sent anywhere and never written to the roster. Any roster duty on the same day replaces ${ptTerm.short}.</span>
+                </div>
+              </div>
+              <form class="source-form" data-parttime-form novalidate>
+                <label class="setting-copy"><span class="list-label"><input type="checkbox" name="enabled" ${partTime.enabled ? 'checked' : ''}> Show part-time days</span></label>
+                <label class="list-label" for="parttime-days">Days of month</label>
+                <input class="field-input" id="parttime-days" name="days" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" value="${listText(partTime.days)}" placeholder="4, 5, 6, 7">
+                <label class="list-label" for="parttime-paused">Paused months</label>
+                <input class="field-input" id="parttime-paused" name="paused" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" value="${listText(partTime.pausedMonths)}" placeholder="7, 8, 9" aria-describedby="parttime-paused-help">
+                <p class="t-caption" id="parttime-paused-help">Month numbers, e.g. 7, 8, 9 = July–September. None are generated in these months.</p>
+                <div class="source-actions"><button type="submit" class="btn btn-primary">Save part-time schedule</button></div>
+                <div class="source-result" data-parttime-result role="status" aria-live="polite"></div>
+              </form>
+              <form class="source-form" data-parttime-override novalidate>
+                <p class="list-label">Replace one month</p>
+                <label class="visually-hidden" for="parttime-month">Month</label>
+                <select class="field-input" id="parttime-month" name="month">${PART_TIME_MONTHS.map((key) => html`<option value="${key}">${monthLabel(key)}</option>`)}</select>
+                <label class="visually-hidden" for="parttime-override-days">Days for this month</label>
+                <input class="field-input" id="parttime-override-days" name="days" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="e.g. 10, 11, 12, 13 or none">
+                <div class="source-actions">
+                  <button type="submit" class="btn btn-primary">Replace month</button>
+                  <button type="button" class="btn btn-quiet" data-parttime-remove>Remove override</button>
+                </div>
+                <div data-parttime-overrides>${partTimeOverridesView(partTime)}</div>
+                <div class="source-result" data-parttime-override-result role="status" aria-live="polite"></div>
+              </form>
+            </div>
+          </section>
+          ` : ''}
 
           <section class="setting-block" aria-labelledby="set-source">
             <div class="section-head"><h2 class="t-eyebrow" id="set-source">Roster source</h2></div>
@@ -299,6 +371,57 @@ export const settings = {
     testButton.addEventListener('click', onTest);
     removeButton.addEventListener('click', onRemove);
 
+    // Part-time schedule: settings-only forms, updated in place so the other forms keep their input.
+    // The block is absent when the airline pack has no part-time term; then nothing is wired.
+    const ptForm = root.querySelector('[data-parttime-form]');
+    const ovForm = root.querySelector('[data-parttime-override]');
+    const ptWired = Boolean(ptForm && ovForm);
+    const ptOut = ptForm?.querySelector('[data-parttime-result]');
+    const ovOut = ovForm?.querySelector('[data-parttime-override-result]');
+    const ovList = ovForm?.querySelector('[data-parttime-overrides]');
+    const ovRemove = ovForm?.querySelector('[data-parttime-remove]');
+    const say = (el, ok, text) => render(el, h`<p class="source-verdict ${ok ? 'is-ok' : 'is-error'}">${text}</p>`);
+    const showOverrides = (config) => render(ovList, partTimeOverridesView(config));
+    const onPartTime = (event) => {
+      event.preventDefault();
+      const days = parseNumberList(ptForm.elements.days.value, { lo: 1, hi: 31, what: 'at least one day of the month', orNone: false });
+      if (!days.ok) { say(ptOut, false, `Days of month: ${days.reason}`); return; }
+      if (!days.values.length) { say(ptOut, false, 'Days of month: enter at least one day.'); return; }
+      const paused = parseNumberList(ptForm.elements.paused.value, { lo: 1, hi: 12, allowEmpty: true, what: 'month numbers' });
+      if (!paused.ok) { say(ptOut, false, `Paused months: ${paused.reason}`); return; }
+      const saved = setPartTime({ ...getPartTime(), enabled: ptForm.elements.enabled.checked, days: days.values, pausedMonths: paused.values });
+      if (!saved.ok) { say(ptOut, false, 'The part-time schedule could not be saved on this device.'); return; }
+      ptForm.elements.days.value = listText(saved.config.days);
+      ptForm.elements.paused.value = listText(saved.config.pausedMonths);
+      say(ptOut, true, saved.config.enabled ? 'Saved · part-time days are shown in the calendar.' : 'Saved · part-time days are hidden.');
+    };
+    const onOverride = (event) => {
+      event.preventDefault();
+      const month = ovForm.elements.month.value;
+      const days = parseNumberList(ovForm.elements.days.value, OVERRIDE_DAYS_PARSE);
+      if (!days.ok) { say(ovOut, false, days.reason); return; }
+      const length = daysInMonth(month);
+      const bad = days.values.find((d) => d > length);
+      if (bad !== undefined) { say(ovOut, false, `${monthLabel(month)} has only ${length} days; ${bad} is not one of them.`); return; }
+      const saved = setPartTimeOverride(month, days.values);
+      if (!saved.ok) { say(ovOut, false, 'The month could not be saved on this device.'); return; }
+      showOverrides(saved.config);
+      say(ovOut, true, `${monthLabel(month)}: ${listText(days.values)}. Other months are unchanged.`);
+    };
+    const onOverrideRemove = () => {
+      const month = ovForm.elements.month.value;
+      const had = Object.hasOwn(getPartTime().overrides, month);
+      const saved = removePartTimeOverride(month);
+      if (!saved.ok) { say(ovOut, false, 'The change could not be saved on this device.'); return; }
+      showOverrides(saved.config);
+      say(ovOut, true, had ? `${monthLabel(month)}: override removed, the recurring pattern applies again.` : `${monthLabel(month)} has no override.`);
+    };
+    if (ptWired) {
+      ptForm.addEventListener('submit', onPartTime);
+      ovForm.addEventListener('submit', onOverride);
+      ovRemove.addEventListener('click', onOverrideRemove);
+    }
+
     let armed = false;
     let timer = null;
     const button = root.querySelector('#reset-local');
@@ -334,6 +457,11 @@ export const settings = {
       testButton.removeEventListener('click', onTest);
       removeButton.removeEventListener('click', onRemove);
       refreshButton?.removeEventListener('click', onRefresh);
+      if (ptWired) {
+        ptForm.removeEventListener('submit', onPartTime);
+        ovForm.removeEventListener('submit', onOverride);
+        ovRemove.removeEventListener('click', onOverrideRemove);
+      }
     };
   },
 };

@@ -164,6 +164,8 @@
 .cal-mark { width: 0; height: 0; }
 .cal-day.ev-duty-unspecified .cal-mark { width: 7px; height: 7px; border-radius: 50%; background: color-mix(in oklab, var(--fg-1) 55%, transparent); }
 .cal-day.is-unknown:not(.ev-duty-unspecified):not(.is-nodata) .cal-mark { width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--fg-2); -webkit-mask-image: repeating-conic-gradient(#000 0 30deg, transparent 30deg 50deg); mask-image: repeating-conic-gradient(#000 0 30deg, transparent 30deg 50deg); }
+/* A part-time (V) day keeps is-unknown for the model but is not an unknown day to the eye: no dashed ring. Higher specificity than the rule above. */
+.cal-day.is-parttime.is-unknown:not(.ev-duty-unspecified):not(.is-nodata) .cal-mark { width: 0; height: 0; box-shadow: none; -webkit-mask-image: none; mask-image: none; }
 
 /* Code row: IATA for journeys, capsule tokens for SB / RE / OFF. */
 .cal-code { display: inline-grid; place-items: center; min-height: 18px; max-width: 100%; padding: 0 2px; overflow: hidden;
@@ -184,6 +186,8 @@
   min-width: 30px; border-radius: 9px; font-size: var(--text-mini); letter-spacing: 0.06em;
   padding: 0 3px;   /* four-letter generic code (UNAS) needs a little air between neighbouring cells at 360 px */
   box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--fg-2) 70%, transparent); background: repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in oklab, var(--fg-2) 14%, transparent) 4px 5px); }
+/* Personal part-time day (V): a dashed outline, so it never reads as a roster OFF (solid fill) or an unassigned day (hatch). */
+.cal-code.tok-parttime { box-sizing: border-box; min-width: 30px; padding: 0 6px; border-radius: 9px; font-size: var(--text-mini); letter-spacing: 0.06em; border: 1.5px dashed color-mix(in oklab, var(--fg-2) 75%, transparent); background: none; }
 .cal-sub { display: none; }
 
 /* Key: a disclosure, closed on phones, open on wide screens (calendar.js mount). */
@@ -212,6 +216,7 @@
 /* 7-day strip on Today: the same outline + hatch language as the calendar token, drawn as a taller capsule so it is
    visibly different from the thin outlined unknown mark and from the solid bronze off bar. */
 .week-day.is-unassigned .week-mark { height: 7px; border-radius: 4px; background: repeating-linear-gradient(135deg, transparent 0 3px, color-mix(in oklab, var(--fg-2) 45%, transparent) 3px 4px); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--fg-2) 80%, transparent); }
+.key-parttime .cal-key-sample { box-sizing: border-box; border: 1.5px dashed color-mix(in oklab, var(--fg-2) 75%, transparent); }
 .key-nodata .cal-key-sample { border-radius: 5px; background: repeating-linear-gradient(135deg, transparent 0 3px, color-mix(in oklab, var(--fg-1) 22%, transparent) 3px 4px); }
 
 /* Detail */
@@ -393,6 +398,7 @@
 .fl-mini-row:hover { color: var(--route); }
 .fl-detail-foot { font-size: var(--text-callout); }
 .fl-detail-empty { padding: var(--space-5); border-radius: var(--radius-card); border: 1px dashed color-mix(in oklab, var(--fg-2) 30%, transparent); }
+.status-pill[data-confidence="personal"]::before { background: transparent; border: 1.5px dashed var(--fg-2); box-shadow: none; }
 .status-pill[data-confidence="remembered"]::before { background: transparent; border: 1.5px dashed var(--fg-2); box-shadow: none; }
 
 /* Destination intelligence (shared component) */
