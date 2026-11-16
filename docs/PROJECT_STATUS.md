@@ -1,5 +1,23 @@
 # Flight Control — project status
 
+## Release review of PR #1 (2026-11-16) — current deployment facts
+
+Verified on 2026-11-16 (read-only); supersedes the deployment rows of the 2026-10-14 snapshot below.
+
+| Area | State | How it was checked |
+|---|---|---|
+| Production frontend | GitHub Pages, source `main` `/`, latest build `17672aa` (2026-11-09) "built". Served `index.html`, `sw.js` (worker `527d47370d2b6781e649`), `src/main.js`, `src/controller.js` byte-identical to `origin/main` | `gh api repos/{owner}/{repo}/pages`, `.../pages/builds/latest`, `curl` + `shasum` against `git show origin/main:<file>` |
+| V2 go-live | V2 frontend first published to `main` as `c7ebd3c` (2026-10-16); later Pages builds `af11495`, `a3008d2`, `90e7e93` (crew dormant), `17672aa` | GitHub deployments API (`environment=github-pages`) |
+| Vercel | Project `flight-control-step66-preview` is Git-connected and SSO-protected. `main` pushes appear there as its "Production" target, but that project is a protected preview, **not** the public app. Branch pushes get a Preview deployment automatically | Vercel project/deployment listing |
+| PR #1 | Its runtime code is already in production (`c7ebd3c` is byte-identical for `src/`, `assets/`, `scripts/service-worker.js`). After merging `main` into the branch the runtime equals production `main`; the PR adds docs, tests, the unwired offline ICS parser (`core/ics/`), preview tooling and the prepared rollback worker | `git diff c7ebd3c ea20186`, `git diff origin/main HEAD -- src assets ...` |
+| Tests on `main` | `npm test` on `origin/main`: 617 tests, **26 fail** (tests not updated with the shipped runtime). PR branch after merge + fixes: 812 tests, 811 pass, 0 fail, 1 skip (repo-hygiene exact-value check, run separately with `reference/` present: 5/5) | `npm test` in isolated worktrees |
+| Backend | Unchanged by this review; live Apps Script version not visible to agents (docs: Version 29, rollback 27) | — |
+
+Not re-verified in this review: physical iPhone/Safari, live roster reads with a token, the crew runtime (dormant;
+no tests for it exist on `main` or this branch — they live on `v2.1-dev` and target newer code).
+
+---
+
 Last checkpoint: **2026-10-14** (Claude Code session). Re-check anything below before relying on it; prefer the
 commands over the copied values. "Verified" means checked on that date with the stated method; "Unverified" means
 taken from notes or docs and not re-checked.
@@ -50,7 +68,7 @@ duty end/check-out, crew data (excluded by decision D3), rotation ids, the calen
 | **B2-sync** | The 05:00 v5 trigger `syncWorkToJointCalendar` hit `DEADLINE_EXCEEDED` (480 s) after its calendar writes finished (noted 2026-10-05). **ID collision:** `docs/AUDIT.md` uses `B2` for a different defect (inflated month-end hours forecast). Unverified whether still occurring | open, unverified | Owner: read the Apps Script *Executions* log for recent 05:00 runs; then decide (no sync change without approval) |
 | B2 (AUDIT) | Month-end hours forecast inflated by future rostered flights (v5 stats) | open, known-issue marker shown | Later cleanup (`docs/BACKEND-HARDENING.md` "Later") |
 | B3 | Monthly dashboard to re-check on **2026-11-01** | pending date | Owner check after 1 Nov |
-| I-001 | `README.md` status block stale on `main` (says V2 not live). The working tree's README is part of the uncommitted 6.6 change | open | Update with the next approved docs/frontend commit |
+| I-001 | `README.md` status block stale on `main` (says V2 not live). The working tree's README is part of the uncommitted 6.6 change | **fixed on PR #1 branch 2026-11-16** (not yet on `main`) | Lands with the PR #1 merge |
 | I-002 | Unrecognised live-feed codes stay `unknown`: `U1`, `SBX`, `HS5`, `EM`, `RE10S`, `DH/<flight>`, other carriers' flights | investigated | Owner to confirm meanings (handbook) before mapping; `DH/` (positioning) first |
 | I-003 | Flaky test `S6` (token removal vs in-flight load) | **resolved 2026-10-14** | Test waited one `setTimeout(0)` while `runLoad` awaits WebCrypto first; now polls until the request starts |
 | I-006 | Service-worker updates wait until every old client closes (no `skipWaiting`); Home Screen app may serve the old shell long after a deploy | known limitation | Release checklist step; "update available" prompt later |

@@ -2,8 +2,11 @@
 
 An operational roster companion for airline crew: today's duty state, the Duty Horizon, roster calendar, flights, route map, weather and flying statistics.
 
-> **Status:** V2 redesign in progress on the `v2-redesign` branch (Phase 5: roster Calendar).
-> The production app is still the Apps Script v5 web app; V2 is not live.
+> **Status (verified 2026-11-16):** V2 is live. GitHub Pages serves branch `main` (`/`); the served files are
+> byte-identical to `main` at `17672aa` (V2 frontend first published as `c7ebd3c` on 2026-10-16; crew features ship
+> dormant, off by default). The backend is the private Google Apps Script web app (roster contract v2, token-protected
+> after BH-1/BH-2); its live version is not visible to agents (see `docs/BACKEND-HARDENING.md`). Ongoing development:
+> `v2.1-dev`. Any merge to `main` is a production deploy.
 
 ## Architecture (V2)
 
@@ -16,7 +19,7 @@ RosterSource adapter ─▶ RosterSnapshot (normalized) ─▶ state engine · D
   later: airline calendar · ICS import · Flight Control API
 ```
 
-- **Backend (temporary):** the existing Google Apps Script web app (`?action=getStats|sync|dashboard|dashboardPrev`). Its contract is frozen during the redesign.
+- **Backend:** the existing Google Apps Script web app. V2 reads it through the token-protected roster contract v2 (`docs/CONTRACT-V2.md`: `capabilities`, `roster`, `history`, `stats`, `departures`); the legacy v5 GET surface is reduced to token-protected `getStats` (BH-1/BH-2, `docs/BACKEND-HARDENING.md`).
 - **Times:** always computed from timestamps with IANA time zones in the presentation layer.
 - **States:** OFF, UNASSIGNED (a day the roster lists with no duty assigned; not a day off), FLIGHT, STANDBY, RESERVE, LAYOVER, UNKNOWN. Every state carries a confidence level, and the app never shows a state the data cannot support.
 - **Flights:** rotations drawn as journeys, per-sector detail inside its rotation, shared destination intelligence (local time, stay, weather, legitimate hotel actions). Weather comes from Open-Meteo, requested by the browser with the airport's coordinates only (no key, nothing personal; never in review mode).

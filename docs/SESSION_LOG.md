@@ -3,7 +3,20 @@
 Newest first. One entry per working session (see the checkpoint procedure in `docs/NEXT_STEPS.md`).
 Facts only; link to decisions/issues by ID. Never paste URLs with tokens, calendar ids, names or employee numbers.
 
-## 2026-10-15 (latest) — Claude Code: Condor display terminology (D-012)
+## 2026-11-16 (latest) — Claude Code: PR #1 release review and conflict resolution
+
+- Read-only deployment check: GitHub Pages serves `main` at `17672aa` (served files byte-identical). PR #1's runtime
+  was already published as `c7ebd3c`; `main` added credential save without network check, the FC_SHELL_CLAIM fix,
+  dormant crew, SBH30 labels and the 2027 part-time schedule on top.
+- Merged `origin/main` into `release/v2-frontend` (no rebase, no force-push). All conflicted runtime files resolve
+  to `main` by a three-way merge against `c7ebd3c`; `sw.js` current (`npm run check:offline`). Merged runtime = `main`.
+- Two stale tests aligned with the shipped behaviour; new `tests/attribution.test.js`. `npm test` 812/811/0 fail/1 skip
+  (3 runs); repo hygiene 5/5 with `reference/`; browser harnesses offline 15/15, rollback-subpath 7/7; synthetic
+  review-mode QA at 320/390/768/1280, light/dark: 41/41 checks, no external requests.
+- `main` alone fails 26 of 617 tests (pre-existing). README status (I-001) and the status header reconciled.
+- Pushed to the PR branch only; nothing merged or deployed; no backend, feed or production mutation.
+
+## 2026-10-15 — Claude Code: Condor display terminology (D-012)
 
 - Read-only audit first: classification of `-` (unassigned) and `U` (off/leave) correct in every layer; display wrong
   (`STR` / `LEAVE`). Then implemented D-012 in the Condor pack and pack-driven UI: calendar cell/key, 7-day strip,
