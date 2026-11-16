@@ -4,6 +4,7 @@
 
 import { addDays, diffDays, localDateKey, zonedParts } from '../lib/time.js';
 import { buildDays } from './roster.js';
+import { applyPartTime } from './part-time.js';
 
 const MONTH = /^(\d{4})-(\d{2})$/;
 
@@ -35,17 +36,19 @@ export function weekdayIndex(dateKey) {
 /**
  * @returns {{monthKey: string, label: string, weeks: object[][], days: object[], summary: object, coverage: object}}
  */
-export function buildMonth(snapshot, roster, profile, now, monthKey) {
+export function buildMonth(snapshot, roster, profile, now, monthKey, options = {}) {
   const first = `${monthKey}-01`;
   const lead = weekdayIndex(first);
   const length = daysInMonth(monthKey);
   const cells = Math.ceil((lead + length) / 7) * 7;
   const gridStart = addDays(first, -lead);
-  const days = buildDays(snapshot, roster, profile, now, { from: gridStart, count: cells }).map((day, i) => ({
+  let days = buildDays(snapshot, roster, profile, now, { from: gridStart, count: cells }).map((day, i) => ({
     ...day,
     inMonth: day.date.slice(0, 7) === monthKey,
     column: i % 7,
   }));
+  // Personal part-time overlay ("V"): only on days the roster says nothing about; never changes roster fields.
+  days = applyPartTime(days, options.partTime ?? null);
   const weeks = [];
   for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
 
@@ -64,6 +67,7 @@ export function buildMonth(snapshot, roster, profile, now, monthKey) {
     unknownFree: count((d) => d.status === 'unknown' && d.evidence === 'no-duty-reported'),
     unknownOther: count((d) => d.status === 'unknown' && d.evidence === 'no-flight-listed'),
     noData: count((d) => d.evidence === 'before-source' || d.evidence === 'outside-window'),
+    partTimeDays: count((d) => d.partTime === true),
     days: length,
   };
 

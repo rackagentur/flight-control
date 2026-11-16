@@ -21,6 +21,10 @@
  * @property {string} protectedEyebrow  day detail heading for a protected free day stated by the roster
  * @property {string} protectedReason   state-engine reason for a protected free day
  * @property {UnassignedTerm} unassigned  wording for a day the roster lists with no duty assigned (not a day off)
+ * @property {Object<string, {short: string, name: string}>} [standbyCode]  optional: own calendar short and day-detail name
+ *   for a standby day, by exact raw roster code (absent or unlisted: SB / Standby)
+ * @property {{short: string, name: string}} [partTime]  optional: calendar short and day-detail name for a personal
+ *   part-time day (absent: the pack has no part-time schedule)
  */
 
 /**

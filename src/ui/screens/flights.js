@@ -19,6 +19,7 @@ import { opDate, tzModeChip, tzTag } from '../../lib/op-time.js';
 import { destinationView } from '../destination.js';
 import { focusCalendar } from './calendar.js';
 import { flightOpsView, flightOpsState, refreshFlightOps, setFlightOpsMounted } from '../flight-ops.js';
+import { crewSection, mountCrewSection } from '../crew-section.js';
 
 // Session UI state (not persisted).
 const ui = { lastParam: undefined, returnTo: null, opsEntry: null };
@@ -196,7 +197,7 @@ function rotationSection(e, view, weatherFor) {
 /** City under an airport code; null when only the code is known (no repeated code). */
 const cityName = (iata) => (city(iata) !== iata ? city(iata) : null);
 
-function detailView(e, view, weatherFor, { explicit, ops = null }) {
+function detailView(e, view, weatherFor, { explicit, ops = null, crew = '' }) {
   if (!e) return html`<div class="fl-detail-empty"><p class="t-callout t-secondary">Select a flight to see its details.</p></div>`;
   const { profile, now } = view;
   const s = e.sector;
@@ -214,7 +215,7 @@ function detailView(e, view, weatherFor, { explicit, ops = null }) {
         <p class="cal-detail-meta">${provenancePill(e)}${status ? statusChip(status) : ''}<span class="t-caption t-secondary">${[status ? null : when, seen].filter(Boolean).join(' · ')}</span></p>
       </header>
       ${timingView(e, view)}
-      ${flightOpsView(ops, s, view)}
+      ${flightOpsView(ops, s, view)}${crew}
       ${rotationSection(e, view, weatherFor)}
       ${e.destination ? html`<div class="fl-section">${destinationView(e.destination, weatherFor(e.destination), { now, review: view.review, titleId: 'fl-dest' })}</div>` : ''}
       <p class="fl-detail-foot"><a class="dest-link" href="${hrefFor('calendar')}" data-fl-calendar="${localDateKey(s.dep, tz)}">Show this day in Calendar</a></p>
@@ -248,6 +249,8 @@ export const flights = {
     // Live gates/terminals (provider data beside the roster, never instead of it); loads on demand.
     const ops = selected ? flightOpsState(ctx, selected, view) : null;
     ui.opsEntry = ops ? selected : null;
+    // Crew Intelligence (Stage B2): '' unless crew is on, offered, and the sector is eligible.
+    const crew = selected ? crewSection(ctx, selected, view) : '';
     return html`
       <div class="page">
         ${pageHeader({ eyebrow: view.review ? 'Sample data · not your roster' : 'Roster', title: 'Flights' })}
@@ -263,7 +266,7 @@ export const flights = {
             ${recentView(f.recent, view, explicit ? selectedId : null)}
           </div>
           <aside class="fl-side" aria-label="Flight detail">
-            ${detailView(selected, view, weatherFor, { explicit, ops })}
+            ${detailView(selected, view, weatherFor, { explicit, ops, crew })}
           </aside>
         </div>
       </div>`;
@@ -295,7 +298,8 @@ export const flights = {
       }
     };
     root.addEventListener('click', onClick);
-    return () => { root.removeEventListener('click', onClick); setFlightOpsMounted(false); };
+    const stopCrew = mountCrewSection(root, ctx);
+    return () => { root.removeEventListener('click', onClick); setFlightOpsMounted(false); stopCrew(); };
   },
 };
 

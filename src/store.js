@@ -24,6 +24,21 @@ export function createStore(storage) {
   };
 
   return {
+    /**
+     * A read that tells "absent" from "unreadable" (the other getters answer a fallback for both).
+     * @param {string} key
+     * @returns {{ok:true, value:string|null}|{ok:false}} value null = truly absent; ok:false = no storage
+     *   backend, or reading threw (blocked / private mode / security error)
+     */
+    getChecked(key) {
+      if (!target) return { ok: false };
+      try {
+        const value = target.getItem(PREFIX + key);
+        return { ok: true, value: value === undefined ? null : value };
+      } catch {
+        return { ok: false };
+      }
+    },
     get(key, fallback = null) {
       const value = read(key);
       return value === null ? fallback : value;
