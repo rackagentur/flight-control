@@ -1,5 +1,10 @@
 # Flight Control — next steps
 
+> **2026-11-16 (PR #1 release review):** the sections below are the 2026-10-14 snapshot. Active development has
+> since moved to `v2.1-dev` (remote branch, ahead of `main`); `v2-redesign` is no longer the working branch, although
+> `CLAUDE.md` ("Develop on `v2-redesign`") still says so — an owner decision to update, not changed here. Current
+> deployment facts: `docs/PROJECT_STATUS.md` (top block).
+
 Last updated: 2026-10-14. Agents act only on items marked **approved**; everything else waits for the owner.
 
 ## 1. Next approved agent action
