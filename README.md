@@ -2,8 +2,11 @@
 
 An operational roster companion for airline crew: today's duty state, the Duty Horizon, roster calendar, flights, route map, weather and flying statistics.
 
-> **Status:** V2 redesign in progress on the `v2-redesign` branch (Phase 5: roster Calendar).
-> The production app is still the Apps Script v5 web app; V2 is not live.
+> **Status (verified 2026-11-16):** V2 is live. GitHub Pages serves branch `main` (`/`); the served files are
+> byte-identical to `main` at `17672aa` (V2 frontend first published as `c7ebd3c` on 2026-10-16; crew features ship
+> dormant, off by default). The backend is the private Google Apps Script web app (roster contract v2, token-protected
+> after BH-1/BH-2); its live version is not visible to agents (see `docs/BACKEND-HARDENING.md`). Ongoing development:
+> `v2.1-dev`. Any merge to `main` is a production deploy.
 
 ## Architecture (V2)
 
@@ -16,7 +19,7 @@ RosterSource adapter ─▶ RosterSnapshot (normalized) ─▶ state engine · D
   later: airline calendar · ICS import · Flight Control API
 ```
 
-- **Backend (temporary):** the existing Google Apps Script web app (`?action=getStats|sync|dashboard|dashboardPrev`). Its contract is frozen during the redesign.
+- **Backend:** the existing Google Apps Script web app. V2 reads it through the token-protected roster contract v2 (`docs/CONTRACT-V2.md`: `capabilities`, `roster`, `history`, `stats`, `departures`); the legacy v5 GET surface is reduced to token-protected `getStats` (BH-1/BH-2, `docs/BACKEND-HARDENING.md`).
 - **Times:** always computed from timestamps with IANA time zones in the presentation layer.
 - **States:** OFF, UNASSIGNED (a day the roster lists with no duty assigned; not a day off), FLIGHT, STANDBY, RESERVE, LAYOVER, UNKNOWN. Every state carries a confidence level, and the app never shows a state the data cannot support.
 - **Flights:** rotations drawn as journeys, per-sector detail inside its rotation, shared destination intelligence (local time, stay, weather, legitimate hotel actions). Weather comes from Open-Meteo, requested by the browser with the airport's coordinates only (no key, nothing personal; never in review mode).
@@ -55,3 +58,9 @@ npm test             # node --test, no dependencies (Node ≥ 21: test globs)
 | `tests/` | Node test suites and synthetic fixtures |
 | `docs/` | Audit, plan, data gaps, backend-hardening plan |
 | `legacy/index-v1.html` | The original GitHub frontend, preserved (no longer functional against the current backend) |
+
+## Offline roster (Step 6.6)
+
+After synchronization **in this browser or installed app**, wait for “Available offline” before relying on an airplane-mode restart. Saved roster data and the static application shell are stored separately; authenticated API responses are never placed in the service-worker cache. Sign out clears personal roster data; Reset also removes connection and preferences.
+
+After changing frontend files, run `npm run build:offline` to regenerate the content-verified static precache, then `npm test` (which checks that it is current). See [Step 6.6 implementation and iPhone acceptance](docs/STEP-6.6-OFFLINE.md) for migration, storage limitations, verification, and the physical-device checklist. No closed-app background synchronization is assumed.
